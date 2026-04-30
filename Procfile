@@ -1,1 +1,1 @@
-web: python manage.py migrate && python manage.py shell -c "from django.contrib.auth import get_user_model; User=get_user_model(); u,created=User.objects.get_or_create(username='admin', defaults={'email':'admin@test.com'}); u.is_staff=True; u.is_superuser=True; u.set_password('admin123'); u.save()" && python manage.py collectstatic --noinput && gunicorn farm_project.wsgi
+web: python manage.py migrate && python manage.py collectstatic --noinput && gunicorn farm_project.wsgi
