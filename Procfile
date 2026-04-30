@@ -1,1 +1,1 @@
-web: python manage.py migrate && python manage.py collectstatic --noinput && gunicorn farm_project.wsgi
+web: python manage.py migrate && python manage.py createsuperuser --noinput || true && python manage.py collectstatic --noinput && gunicorn farm_project.wsgi
