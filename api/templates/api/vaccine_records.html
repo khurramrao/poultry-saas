@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vaccine Record</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1f4e79;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+        }
+
+        th {
+            background: #1f4e79;
+            color: white;
+        }
+
+        .btn {
+            background: green;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+
+        .done {
+            color: green;
+            font-weight: bold;
+        }
+
+        .due {
+            color: #a06b00;
+            font-weight: bold;
+        }
+
+        .overdue {
+            color: red;
+            font-weight: bold;
+        }
+
+        .not-due {
+            color: gray;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Vaccine Record - {{ batch.batch_number }}</h1>
+    <p><strong>Shed:</strong> {{ batch.shed.name }}</p>
+    <p><strong>Start Date:</strong> {{ batch.start_date }}</p>
+    <p><strong>Starting Age:</strong> {{ batch.starting_age_days }} days</p>
+
+    <table>
+        <tr>
+            <th>Vaccine</th>
+            <th>Scheduled Day</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th>Given Date</th>
+            <th>Notes</th>
+            <th>Action</th>
+        </tr>
+
+        {% for record in records %}
+        <tr>
+            <td>{{ record.vaccine_name }}</td>
+            <td>{{ record.scheduled_day }}</td>
+            <td>{{ record.due_date }}</td>
+
+            <!-- STATUS -->
+            <td>
+                {% if record.status == 'done' %}
+                    <span class="done">Done</span>
+                {% elif record.status == 'overdue' %}
+                    <span class="overdue">Overdue</span>
+                {% else %}
+                    <span class="due">Due</span>
+                {% endif %}
+            </td>
+
+            <td>{{ record.given_date }}</td>
+            <td>{{ record.notes }}</td>
+
+            <!-- ACTION LOGIC -->
+            <td>
+                {% if record.status == 'done' %}
+                    <span class="done">Done</span>
+
+                {% elif record.due_date > today %}
+                    <span class="not-due">Not Due Yet</span>
+
+                {% else %}
+                    <a href="{% url 'mark_vaccine_done' record.id %}" class="btn">
+                        Mark Done
+                    </a>
+                {% endif %}
+            </td>
+
+        </tr>
+        {% endfor %}
+    </table>
+
+</body>
+</html>

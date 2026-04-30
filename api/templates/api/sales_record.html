@@ -1,0 +1,30 @@
+<h2>Sale Records - Batch # {{ batch.batch_number }}</h2>
+
+<p><strong>Total Birds Sold:</strong> {{ total_birds_sold }}</p>
+<p><strong>Total Revenue:</strong> Rs {{ total_revenue }}</p>
+
+<table border="1" cellpadding="8">
+    <tr>
+        <th>Date</th>
+        <th>Birds Sold</th>
+        <th>Avg Weight</th>
+        <th>Rate / KG</th>
+        <th>Total Amount</th>
+        <th>Notes</th>
+    </tr>
+
+    {% for record in records %}
+    <tr>
+        <td>{{ record.sale_date }}</td>
+        <td>{{ record.birds_sold }}</td>
+        <td>{{ record.average_weight_kg }}</td>
+        <td>{{ record.rate_per_kg }}</td>
+        <td>{{ record.total_amount }}</td>
+        <td>{{ record.notes }}</td>
+    </tr>
+    {% endfor %}
+</table>
+
+<br>
+
+<a href="{% url 'dashboard' %}">Back to Dashboard</a>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Meat Sales Summary</title>
+</head>
+<body>
+
+<h2>Meat Sales Summary</h2>
+
+<a href="{% url 'dashboard' %}">Back to Dashboard</a>
+
+<br><br>
+
+<table border="1" cellpadding="8">
+    <tr>
+        <th>Batch</th>
+        <th>Shed</th>
+        <th>Start Date</th>
+        <th>Total Sold</th>
+        <th>Total Revenue</th>
+        <th>Records</th>
+        <th>Action</th>
+    </tr>
+
+    {% for row in rows %}
+    <tr>
+        <td>Batch # {{ row.batch.batch_number }}</td>
+        <td>{{ row.batch.shed.name }}</td>
+        <td>{{ row.batch.start_date }}</td>
+        <td>{{ row.total_sold }}</td>
+        <td>Rs {{ row.total_revenue }}</td>
+        <td>{{ row.sales_count }}</td>
+        <td>
+            <a href="{% url 'meat_sale_detail' row.batch.id %}">
+                View Detail
+            </a>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

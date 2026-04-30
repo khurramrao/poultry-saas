@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Meat Sale Detail</title>
+</head>
+<body>
+
+<h2>Meat Sale Detail - Batch # {{ batch.batch_number }}</h2>
+
+<a href="{% url 'meat_sales_summary' %}">Back to Meat Sales</a>
+
+<p><strong>Total Sold:</strong> {{ total_sold }}</p>
+<p><strong>Total Revenue:</strong> Rs {{ total_revenue }}</p>
+
+<table border="1" cellpadding="8">
+    <tr>
+        <th>Date</th>
+        <th>Birds Sold</th>
+        <th>Average Weight KG</th>
+        <th>Rate / KG</th>
+        <th>Total Amount</th>
+        <th>Notes</th>
+    </tr>
+
+    {% for record in records %}
+    <tr>
+        <td>{{ record.sale_date }}</td>
+        <td>{{ record.birds_sold }}</td>
+        <td>{{ record.average_weight_kg }}</td>
+        <td>{{ record.rate_per_kg }}</td>
+        <td>Rs {{ record.total_amount }}</td>
+        <td>{{ record.notes }}</td>
+    </tr>
+    {% empty %}
+    <tr>
+        <td colspan="6">No sale records yet.</td>
+    </tr>
+    {% endfor %}
+</table>
+
+</body>
+</html>

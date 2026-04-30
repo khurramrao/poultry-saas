@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="30">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poultry Farm Dashboard</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+        }
+
+        .header {
+            background: #1f4e79;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 15px;
+        }
+
+        .shed-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .shed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .shed-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1f4e79;
+        }
+
+        .shed-type {
+            background: #e8f1fb;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 13px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .info-card {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .value {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1f4e79;
+        }
+
+        .alert-badge {
+            display: inline-block;
+            background: #ffe0e0;
+            color: #b00020;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+
+        .ok-badge {
+            display: inline-block;
+            background: #ddffdd;
+            color: green;
+            padding: 6px 10px;
+            border-radius: 6px;
+            margin-bottom: 5px;
+        }
+
+        .batch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .batch-card {
+            background: #f9fbfc;
+            border: 1px solid #e6edf3;
+            border-radius: 10px;
+            padding: 15px;
+        }
+
+        .batch-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1f4e79;
+            margin-bottom: 10px;
+        }
+
+        .batch-meta {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .section-title {
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #111;
+        }
+
+        .vaccine-box {
+            background: #fff8d6;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .overdue-box {
+            background: #ffe0e0;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .batch-alert-box {
+            margin-top: 12px;
+        }
+
+        .btn {
+            display: inline-block;
+            margin-top: 10px;
+            background: #1f4e79;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+        }
+
+        .muted-text {
+            color: #666;
+            font-size: 13px;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h2>Poultry Farm Dashboard</h2>
+</div>
+
+<div class="container">
+    <a href="{% url 'meat_sales_summary' %}" class="btn">
+    Meat Sales
+    </a>
+
+    {% for row in dashboard_rows %}
+
+    <div class="shed-card">
+
+        <div class="shed-header">
+            <div class="shed-name">{{ row.shed.name }}</div>
+            <div class="shed-type">{{ row.shed.shed_type|title }}</div>
+        </div>
+
+        <p>
+            <strong>Device:</strong>
+            {% if row.device %}
+                {{ row.device.device_id }}
+            {% else %}
+                No device assigned
+            {% endif %}
+        </p>
+
+        <p>
+            <strong>Last Update:</strong>
+            {% if row.latest %}
+                {{ row.latest.created_at }}
+            {% else %}
+                No sensor data available
+            {% endif %}
+        </p>
+
+        <!-- SENSOR DATA -->
+        <div class="info-grid">
+            <div class="info-card">
+                <div>Temperature</div>
+                <div class="value">
+                    {% if row.latest and row.latest.temperature is not None %}
+                        {{ row.latest.temperature }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div>Humidity</div>
+                <div class="value">
+                    {% if row.latest and row.latest.humidity is not None %}
+                        {{ row.latest.humidity }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div>Light</div>
+                <div class="value">
+                    {% if row.latest and row.latest.light_percent is not None %}
+                        {{ row.latest.light_percent }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div>Ammonia</div>
+                <div class="value">
+                    {% if row.latest and row.latest.ammonia_raw is not None %}
+                        {{ row.latest.ammonia_raw }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- SHED ALERTS -->
+        <h4 class="section-title">Shed Alerts</h4>
+
+        {% if row.alerts %}
+            {% for alert in row.alerts %}
+                <span class="alert-badge">{{ alert }}</span>
+            {% endfor %}
+        {% else %}
+            <span class="ok-badge">All Normal</span>
+        {% endif %}
+
+
+
+
+        <!-- BATCHES -->
+        <h3 class="section-title">Batches</h3>
+
+        <div class="batch-grid">
+
+            {% for batch_row in row.batches %}
+
+            <div class="batch-card">
+
+                <div class="batch-title">Batch # {{ batch_row.batch.batch_number }}</div>
+
+                <div class="batch-meta">
+                    Flock Start: {{ batch_row.batch.start_date }}<br>
+                    Starting Age: {{ batch_row.batch.starting_age_days }} days<br>
+                    Current Age: {{ batch_row.age_days }} days<br><br>
+
+                    Birds Start: {{ batch_row.batch.bird_count_initial }}<br>
+                    Mortality: {{ batch_row.total_mortality }}<br>
+                    Sold: {{ batch_row.total_sold }}<br>
+                    Current Birds: {{ batch_row.current_birds }}<br>
+                    Mortality %: {{ batch_row.mortality_percent }}%
+                </div>
+
+                <!-- BATCH ALERTS -->
+                <div class="batch-alert-box">
+                    <strong>Batch Alerts:</strong><br>
+                    {% if batch_row.alerts %}
+                        {% for alert in batch_row.alerts %}
+                            <span class="alert-badge">{{ alert }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <span class="ok-badge">All Normal</span>
+                    {% endif %}
+                </div>
+
+                {% if batch_row.overdue_vaccines %}
+                <div class="overdue-box">
+                    <strong>Overdue:</strong><br>
+                    {% for v in batch_row.overdue_vaccines %}
+                        • {{ v.vaccine_name }}<br>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if batch_row.due_today %}
+                <div class="vaccine-box">
+                    <strong>Today:</strong><br>
+                    {% for v in batch_row.due_today %}
+                        • {{ v.vaccine_name }}<br>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                {% if batch_row.due_tomorrow %}
+                <div class="vaccine-box">
+                    <strong>Tomorrow:</strong><br>
+                    {% for v in batch_row.due_tomorrow %}
+                        • {{ v.vaccine_name }}<br>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <a href="{% url 'close_batch' batch_row.batch.id %}"
+                   class="btn"
+                   onclick="return confirm('Are you sure this batch is sold/closed?');">
+                    Close Batch
+                </a>
+
+                <a href="{% url 'vaccine_records' batch_row.batch.id %}" class="btn">
+                    Vaccine Record
+                </a>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+</div>
+
+</body>
+</html>
