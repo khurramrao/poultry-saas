@@ -28,10 +28,10 @@ SECRET_KEY = 'django-insecure-p_rbo02+jj#+1nmp5g96p_k-sl-n)csn9y!+tb5ox5ezrm2ski
 DEBUG = os.environ.get("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS =  ['*']
+
 CSRF_TRUSTED_ORIGINS = [
     "https://web-production-ef92f.up.railway.app",
 ]
-
 
 # Application definition
 
