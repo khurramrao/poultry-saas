@@ -2,6 +2,7 @@ import json
 from datetime import date, timedelta
 from django.utils import timezone
 from django.conf import settings
+from django.db.models import Sum
 
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -148,6 +149,7 @@ def build_batch_summary(batch):
 def dashboard(request):
     sheds = Shed.objects.all()
     dashboard_rows = []
+    farm_total_birds = 0  # ✅ farm total
 
     for shed in sheds:
         devices = Device.objects.filter(shed=shed)
@@ -159,7 +161,6 @@ def dashboard(request):
         has_batch_alert = False
         device_offline = False
 
-        # Get latest reading for each device in this shed
         for device in devices:
             device_latest = SensorData.objects.filter(device=device).order_by('-created_at').first()
 
@@ -177,7 +178,6 @@ def dashboard(request):
                     "is_offline": is_offline,
                 })
 
-                # Pick newest reading among all devices for shed/batch logic
                 if latest is None or device_latest.created_at > latest.created_at:
                     latest = device_latest
 
@@ -199,7 +199,18 @@ def dashboard(request):
             is_active=True
         ).order_by('-start_date', 'batch_number')
 
-        # Build batch summaries
+        total_birds_in_shed = 0
+
+        for batch in active_batches:
+            total_mortality = MortalityRecord.objects.filter(batch=batch).aggregate(
+                total=Sum("count")
+            )["total"] or 0
+
+            current_birds = batch.bird_count_initial - total_mortality
+            total_birds_in_shed += current_birds
+
+        farm_total_birds += total_birds_in_shed  # ✅ add shed total to farm total
+
         for batch in active_batches:
             batch_summary = build_batch_summary(batch)
             batch_alerts = []
@@ -207,8 +218,6 @@ def dashboard(request):
             age_days = batch_summary["age_days"]
 
             if latest and not device_offline:
-
-                # Dynamic temperature rule from database
                 if latest.temperature is not None:
                     temp_rule = TemperatureRule.objects.filter(
                         shed_type=shed.shed_type,
@@ -224,7 +233,6 @@ def dashboard(request):
                     else:
                         batch_alerts.append("No Temp Rule")
 
-                # Humidity alerts still hardcoded for now
                 if latest.humidity is not None:
                     if latest.humidity < 45:
                         batch_alerts.append("Humidity Low")
@@ -233,10 +241,8 @@ def dashboard(request):
 
             if device_offline:
                 batch_summary["alerts"] = ["Device Offline"]
-
             elif not latest:
                 batch_summary["alerts"] = ["No Sensor Data"]
-
             else:
                 batch_summary["alerts"] = batch_alerts
 
@@ -245,7 +251,6 @@ def dashboard(request):
 
             batch_summaries.append(batch_summary)
 
-        # Shed-level sensor alerts from newest reading
         if latest and not device_offline:
             if latest.ammonia_raw is not None and latest.ammonia_raw > 600:
                 shed_alerts.append("Ammonia High")
@@ -267,11 +272,14 @@ def dashboard(request):
             "latest_readings": latest_readings,
             "alerts": shed_alerts,
             "batches": batch_summaries,
+            "total_birds_in_shed": total_birds_in_shed,
         })
 
     return render(request, "api/dashboard.html", {
-        "dashboard_rows": dashboard_rows
+        "dashboard_rows": dashboard_rows,
+        "farm_total_birds": farm_total_birds,  # ✅ send to HTML
     })
+
 @login_required
 def vaccine_records(request, batch_id):
     batch = get_object_or_404(Batch, id=batch_id)

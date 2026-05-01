@@ -171,12 +171,19 @@
     Meat Sales
     </a>
 
+<div style="text-align:center; background:white; padding:15px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:20px;">
+    <h2 style="color:#0f4c81; margin:0;">
+        🐔 Total Active Birds in Farm: {{ farm_total_birds }}
+    </h2>
+</div>
+
     {% for row in dashboard_rows %}
 
     <div class="shed-card">
 
         <div class="shed-header">
             <div class="shed-name">{{ row.shed.name }}</div>
+            <div class="shed-name">Total Birds: {{ row.total_birds_in_shed }}</div>
             <div class="shed-type">{{ row.shed.shed_type|title }}</div>
         </div>
 
@@ -261,6 +268,7 @@
 
         <!-- BATCHES -->
         <h3 class="section-title">Batches</h3>
+
 
         <div class="batch-grid">
 
