@@ -1,274 +1,410 @@
+{% load humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Finance Tracker</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            margin: 0;
-            color: #111827;
-        }
-
-        .header {
-            background: #1f4e79;
-            color: white;
-            text-align: center;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 20px auto;
-            padding: 15px;
-        }
-
-        .top-actions {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            display: inline-block;
-            background: #1f4e79;
-            color: white;
-            text-decoration: none;
-            padding: 10px 16px;
-            border-radius: 8px;
-        }
-
-        .sale-btn {
-            background: #16a34a;
-        }
-
-        .finance-card {
-            background: white;
-            border-radius: 14px;
-            padding: 22px;
-            margin-bottom: 24px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-        }
-
-        .card-title {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 18px;
-        }
-
-        .batch-name {
-            font-size: 22px;
-            font-weight: bold;
-            color: #1f4e79;
-        }
-
-        .status-badge {
-            background: #dff7df;
-            color: green;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-            gap: 12px;
-            margin-bottom: 22px;
-        }
-
-        .stat-box {
-            background: #f8fafc;
-            padding: 14px;
-            border-radius: 12px;
-            text-align: center;
-            border: 1px solid #edf1f5;
-        }
-
-        .stat-label {
-            font-size: 13px;
-            color: #667085;
-        }
-
-        .stat-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #1f4e79;
-            margin-top: 5px;
-        }
-
-        .section-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
-            gap: 16px;
-            margin-top: 16px;
-        }
-
-        .finance-section {
-            border: 1px solid #e5e7eb;
-            border-radius: 12px;
-            padding: 16px;
-            background: white;
-        }
-
-        .highlight-section {
-            background: #eef6ff;
-            border-color: #d9eaff;
-        }
-
-        .finance-section h4 {
-            margin: 0 0 12px 0;
-            color: #1f4e79;
-            font-size: 17px;
-        }
-
-        .sub-title {
-            margin: 16px 0 8px 0;
-            color: #344054;
-            font-size: 14px;
-            font-weight: bold;
-            border-top: 1px solid #eef2f6;
-            padding-top: 12px;
-        }
-
-        .finance-row {
-            display: grid;
-            grid-template-columns: minmax(210px, 1fr) 170px;
-            align-items: center;
-            padding: 7px 0;
-            font-size: 15px;
-            gap: 16px;
-        }
-
-        .finance-row span:last-child,
-        .finance-row strong:last-child {
-            text-align: right;
-            white-space: nowrap;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .total-row {
-            border-top: 1px solid #e5e7eb;
-            margin-top: 8px;
-            padding-top: 12px;
-        }
-
-        .sale-item,
-        .expense-item {
-            border: 1px solid #e5e7eb;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            background: #fafcff;
-            overflow: hidden;
-        }
-
-        .sale-item summary,
-        .expense-item summary {
-            padding: 12px;
-            cursor: pointer;
-            font-weight: bold;
-            color: #1f4e79;
-            list-style: none;
-        }
-
-        .sale-details,
-        .expense-details {
-            padding: 12px;
-            border-top: 1px solid #e5e7eb;
-            background: white;
-        }
-
-        .positive {
-            color: green;
-            font-weight: bold;
-        }
-
-        .muted {
-            color: #667085;
-        }
-
-       .roi-row{
-            display:grid;
-            grid-template-columns:1fr 1fr;
-            gap:18px;
-            margin-top:28px;
-            padding-top:18px;
-        }
-
-        .roi-row .roi-box:only-child{
-                grid-column:1 / 3;
-            }
-
-        .roi-box{
-            background:#eef6ff;
-            border:1px solid #d9eaff;
-            border-radius:12px;
-            padding:20px;
-            text-align:center;
-        }
-
-        .roi-title{
-            font-size:14px;
-            color:#1f4e79;
-            margin-bottom:10px;
-        }
-
-        .roi-value{
-            font-size:36px;
-            font-weight:bold;
-            color:#1f4e79;
-        }
-
-        @media(max-width:768px){
-            .roi-row{
-                grid-template-columns:1fr;
-            }
-        }
-        @media(max-width: 768px) {
-            .card-title,
-            .top-actions {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-
-            .section-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .finance-row {
-                grid-template-columns: 1fr;
-                gap: 4px;
-            }
-
-            .finance-row span:last-child,
-            .finance-row strong:last-child {
-                text-align: left;
-            }
-        }
-
-        .btn-feed{
-                background:#f59e0b;
-                color:white;
-                    }
-        .btn-medicine{
-                        background:#dc2626;
-                        color:white;
-                    }
-
-        .positive{
-    color:green;
-    font-weight:bold;
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    color: #111827;
+    overflow-x: hidden;
 }
 
-.negative{
-    color:#dc2626;
-    font-weight:bold;
+.header {
+    background: #1f4e79;
+    color: white;
+    text-align: center;
+    padding: 24px 15px;
+}
+
+.header h2 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.container {
+    max-width: 1200px;
+    width: 100%;
+    margin: 20px auto;
+    padding: 15px;
+    box-sizing: border-box;
+}
+
+.top-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-block;
+    background: #1f4e79;
+    color: white;
+    text-decoration: none;
+    padding: 11px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    box-sizing: border-box;
+}
+
+.sale-btn {
+    background: #16a34a;
+}
+
+.btn-feed {
+    background: #f59e0b;
+    color: white;
+}
+
+.btn-medicine {
+    background: #dc2626;
+    color: white;
+}
+
+.finance-card {
+    background: white;
+    border-radius: 14px;
+    padding: 22px;
+    margin-bottom: 24px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    box-sizing: border-box;
+}
+
+.card-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    gap: 10px;
+}
+
+.batch-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: #1f4e79;
+}
+
+.status-badge {
+    background: #dff7df;
+    color: green;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.stat-box {
+    background: #f8fafc;
+    padding: 16px;
+    border-radius: 12px;
+    text-align: center;
+    border: 1px solid #edf1f5;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #667085;
+}
+
+.stat-value {
+    font-size: 26px;
+    font-weight: bold;
+    color: #1f4e79;
+    margin-top: 5px;
+}
+
+.section-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+.finance-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px;
+    background: white;
+    box-sizing: border-box;
+}
+
+.highlight-section {
+    background: #eef6ff;
+    border-color: #d9eaff;
+}
+
+.finance-section h4 {
+    margin: 0 0 12px 0;
+    color: #1f4e79;
+    font-size: 20px;
+}
+
+.sub-title {
+    margin: 16px 0 8px 0;
+    color: #344054;
+    font-size: 15px;
+    font-weight: bold;
+    border-top: 1px solid #eef2f6;
+    padding-top: 12px;
+}
+
+.finance-row {
+    display: grid;
+    grid-template-columns: minmax(210px, 1fr) 170px;
+    align-items: center;
+    padding: 8px 0;
+    font-size: 15px;
+    gap: 16px;
+}
+
+.finance-row span:last-child,
+.finance-row strong:last-child {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.total-row {
+    border-top: 1px solid #e5e7eb;
+    margin-top: 8px;
+    padding-top: 12px;
+}
+
+.sale-item,
+.expense-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    background: #fafcff;
+    overflow: hidden;
+}
+
+.sale-item summary,
+.expense-item summary {
+    padding: 13px;
+    cursor: pointer;
+    font-weight: bold;
+    color: #1f4e79;
+    list-style: none;
+    font-size: 15px;
+}
+
+.sale-details,
+.expense-details {
+    padding: 13px;
+    border-top: 1px solid #e5e7eb;
+    background: white;
+}
+
+.positive {
+    color: green;
+    font-weight: bold;
+}
+
+.negative {
+    color: #dc2626;
+    font-weight: bold;
+}
+
+.muted {
+    color: #667085;
+}
+
+.roi-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-top: 28px;
+    padding-top: 18px;
+}
+
+.roi-row .roi-box:only-child {
+    grid-column: 1 / 3;
+}
+
+.roi-box {
+    background: #eef6ff;
+    border: 1px solid #d9eaff;
+    border-radius: 12px;
+    padding: 22px;
+    text-align: center;
+}
+
+.roi-title {
+    font-size: 15px;
+    color: #1f4e79;
+    margin-bottom: 10px;
+}
+
+.roi-value {
+    font-size: 38px;
+    font-weight: bold;
+    color: #1f4e79;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .header {
+        padding: 28px 12px;
+    }
+
+    .header h2 {
+        font-size: 28px;
+    }
+
+    .container {
+        max-width: 100%;
+        width: 100%;
+        padding: 12px;
+        margin: 12px auto;
+    }
+
+    .top-actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .btn {
+        width: 100%;
+        text-align: center;
+        font-size: 17px;
+        padding: 14px;
+    }
+
+    .finance-card {
+        padding: 18px;
+        border-radius: 16px;
+    }
+
+    .card-title {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .batch-name {
+        font-size: 25px;
+        line-height: 1.3;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+
+    .stat-box {
+        padding: 16px 10px;
+    }
+
+    .stat-label {
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .stat-value {
+        font-size: 26px;
+    }
+
+    .section-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+
+    .finance-section {
+        padding: 18px;
+    }
+
+    .finance-section h4 {
+        font-size: 22px;
+    }
+
+    .sub-title {
+        font-size: 16px;
+    }
+
+    .finance-row {
+        display: grid;
+        grid-template-columns: 1fr 125px;
+        gap: 12px;
+        padding: 11px 0;
+        font-size: 16px;
+    }
+
+    .finance-row span:first-child,
+    .finance-row strong:first-child {
+        text-align: left;
+    }
+
+    .finance-row span:last-child,
+    .finance-row strong:last-child {
+        text-align: right;
+        white-space: nowrap;
+        font-size: 16px;
+    }
+
+    .sale-item summary,
+    .expense-item summary {
+        font-size: 17px;
+        padding: 15px;
+    }
+
+    .sale-details,
+    .expense-details {
+        padding: 15px;
+    }
+
+    .roi-row {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    .roi-row .roi-box:only-child {
+        grid-column: auto;
+    }
+
+    .roi-box {
+        padding: 24px;
+    }
+
+    .roi-title {
+        font-size: 16px;
+    }
+
+    .roi-value {
+        font-size: 38px;
+    }
+}
+
+@media (max-width: 480px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .finance-card {
+        padding: 15px;
+    }
+
+    .finance-section {
+        padding: 15px;
+    }
+
+    .finance-row {
+        grid-template-columns: 1fr 115px;
+        gap: 10px;
+    }
 }
     </style>
 </head>
@@ -356,39 +492,39 @@
 
                         <div class="sub-title">COGS</div>
 
-                        <div class="finance-row"><span>Chick Cost</span><span>Rs {{ row.chick_cost|floatformat:2 }}</span></div>
-                        <div class="finance-row"><span>Feed Cost</span><span>Rs {{ row.feed_cost|floatformat:2 }}</span></div>
-                        <div class="finance-row"><span>Medicine Cost</span><span>Rs {{ row.medicine_cost|floatformat:2 }}</span></div>
-                        <div class="finance-row"><span>Carriage Cost</span><span>Rs {{ row.carriage_cost|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Chick Cost</span><span>Rs {{ row.chick_cost|floatformat:2|intcomma }}</span></div>
+                        <div class="finance-row"><span>Feed Cost</span><span>Rs {{ row.feed_cost|floatformat:2|intcomma }}</span></div>
+                        <div class="finance-row"><span>Medicine Cost</span><span>Rs {{ row.medicine_cost|floatformat:2|intcomma }}</span></div>
+                        <div class="finance-row"><span>Carriage Cost</span><span>Rs {{ row.carriage_cost|floatformat:2|intcomma }}</span></div>
 
                         <div class="finance-row total-row">
                             <strong>Total COGS</strong>
-                            <strong>Rs {{ row.total_cogs|floatformat:2 }}</strong>
+                            <strong>Rs {{ row.total_cogs|floatformat:2|intcomma }}</strong>
                         </div>
 
                         <div class="sub-title">Sales Summary</div>
 
                         <div class="finance-row"><span>Total Birds Sold</span><span>{{ row.total_sold }}</span></div>
-                        <div class="finance-row"><span>Total Weight Sold</span><span>{{ row.total_sale_weight|floatformat:2 }} kg</span></div>
+                        <div class="finance-row"><span>Total Weight Sold</span><span>{{ row.total_sale_weight|floatformat:2|intcomma }} kg</span></div>
                         <div class="finance-row"><span>Average Weight</span><span>{{ row.average_sale_weight|floatformat:3 }} kg</span></div>
-                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ row.average_sale_rate|floatformat:2 }}/kg</span></div>
-                        <div class="finance-row"><span>Total Discount</span><span>Rs {{ row.total_discount|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ row.average_sale_rate|floatformat:2|intcomma }}/kg</span></div>
+                        <div class="finance-row"><span>Total Discount</span><span>Rs {{ row.total_discount|floatformat:2|intcomma }}</span></div>
 
                         <div class="finance-row total-row">
                             <strong>Total Net Sales Revenue</strong>
-                            <strong>Rs {{ row.total_sales_revenue|floatformat:2 }}</strong>
+                            <strong>Rs {{ row.total_sales_revenue|floatformat:2|intcomma }}</strong>
                         </div>
 
                         <div class="finance-row">
                             <span>Sold Birds COGS</span>
-                            <span>Rs {{ row.batch_locked_cogs_total|floatformat:2 }}</span>
+                            <span>Rs {{ row.batch_locked_cogs_total|floatformat:2|intcomma }}</span>
                         </div>
 
                         <div class="sub-title">Expenses</div>
 
                         <div class="finance-row total-row">
                             <strong>Total Expenses</strong>
-                            <strong>Rs {{ row.total_expenses|floatformat:2 }}</strong>
+                            <strong>Rs {{ row.total_expenses|floatformat:2|intcomma }}</strong>
                         </div>
 
                         <details class="expense-item">
@@ -399,7 +535,7 @@
                                     {% for expense in row.expense_history %}
                                         <div class="finance-row">
                                             <span>{{ expense.expense_date }} — {{ expense.category }}</span>
-                                            <span>Rs {{ expense.amount|floatformat:2 }}</span>
+                                            <span>Rs {{ expense.amount|floatformat:2|intcomma }}</span>
                                         </div>
 
 
@@ -413,7 +549,7 @@
                         <div class="finance-row total-row">
                             <strong>Batch Net Income</strong>
                            <span class="{% if row.batch_net_income < 0 %}negative{% else %}positive{% endif %}">
-                                Rs {{ row.batch_net_income|floatformat:2 }}
+                                Rs {{ row.batch_net_income|floatformat:2|intcomma }}
                             </span>
                         </div>
                     </div>
@@ -426,39 +562,39 @@
                         <div class="finance-row"><span>Starting Birds</span><span>{{ row.admin_birds }}</span></div>
                         <div class="finance-row"><span>Current Birds</span><span>{{ row.admin_current_birds }}</span></div>
                         <div class="finance-row"><span>Birds Sold</span><span>{{ row.admin_sold }}</span></div>
-                        <div class="finance-row"><span>Weight Sold</span><span>{{ row.admin_weight_sold|floatformat:2 }} kg</span></div>
+                        <div class="finance-row"><span>Weight Sold</span><span>{{ row.admin_weight_sold|floatformat:2|intcomma }} kg</span></div>
 
                         <div class="sub-title">Admin COGS</div>
 
-                        <div class="finance-row"><span>Chick Cost Share</span><span>Rs {{ row.admin_chick_cost_share|floatformat:2 }}</span></div>
-                        <div class="finance-row"><span>Feed Cost Share</span><span>Rs {{ row.admin_feed_cost_share|floatformat:2 }}</span></div>
-                        <div class="finance-row"><span>Medicine Cost Share</span><span>Rs {{ row.admin_medicine_cost_share|floatformat:2 }}</span></div>
-                        <div class="finance-row"><span>Carriage Cost Share</span><span>Rs {{ row.admin_carriage_cost_share|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Chick Cost Share</span><span>Rs {{ row.admin_chick_cost_share|floatformat:2|intcomma }}</span></div>
+                        <div class="finance-row"><span>Feed Cost Share</span><span>Rs {{ row.admin_feed_cost_share|floatformat:2|intcomma }}</span></div>
+                        <div class="finance-row"><span>Medicine Cost Share</span><span>Rs {{ row.admin_medicine_cost_share|floatformat:2|intcomma }}</span></div>
+                        <div class="finance-row"><span>Carriage Cost Share</span><span>Rs {{ row.admin_carriage_cost_share|floatformat:2|intcomma }}</span></div>
 
                         <div class="finance-row total-row">
                             <strong>Admin Total COGS Share</strong>
-                            <strong>Rs {{ row.admin_cogs_share|floatformat:2 }}</strong>
+                            <strong>Rs {{ row.admin_cogs_share|floatformat:2|intcomma }}</strong>
                         </div>
 
                         <div class="sub-title">Admin Sales</div>
 
-                        <div class="finance-row"><span>Discount Share</span><span>Rs {{ row.admin_discount_share|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Discount Share</span><span>Rs {{ row.admin_discount_share|floatformat:2|intcomma }}</span></div>
 
                         <div class="finance-row total-row">
                             <strong>Revenue Share</strong>
-                            <strong>Rs {{ row.admin_sales_revenue|floatformat:2 }}</strong>
+                            <strong>Rs {{ row.admin_sales_revenue|floatformat:2|intcomma }}</strong>
                         </div>
 
                         <div class="finance-row">
                             <span>Sold Birds COGS</span>
-                            <span>Rs {{ row.admin_locked_cogs_total|floatformat:2 }}</span>
+                            <span>Rs {{ row.admin_locked_cogs_total|floatformat:2|intcomma }}</span>
                         </div>
 
                         <div class="sub-title">Admin Expenses</div>
 
                         <div class="finance-row">
                             <span>Expense Share</span>
-                            <span>Rs {{ row.admin_expense_share|floatformat:2 }}</span>
+                            <span>Rs {{ row.admin_expense_share|floatformat:2|intcomma }}</span>
                         </div>
 
                         <details class="expense-item">
@@ -470,7 +606,7 @@
 
                                         <div class="finance-row">
                                             <span>{{ expense.expense_date }} — {{ expense.category }}</span>
-                                            <span>Rs {{ expense.admin_share_amount|floatformat:2 }}</span>
+                                            <span>Rs {{ expense.admin_share_amount|floatformat:2|intcomma }}</span>
                                         </div>
 
 
@@ -484,7 +620,7 @@
 
                         <div class="finance-row total-row">
                             <strong>Admin Net Income</strong>
-                            <strong class="positive">Rs {{ row.admin_net_income|floatformat:2 }}</strong>
+                            <strong class="positive">Rs {{ row.admin_net_income|floatformat:2|intcomma }}</strong>
                         </div>
 
                         <div class="sub-title">Admin Sale History</div>
@@ -493,26 +629,26 @@
                             {% for sale in row.sale_history %}
                                 <details class="sale-item">
                                     <summary>
-                                       Sale #{{ forloop.revcounter }} • {{ sale.admin_birds_sold }} Birds • Rs {{ sale.admin_revenue|floatformat:0 }}
+                                       Sale #{{ forloop.revcounter }} • {{ sale.admin_birds_sold }} Birds • Rs {{ sale.admin_revenue|floatformat:0|intcomma }}
                                     </summary>
 
                                     <div class="sale-details">
                                         <div class="finance-row"><span>Date</span><span>{{ sale.sale_date }}</span></div>
                                         <div class="finance-row"><span>Admin Birds Sold</span><span>{{ sale.admin_birds_sold }}</span></div>
-                                        <div class="finance-row"><span>Admin Weight Sold</span><span>{{ sale.admin_weight_sold|floatformat:2 }} kg</span></div>
-                                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:2 }}</span></div>
-                                        <div class="finance-row"><span>Revenue Share</span><span>Rs {{ sale.admin_gross_revenue|floatformat:2 }}</span></div>
-                                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ sale.admin_discount|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Admin Weight Sold</span><span>{{ sale.admin_weight_sold|floatformat:2|intcomma }} kg</span></div>
+                                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:2|intcomma }}</span></div>
+                                        <div class="finance-row"><span>Revenue Share</span><span>Rs {{ sale.admin_gross_revenue|floatformat:2|intcomma }}</span></div>
+                                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ sale.admin_discount|floatformat:2|intcomma }}</span></div>
                                          <div class="finance-row total-row">
                                             <strong>Your Net Revenue</strong>
-                                            <strong>Rs {{ sale.admin_net_revenue|floatformat:2 }}</strong>
+                                            <strong>Rs {{ sale.admin_net_revenue|floatformat:2|intcomma }}</strong>
                                         </div>
-                                        <div class="finance-row"><span>Locked COGS Share</span><span>Rs {{ sale.admin_cogs|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Locked COGS Share</span><span>Rs {{ sale.admin_cogs|floatformat:2|intcomma }}</span></div>
 
                                         <div class="finance-row total-row">
                                             <strong>Admin Sale Profit</strong>
                                            <span class="{% if sale.admin_profit < 0 %}negative{% else %}positive{% endif %}">
-                                                Rs {{ sale.admin_profit|floatformat:2 }}
+                                                Rs {{ sale.admin_profit|floatformat:2|intcomma }}
                                             </span>
                                         </div>
                                     </div>
@@ -530,22 +666,22 @@
                             {% for sale in row.sale_history %}
                                 <details class="sale-item">
                                     <summary>
-                                        Sale #{{ forloop.revcounter }} • {{ sale.birds_sold }} Birds • Rs {{ sale.total_amount|floatformat:0 }}
+                                        Sale #{{ forloop.revcounter }} • {{ sale.birds_sold }} Birds • Rs {{ sale.total_amount|floatformat:0|intcomma }}
                                     </summary>
 
                                     <div class="sale-details">
                                         <div class="finance-row"><span>Date</span><span>{{ sale.sale_date }}</span></div>
                                         <div class="finance-row"><span>Birds Sold</span><span>{{ sale.birds_sold }}</span></div>
-                                        <div class="finance-row"><span>Total Weight</span><span>{{ sale.total_weight_kg|floatformat:2 }} kg</span></div>
-                                        <div class="finance-row"><span>Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:2 }}</span></div>
-                                        <div class="finance-row"><span>Discount</span><span>Rs {{ sale.discount_amount|floatformat:2 }}</span></div>
-                                        <div class="finance-row"><span>Net Revenue</span><span>Rs {{ sale.total_amount|floatformat:2 }}</span></div>
-                                        <div class="finance-row"><span>Locked COGS</span><span>Rs {{ sale.cogs_allocated|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Total Weight</span><span>{{ sale.total_weight_kg|floatformat:2|intcomma }} kg</span></div>
+                                        <div class="finance-row"><span>Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:2|intcomma }}</span></div>
+                                        <div class="finance-row"><span>Discount</span><span>Rs {{ sale.discount_amount|floatformat:2|intcomma }}</span></div>
+                                        <div class="finance-row"><span>Net Revenue</span><span>Rs {{ sale.total_amount|floatformat:2|intcomma }}</span></div>
+                                        <div class="finance-row"><span>Locked COGS</span><span>Rs {{ sale.cogs_allocated|floatformat:2|intcomma }}</span></div>
 
                                         <div class="finance-row total-row">
                                             <strong>Gross Profit</strong>
                                             <span class="{% if sale.gross_profit < 0 %}negative{% else %}positive{% endif %}">
-                                                Rs {{ sale.gross_profit|floatformat:2 }}
+                                                Rs {{ sale.gross_profit|floatformat:2|intcomma }}
                                             </span>
                                         </div>
                                     </div>
@@ -565,14 +701,14 @@
                     <div class="finance-section">
                         <h4>Your COGS</h4>
 
-                        <div class="finance-row"><span>Your Chick Cost Share</span><span>Rs {{ row.investor_chick_cost_share|floatformat:2 }}</span></div>
-                        <div class="finance-row"><span>Your Feed Cost Share</span><span>Rs {{ row.investor_feed_cost|floatformat:2 }}</span></div>
-                        <div class="finance-row"><span>Your Medicine Cost Share</span><span>Rs {{ row.investor_medicine_cost|floatformat:2 }}</span></div>
-                        <div class="finance-row"><span>Your Carriage Cost Share</span><span>Rs {{ row.investor_carriage_cost|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Your Chick Cost</span><span>Rs {{ row.investor_chick_cost_share|floatformat:2|intcomma }}</span></div>
+                        <div class="finance-row"><span>Your Feed Cost</span><span>Rs {{ row.investor_feed_cost|floatformat:2|intcomma }}</span></div>
+                        <div class="finance-row"><span>Your Medicine Cost</span><span>Rs {{ row.investor_medicine_cost|floatformat:2|intcomma }}</span></div>
+                        <div class="finance-row"><span>Your Carriage Cost</span><span>Rs {{ row.investor_carriage_cost|floatformat:2|intcomma }}</span></div>
 
                         <div class="finance-row total-row">
                             <strong>Your Total COGS Share</strong>
-                            <strong>Rs {{ row.investor_cogs_share|floatformat:2 }}</strong>
+                            <strong>Rs {{ row.investor_cogs_share|floatformat:2|intcomma }}</strong>
                         </div>
                     </div>
 
@@ -580,14 +716,14 @@
                         <h4>Your Sales Summary</h4>
 
                         <div class="finance-row"><span>Average Weight</span><span>{{ row.average_sale_weight|floatformat:3 }} kg</span></div>
-                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ row.average_sale_rate|floatformat:2 }}/kg</span></div>
+                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ row.average_sale_rate|floatformat:2|intcomma }}/kg</span></div>
                         <div class="finance-row"><span>Your Birds Sold</span><span>{{ row.investor_sold }}</span></div>
-                        <div class="finance-row"><span>Your Weight Sold</span><span>{{ row.investor_weight_sold|floatformat:2 }} kg</span></div>
-                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ row.investor_discount_share|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Your Weight Sold</span><span>{{ row.investor_weight_sold|floatformat:2|intcomma }} kg</span></div>
+                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ row.investor_discount_share|floatformat:2|intcomma }}</span></div>
 
                         <div class="finance-row total-row">
                             <strong>Your Revenue Share</strong>
-                            <strong>Rs {{ row.investor_sales_revenue|floatformat:2 }}</strong>
+                            <strong>Rs {{ row.investor_sales_revenue|floatformat:2|intcomma }}</strong>
                         </div>
                     </div>
 
@@ -598,26 +734,26 @@
                             {% for sale in row.sale_history %}
                                 <details class="sale-item">
                                     <summary>
-                                       Sale #{{ forloop.revcounter }} • {{ sale.investor_birds_sold }} Birds • Rs {{ sale.investor_revenue|floatformat:0 }}
+                                       Sale #{{ forloop.revcounter }} • {{ sale.investor_birds_sold }} Birds • Rs {{ sale.investor_gross_revenue|floatformat:2|intcomma }}
                                     </summary>
 
                                     <div class="sale-details">
                                         <div class="finance-row"><span>Date</span><span>{{ sale.sale_date }}</span></div>
                                         <div class="finance-row"><span>Your Birds Sold</span><span>{{ sale.investor_birds_sold }}</span></div>
-                                        <div class="finance-row"><span>Your Weight Sold</span><span>{{ sale.investor_weight_sold|floatformat:2 }} kg</span></div>
-                                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:2 }}</span></div>
-                                        <div class="finance-row"><span>Your Revenue</span><span>Rs {{ sale.investor_gross_revenue|floatformat:2 }}</span></div>
-                                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ sale.investor_discount|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Your Weight Sold</span><span>{{ sale.investor_weight_sold|floatformat:2|intcomma }} kg</span></div>
+                                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:2|intcomma }}</span></div>
+                                        <div class="finance-row"><span>Your Revenue</span><span>Rs {{ sale.investor_gross_revenue|floatformat:2|intcomma }}</span></div>
+                                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ sale.investor_discount|floatformat:2|intcomma }}</span></div>
                                         <div class="finance-row total-row">
                                             <strong>Your Net Revenue</strong>
-                                            <strong>Rs {{ sale.investor_net_revenue|floatformat:2 }}</strong>
+                                            <strong>Rs {{ sale.investor_net_revenue|floatformat:2|intcomma }}</strong>
                                         </div>
-                                        <div class="finance-row"><span>Your Locked COGS</span><span>Rs {{ sale.investor_cogs|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Your Locked COGS</span><span>Rs {{ sale.investor_cogs|floatformat:2|intcomma }}</span></div>
 
                                         <div class="finance-row total-row">
                                             <strong>Your Sale Profit</strong>
                                             <span class="{% if sale.investor_profit < 0 %}negative{% else %}positive{% endif %}">
-                                                Rs {{ sale.investor_profit|floatformat:2 }}
+                                                Rs {{ sale.investor_profit|floatformat:2|intcomma }}
                                             </span>
                                         </div>
                                     </div>
@@ -633,17 +769,17 @@
 
                         <div class="finance-row">
                             <span>Revenue Share</span>
-                            <span>Rs {{ row.investor_sales_revenue|floatformat:2 }}</span>
+                            <span>Rs {{ row.investor_sales_revenue|floatformat:2|intcomma }}</span>
                         </div>
 
                         <div class="finance-row">
                             <span>Sold Birds COGS</span>
-                            <span>Rs {{ row.investor_locked_cogs_total|floatformat:2 }}</span>
+                            <span>Rs {{ row.investor_locked_cogs_total|floatformat:2|intcomma }}</span>
                         </div>
 
                         <div class="finance-row">
                             <span>Expense Share</span>
-                            <span>Rs {{ row.investor_expense_share|floatformat:2 }}</span>
+                            <span>Rs {{ row.investor_expense_share|floatformat:2|intcomma }}</span>
                         </div>
                         <details class="expense-item">
                             <summary>View Expense Details</summary>
@@ -654,7 +790,7 @@
 
                                         <div class="finance-row">
                                             <span>{{ expense.expense_date }} — {{ expense.category }}</span>
-                                            <span>Rs {{ expense.investor_share_amount|floatformat:2 }}</span>
+                                            <span>Rs {{ expense.investor_share_amount|floatformat:2|intcomma }}</span>
                                         </div>
 
 
@@ -668,7 +804,7 @@
 
                         <div class="finance-row total-row">
                             <strong>Net Income</strong>
-                            <strong class="positive">Rs  {{ row.investor_net_income|floatformat:2 }}</strong>
+                            <strong class="positive">Rs  {{ row.investor_net_income|floatformat:2|intcomma }}</strong>
                         </div>
                     </div>
 

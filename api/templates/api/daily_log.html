@@ -1,170 +1,281 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Log</title>
 
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            margin: 0;
-            color: #111827;
-        }
+  body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    color: #111827;
+}
 
-        .header {
-            background: #1f4e79;
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
+.header {
+    background: #1f4e79;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
 
-        .container {
-            max-width: 950px;
-            margin: 25px auto;
-            padding: 15px;
-        }
+.container {
+    max-width: 950px;
+    margin: 25px auto;
+    padding: 15px;
+}
 
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 18px;
-            margin-bottom: 18px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-        }
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
 
-        .btn {
-            display: inline-block;
-            background: #1f4e79;
-            color: white;
-            padding: 9px 14px;
-            border-radius: 7px;
-            text-decoration: none;
-            border: none;
-            cursor: pointer;
-            margin-right: 8px;
-        }
+.btn {
+    display: inline-block;
+    background: #1f4e79;
+    color: white;
+    padding: 9px 14px;
+    border-radius: 7px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    margin-right: 8px;
+}
 
-        .title {
-            color: #1f4e79;
-            margin-top: 0;
-        }
+.title {
+    color: #1f4e79;
+    margin-top: 0;
+}
 
-        input, textarea, select {
-            width: 100%;
-            padding: 10px;
-            margin-top: 6px;
-            margin-bottom: 12px;
-            border: 1px solid #d0d7de;
-            border-radius: 6px;
-            box-sizing: border-box;
-        }
+input, textarea, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    margin-bottom: 12px;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
 
-        .log-item {
-            border-left: 5px solid #1f4e79;
-        }
+.log-item {
+    border-left: 5px solid #1f4e79;
+}
 
-        .log-item.sale {
-            border-left-color: #16a34a;
-        }
+.log-item.sale {
+    border-left-color: #16a34a;
+}
 
-        .log-item.feed {
-            border-left-color: #f59e0b;
-        }
+.log-item.feed {
+    border-left-color: #f59e0b;
+}
 
-        .log-item.medicine {
-            border-left-color: #dc2626;
-        }
+.log-item.medicine {
+    border-left-color: #dc2626;
+}
 
-        .log-item.expense {
-            border-left-color: #7c3aed;
-        }
+.log-item.expense {
+    border-left-color: #7c3aed;
+}
 
-        .log-item.mortality {
-            border-left-color: #1f4e79;
-        }
+.log-item.mortality {
+    border-left-color: #1f4e79;
+}
 
-        .log-date {
-            color: #667085;
-            font-size: 13px;
-            margin-bottom: 6px;
-        }
+.log-date {
+    color: #667085;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
 
-        .log-heading {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
+.log-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
 
-        .log-icon {
-            font-size: 28px;
-        }
+.log-icon {
+    font-size: 28px;
+}
 
-        .log-heading h3 {
-            margin: 0;
-            color: #1f4e79;
-        }
+.log-heading h3 {
+    margin: 0;
+    color: #1f4e79;
+    font-size: 20px;
+}
 
-        .batch-label {
-            color: #667085;
-            font-size: 14px;
-            margin-top: 4px;
-        }
+.batch-label {
+    color: #667085;
+    font-size: 14px;
+    margin-top: 4px;
+}
 
-        .stat-row {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin: 12px 0;
-        }
+.stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 12px 0;
+}
 
-        .stat {
-            background: #f8fafc;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-        }
+.stat {
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+}
 
-        .stat span {
-            display: block;
-            color: #667085;
-            font-size: 13px;
-        }
+.stat span {
+    display: block;
+    color: #667085;
+    font-size: 13px;
+}
 
-        .stat strong {
-            display: block;
-            color: #1f4e79;
-            font-size: 22px;
-            margin-top: 4px;
-        }
+.stat strong {
+    display: block;
+    color: #1f4e79;
+    font-size: 20px;
+    margin-top: 4px;
+    line-height: 1.4;
+}
 
-        .note {
-            background: #fff8d6;
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 10px;
-        }
+.note {
+    background: #fff8d6;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
 
-        .breakdown {
-            margin-top: 12px;
-            background: #f4f7fa;
-            padding: 12px;
-            border-radius: 8px;
-        }
+.breakdown {
+    margin-top: 12px;
+    background: #f4f7fa;
+    padding: 12px;
+    border-radius: 8px;
+}
 
-        .breakdown-item {
-            padding: 6px 0;
-            border-bottom: 1px solid #e3eaf0;
-        }
+.breakdown-item {
+    padding: 6px 0;
+    border-bottom: 1px solid #e3eaf0;
+}
 
-        .breakdown-item:last-child {
-            border-bottom: none;
-        }
+.breakdown-item:last-child {
+    border-bottom: none;
+}
 
-        .actions {
-            margin-bottom: 18px;
-        }
+.actions {
+    margin-bottom: 18px;
+}
+
+@media (max-width: 768px) {
+    .header {
+        padding: 18px 12px;
+    }
+
+    .header h2 {
+        font-size: 26px;
+        margin: 0;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 100%;
+        padding: 12px;
+        margin: 12px auto;
+        box-sizing: border-box;
+    }
+
+    .card {
+        padding: 18px;
+        border-radius: 14px;
+        margin-bottom: 16px;
+    }
+
+    .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .btn {
+        width: 100%;
+        box-sizing: border-box;
+        text-align: center;
+        font-size: 16px;
+        padding: 13px;
+        margin-right: 0;
+    }
+
+    .title {
+        font-size: 23px;
+        line-height: 1.4;
+    }
+
+    .log-date {
+        font-size: 15px;
+        margin-bottom: 10px;
+    }
+
+    .log-heading {
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .log-icon {
+        font-size: 34px;
+    }
+
+    .log-heading h3 {
+        font-size: 23px;
+        line-height: 1.3;
+    }
+
+    .batch-label {
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    .stat-row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .stat {
+        padding: 16px;
+        text-align: left;
+    }
+
+    .stat span {
+        font-size: 15px;
+    }
+
+    .stat strong {
+        font-size: 20px;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+
+    .note {
+        font-size: 16px;
+        line-height: 1.6;
+        padding: 14px;
+    }
+
+    .breakdown {
+        padding: 14px;
+    }
+
+    .breakdown-item {
+        font-size: 16px;
+        line-height: 1.6;
+    }
+
+    input, textarea, select {
+        font-size: 16px;
+        padding: 13px;
+    }
+}
     </style>
 </head>
 
