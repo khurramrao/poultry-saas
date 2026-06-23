@@ -1,4 +1,6 @@
 from django.contrib import admin
+
+from api.models import InvestorProfile, InvestorAllocation, BatchCost, FeedEntry, MedicineEntry
 from api.models.sensor import (
     Shed,
     Device,
@@ -9,7 +11,9 @@ from api.models.sensor import (
     VaccineRecord,
 )
 from api.models.temperature import TemperatureRule
-from api.models.sales import SaleRecord
+from api.models.sales import SaleRecord, Expense
+
+
 
 @admin.register(Shed)
 class ShedAdmin(admin.ModelAdmin):
@@ -85,5 +89,59 @@ class VaccineRecordAdmin(admin.ModelAdmin):
     list_filter = ('batch', 'status', 'due_date')
     search_fields = ('batch__batch_number', 'vaccine_name')
 
+@admin.register(BatchCost)
+class BatchCostAdmin(admin.ModelAdmin):
+    list_display = (
+        "batch",
+        "chick_cost",
+        "carriage_cost",
+        "feed_cost",
+        "medicine_cost",
+        "total_cogs",
+        "updated_at",
+    )
+
+
+@admin.register(SaleRecord)
+class SaleRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "batch",
+        "sale_date",
+        "birds_sold",
+        "total_weight_kg",
+        "rate_per_kg",
+        "average_weight_kg",
+        "gross_amount",
+        "discount_amount",
+        "total_amount",
+        "created_at",
+    )
+
+
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = (
+        "batch",
+        "expense_date",
+        "category",
+        "description",
+        "amount",
+        "created_at",
+    )
+
+@admin.register(FeedEntry)
+class FeedEntryAdmin(admin.ModelAdmin):
+    list_display = ("batch", "entry_date", "amount", "notes", "created_at")
+
+
+@admin.register(MedicineEntry)
+class MedicineEntryAdmin(admin.ModelAdmin):
+    list_display = ("batch", "entry_date", "amount", "notes", "created_at")
+
 admin.site.register(TemperatureRule)
-admin.site.register(SaleRecord)
+
+admin.site.register(InvestorProfile)
+admin.site.register(InvestorAllocation)
+
+
+

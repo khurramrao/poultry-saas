@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Daily Log</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+            color: #111827;
+        }
+
+        .header {
+            background: #1f4e79;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: 25px auto;
+            padding: 15px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 18px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        .btn {
+            display: inline-block;
+            background: #1f4e79;
+            color: white;
+            padding: 9px 14px;
+            border-radius: 7px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        .title {
+            color: #1f4e79;
+            margin-top: 0;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            margin-bottom: 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        .log-item {
+            border-left: 5px solid #1f4e79;
+        }
+
+        .log-item.sale {
+            border-left-color: #16a34a;
+        }
+
+        .log-item.feed {
+            border-left-color: #f59e0b;
+        }
+
+        .log-item.medicine {
+            border-left-color: #dc2626;
+        }
+
+        .log-item.expense {
+            border-left-color: #7c3aed;
+        }
+
+        .log-item.mortality {
+            border-left-color: #1f4e79;
+        }
+
+        .log-date {
+            color: #667085;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .log-heading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .log-icon {
+            font-size: 28px;
+        }
+
+        .log-heading h3 {
+            margin: 0;
+            color: #1f4e79;
+        }
+
+        .batch-label {
+            color: #667085;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 12px 0;
+        }
+
+        .stat {
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat span {
+            display: block;
+            color: #667085;
+            font-size: 13px;
+        }
+
+        .stat strong {
+            display: block;
+            color: #1f4e79;
+            font-size: 22px;
+            margin-top: 4px;
+        }
+
+        .note {
+            background: #fff8d6;
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .breakdown {
+            margin-top: 12px;
+            background: #f4f7fa;
+            padding: 12px;
+            border-radius: 8px;
+        }
+
+        .breakdown-item {
+            padding: 6px 0;
+            border-bottom: 1px solid #e3eaf0;
+        }
+
+        .breakdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .actions {
+            margin-bottom: 18px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    <h2>Daily Log</h2>
+</div>
+
+<div class="container">
+
+    <div class="actions">
+        <a href="{% url 'dashboard' %}" class="btn">← Back to Dashboard</a>
+
+        {% if is_admin %}
+            <button type="button" class="btn" onclick="toggleMortalityForm()">
+                + Add Mortality Log
+            </button>
+        {% endif %}
+    </div>
+
+    {% if is_admin %}
+        <div id="mortalityForm" class="card" style="display:none;">
+            <h3 class="title">Add Mortality Entry</h3>
+
+            <form method="post">
+                {% csrf_token %}
+
+                <label>Select Batch</label>
+                <select name="batch_id" required>
+                    <option value="">Choose Batch</option>
+                    {% for batch in accessible_batches %}
+                        <option value="{{ batch.id }}">
+                            {{ batch.shed.shed_type|title }} Batch #{{ batch.batch_number }} - {{ batch.shed.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label>Date</label>
+                <input type="date" name="date" value="{{ today|date:'Y-m-d' }}" required>
+
+                <label>Mortality Count</label>
+                <input type="number" name="mortality_count" min="0" value="0" required>
+
+                <label>Reason / Notes</label>
+                <textarea name="mortality_notes" rows="4" placeholder="Example: Weak birds, heat stress, disease symptoms..."></textarea>
+
+                <button type="submit" class="btn">Save Mortality</button>
+            </form>
+        </div>
+
+        <script>
+            function toggleMortalityForm() {
+                const form = document.getElementById("mortalityForm");
+                form.style.display = form.style.display === "none" ? "block" : "none";
+            }
+        </script>
+    {% endif %}
+
+    <h3 class="title">Activity Feed</h3>
+
+    {% if log_items %}
+        {% for item in log_items %}
+
+            <div class="card log-item {{ item.type }}">
+
+                <div class="log-date">
+                    {{ item.date }}
+                </div>
+
+                <div class="log-heading">
+                    <div class="log-icon">{{ item.icon }}</div>
+
+                    <div>
+                        <h3>{{ item.title }}</h3>
+                        <div class="batch-label">
+                            {{ item.batch.shed.shed_type|title }}
+                            Batch #{{ item.batch.batch_number }}
+                            — {{ item.batch.shed.name }}
+                        </div>
+                    </div>
+                </div>
+
+                {% if item.type == "mortality" %}
+
+                    <div class="stat-row">
+                        <div class="stat">
+                            <span>Total Mortality</span>
+                            <strong>{{ item.total_mortality }}</strong>
+                        </div>
+
+                        {% if not is_admin %}
+                            <div class="stat">
+                                <span>Your Share</span>
+                                <strong>{{ item.investor_percentage }}%</strong>
+                            </div>
+
+                            <div class="stat">
+                                <span>Your Mortality Impact</span>
+                                <strong>{{ item.investor_mortality_impact }}</strong>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {% if is_admin %}
+                        <div class="breakdown">
+                            <strong>Ownership Impact</strong>
+
+                            {% for owner in item.ownership_breakdown %}
+                                <div class="breakdown-item">
+                                    <strong>{{ owner.name }}</strong> —
+                                    Share: {{ owner.percentage }}% |
+                                    Starting Birds: {{ owner.birds }} |
+                                    Mortality Impact: {{ owner.mortality_impact }}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                {% else %}
+
+                    <div class="stat-row">
+                        <div class="stat">
+                            <span>Details</span>
+                            <strong style="font-size:15px;">{{ item.details }}</strong>
+                        </div>
+
+                        {% if item.amount %}
+                            <div class="stat">
+                                <span>Amount</span>
+                                <strong style="font-size:18px;">Rs {{ item.amount|floatformat:2 }}</strong>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                {% endif %}
+
+                {% if item.notes %}
+                    <div class="note">
+                        <strong>Notes:</strong><br>
+                        {{ item.notes }}
+                    </div>
+                {% endif %}
+
+            </div>
+
+        {% endfor %}
+    {% else %}
+        <div class="card">
+            <p>No daily log records yet.</p>
+        </div>
+    {% endif %}
+
+</div>
+
+</body>
+</html>

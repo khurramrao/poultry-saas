@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Finance Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            margin: 0;
+            color: #111827;
+        }
+
+        .header {
+            background: #1f4e79;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 15px;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #1f4e79;
+            color: white;
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+        }
+
+        .sale-btn {
+            background: #16a34a;
+        }
+
+        .finance-card {
+            background: white;
+            border-radius: 14px;
+            padding: 22px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .card-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .batch-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: #1f4e79;
+        }
+
+        .status-badge {
+            background: #dff7df;
+            color: green;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+            gap: 12px;
+            margin-bottom: 22px;
+        }
+
+        .stat-box {
+            background: #f8fafc;
+            padding: 14px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid #edf1f5;
+        }
+
+        .stat-label {
+            font-size: 13px;
+            color: #667085;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1f4e79;
+            margin-top: 5px;
+        }
+
+        .section-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .finance-section {
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 16px;
+            background: white;
+        }
+
+        .highlight-section {
+            background: #eef6ff;
+            border-color: #d9eaff;
+        }
+
+        .finance-section h4 {
+            margin: 0 0 12px 0;
+            color: #1f4e79;
+            font-size: 17px;
+        }
+
+        .sub-title {
+            margin: 16px 0 8px 0;
+            color: #344054;
+            font-size: 14px;
+            font-weight: bold;
+            border-top: 1px solid #eef2f6;
+            padding-top: 12px;
+        }
+
+        .finance-row {
+            display: grid;
+            grid-template-columns: minmax(210px, 1fr) 170px;
+            align-items: center;
+            padding: 7px 0;
+            font-size: 15px;
+            gap: 16px;
+        }
+
+        .finance-row span:last-child,
+        .finance-row strong:last-child {
+            text-align: right;
+            white-space: nowrap;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .total-row {
+            border-top: 1px solid #e5e7eb;
+            margin-top: 8px;
+            padding-top: 12px;
+        }
+
+        .sale-item,
+        .expense-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            background: #fafcff;
+            overflow: hidden;
+        }
+
+        .sale-item summary,
+        .expense-item summary {
+            padding: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            color: #1f4e79;
+            list-style: none;
+        }
+
+        .sale-details,
+        .expense-details {
+            padding: 12px;
+            border-top: 1px solid #e5e7eb;
+            background: white;
+        }
+
+        .positive {
+            color: green;
+            font-weight: bold;
+        }
+
+        .muted {
+            color: #667085;
+        }
+
+       .roi-row{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            gap:18px;
+            margin-top:28px;
+            padding-top:18px;
+        }
+
+        .roi-row .roi-box:only-child{
+                grid-column:1 / 3;
+            }
+
+        .roi-box{
+            background:#eef6ff;
+            border:1px solid #d9eaff;
+            border-radius:12px;
+            padding:20px;
+            text-align:center;
+        }
+
+        .roi-title{
+            font-size:14px;
+            color:#1f4e79;
+            margin-bottom:10px;
+        }
+
+        .roi-value{
+            font-size:36px;
+            font-weight:bold;
+            color:#1f4e79;
+        }
+
+        @media(max-width:768px){
+            .roi-row{
+                grid-template-columns:1fr;
+            }
+        }
+        @media(max-width: 768px) {
+            .card-title,
+            .top-actions {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .section-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .finance-row {
+                grid-template-columns: 1fr;
+                gap: 4px;
+            }
+
+            .finance-row span:last-child,
+            .finance-row strong:last-child {
+                text-align: left;
+            }
+        }
+
+        .btn-feed{
+                background:#f59e0b;
+                color:white;
+                    }
+        .btn-medicine{
+                        background:#dc2626;
+                        color:white;
+                    }
+
+        .positive{
+    color:green;
+    font-weight:bold;
+}
+
+.negative{
+    color:#dc2626;
+    font-weight:bold;
+}
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    <h2>💰 Finance Tracker</h2>
+</div>
+
+<div class="container">
+
+    <div class="top-actions">
+        <a href="{% url 'dashboard' %}" class="btn">← Dashboard</a>
+
+        {% if is_admin %}
+            <a href="{% url 'add_sale_record' %}" class="btn sale-btn">💰 Record Sale</a>
+            <a href="{% url 'add_feed_entry' %}" class="btn btn-feed">🌾 Add Feed</a>
+            <a href="{% url 'add_medicine_entry' %}" class="btn btn-medicine">💊 Add Medicine</a>
+            <a href="{% url 'expense_list' %}" class="btn">🧾 Expenses</a>
+        {% endif %}
+    </div>
+
+    {% for row in finance_rows %}
+
+        <div class="finance-card">
+
+            <div class="card-title">
+                <div class="batch-name">
+                    {{ row.batch.shed.shed_type|title }} Batch #{{ row.batch.batch_number }}
+                </div>
+                <div class="status-badge">Active</div>
+            </div>
+
+            <div class="stats-grid">
+                {% if is_admin %}
+                    <div class="stat-box">
+                        <div class="stat-label">Batch Current Birds</div>
+                        <div class="stat-value">{{ row.current_birds }}</div>
+                    </div>
+
+                    <div class="stat-box">
+                        <div class="stat-label">Total Birds Sold</div>
+                        <div class="stat-value">{{ row.total_sold }}</div>
+                    </div>
+
+                    <div class="stat-box">
+                        <div class="stat-label">Admin Share</div>
+                        <div class="stat-value">{{ row.admin_percentage }}%</div>
+                    </div>
+
+                    <div class="stat-box">
+                        <div class="stat-label">Admin Current Birds</div>
+                        <div class="stat-value">{{ row.admin_current_birds }}</div>
+                    </div>
+                {% else %}
+                    <div class="stat-box">
+                        <div class="stat-label">Starting Birds</div>
+                        <div class="stat-value">{{ row.investor_birds }}</div>
+                    </div>
+
+                    <div class="stat-box">
+                        <div class="stat-label">Your Share</div>
+                        <div class="stat-value">{{ row.investor_percentage }}%</div>
+                    </div>
+
+                    <div class="stat-box">
+                        <div class="stat-label">Mortality</div>
+                        <div class="stat-value">{{ row.investor_mortality }}</div>
+                    </div>
+
+                    <div class="stat-box">
+                        <div class="stat-label">Your Current Birds</div>
+                        <div class="stat-value">{{ row.investor_current_birds }}</div>
+                    </div>
+                {% endif %}
+            </div>
+
+            {% if is_admin %}
+
+                <div class="section-grid">
+
+                    <div class="finance-section">
+                        <h4>Full Batch Finance</h4>
+
+                        <div class="sub-title">COGS</div>
+
+                        <div class="finance-row"><span>Chick Cost</span><span>Rs {{ row.chick_cost|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Feed Cost</span><span>Rs {{ row.feed_cost|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Medicine Cost</span><span>Rs {{ row.medicine_cost|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Carriage Cost</span><span>Rs {{ row.carriage_cost|floatformat:2 }}</span></div>
+
+                        <div class="finance-row total-row">
+                            <strong>Total COGS</strong>
+                            <strong>Rs {{ row.total_cogs|floatformat:2 }}</strong>
+                        </div>
+
+                        <div class="sub-title">Sales Summary</div>
+
+                        <div class="finance-row"><span>Total Birds Sold</span><span>{{ row.total_sold }}</span></div>
+                        <div class="finance-row"><span>Total Weight Sold</span><span>{{ row.total_sale_weight|floatformat:2 }} kg</span></div>
+                        <div class="finance-row"><span>Average Weight</span><span>{{ row.average_sale_weight|floatformat:3 }} kg</span></div>
+                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ row.average_sale_rate|floatformat:2 }}/kg</span></div>
+                        <div class="finance-row"><span>Total Discount</span><span>Rs {{ row.total_discount|floatformat:2 }}</span></div>
+
+                        <div class="finance-row total-row">
+                            <strong>Total Net Sales Revenue</strong>
+                            <strong>Rs {{ row.total_sales_revenue|floatformat:2 }}</strong>
+                        </div>
+
+                        <div class="finance-row">
+                            <span>Sold Birds COGS</span>
+                            <span>Rs {{ row.batch_locked_cogs_total|floatformat:2 }}</span>
+                        </div>
+
+                        <div class="sub-title">Expenses</div>
+
+                        <div class="finance-row total-row">
+                            <strong>Total Expenses</strong>
+                            <strong>Rs {{ row.total_expenses|floatformat:2 }}</strong>
+                        </div>
+
+                        <details class="expense-item">
+                            <summary>View Expense Details</summary>
+
+                            <div class="expense-details">
+                                {% if row.expense_history %}
+                                    {% for expense in row.expense_history %}
+                                        <div class="finance-row">
+                                            <span>{{ expense.expense_date }} — {{ expense.category }}</span>
+                                            <span>Rs {{ expense.amount|floatformat:2 }}</span>
+                                        </div>
+
+
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="muted">No expenses recorded yet.</p>
+                                {% endif %}
+                            </div>
+                        </details>
+
+                        <div class="finance-row total-row">
+                            <strong>Batch Net Income</strong>
+                           <span class="{% if row.batch_net_income < 0 %}negative{% else %}positive{% endif %}">
+                                Rs {{ row.batch_net_income|floatformat:2 }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="finance-section highlight-section">
+                        <h4>Admin Own Share</h4>
+
+                        <div class="sub-title">Bird Position</div>
+
+                        <div class="finance-row"><span>Starting Birds</span><span>{{ row.admin_birds }}</span></div>
+                        <div class="finance-row"><span>Current Birds</span><span>{{ row.admin_current_birds }}</span></div>
+                        <div class="finance-row"><span>Birds Sold</span><span>{{ row.admin_sold }}</span></div>
+                        <div class="finance-row"><span>Weight Sold</span><span>{{ row.admin_weight_sold|floatformat:2 }} kg</span></div>
+
+                        <div class="sub-title">Admin COGS</div>
+
+                        <div class="finance-row"><span>Chick Cost Share</span><span>Rs {{ row.admin_chick_cost_share|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Feed Cost Share</span><span>Rs {{ row.admin_feed_cost_share|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Medicine Cost Share</span><span>Rs {{ row.admin_medicine_cost_share|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Carriage Cost Share</span><span>Rs {{ row.admin_carriage_cost_share|floatformat:2 }}</span></div>
+
+                        <div class="finance-row total-row">
+                            <strong>Admin Total COGS Share</strong>
+                            <strong>Rs {{ row.admin_cogs_share|floatformat:2 }}</strong>
+                        </div>
+
+                        <div class="sub-title">Admin Sales</div>
+
+                        <div class="finance-row"><span>Discount Share</span><span>Rs {{ row.admin_discount_share|floatformat:2 }}</span></div>
+
+                        <div class="finance-row total-row">
+                            <strong>Revenue Share</strong>
+                            <strong>Rs {{ row.admin_sales_revenue|floatformat:2 }}</strong>
+                        </div>
+
+                        <div class="finance-row">
+                            <span>Sold Birds COGS</span>
+                            <span>Rs {{ row.admin_locked_cogs_total|floatformat:2 }}</span>
+                        </div>
+
+                        <div class="sub-title">Admin Expenses</div>
+
+                        <div class="finance-row">
+                            <span>Expense Share</span>
+                            <span>Rs {{ row.admin_expense_share|floatformat:2 }}</span>
+                        </div>
+
+                        <details class="expense-item">
+                            <summary>View Expense Details</summary>
+
+                            <div class="expense-details">
+                                {% if row.expense_history %}
+                                    {% for expense in row.expense_history %}
+
+                                        <div class="finance-row">
+                                            <span>{{ expense.expense_date }} — {{ expense.category }}</span>
+                                            <span>Rs {{ expense.admin_share_amount|floatformat:2 }}</span>
+                                        </div>
+
+
+
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="muted">No expenses recorded yet.</p>
+                                {% endif %}
+                            </div>
+                        </details>
+
+                        <div class="finance-row total-row">
+                            <strong>Admin Net Income</strong>
+                            <strong class="positive">Rs {{ row.admin_net_income|floatformat:2 }}</strong>
+                        </div>
+
+                        <div class="sub-title">Admin Sale History</div>
+
+                        {% if row.sale_history %}
+                            {% for sale in row.sale_history %}
+                                <details class="sale-item">
+                                    <summary>
+                                       Sale #{{ forloop.revcounter }} • {{ sale.admin_birds_sold }} Birds • Rs {{ sale.admin_revenue|floatformat:0 }}
+                                    </summary>
+
+                                    <div class="sale-details">
+                                        <div class="finance-row"><span>Date</span><span>{{ sale.sale_date }}</span></div>
+                                        <div class="finance-row"><span>Admin Birds Sold</span><span>{{ sale.admin_birds_sold }}</span></div>
+                                        <div class="finance-row"><span>Admin Weight Sold</span><span>{{ sale.admin_weight_sold|floatformat:2 }} kg</span></div>
+                                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Revenue Share</span><span>Rs {{ sale.admin_gross_revenue|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ sale.admin_discount|floatformat:2 }}</span></div>
+                                         <div class="finance-row total-row">
+                                            <strong>Your Net Revenue</strong>
+                                            <strong>Rs {{ sale.admin_net_revenue|floatformat:2 }}</strong>
+                                        </div>
+                                        <div class="finance-row"><span>Locked COGS Share</span><span>Rs {{ sale.admin_cogs|floatformat:2 }}</span></div>
+
+                                        <div class="finance-row total-row">
+                                            <strong>Admin Sale Profit</strong>
+                                           <span class="{% if sale.admin_profit < 0 %}negative{% else %}positive{% endif %}">
+                                                Rs {{ sale.admin_profit|floatformat:2 }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </details>
+                            {% endfor %}
+                        {% else %}
+                            <p class="muted">No sales recorded yet.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="finance-section">
+                        <h4>Sale History</h4>
+
+                        {% if row.sale_history %}
+                            {% for sale in row.sale_history %}
+                                <details class="sale-item">
+                                    <summary>
+                                        Sale #{{ forloop.revcounter }} • {{ sale.birds_sold }} Birds • Rs {{ sale.total_amount|floatformat:0 }}
+                                    </summary>
+
+                                    <div class="sale-details">
+                                        <div class="finance-row"><span>Date</span><span>{{ sale.sale_date }}</span></div>
+                                        <div class="finance-row"><span>Birds Sold</span><span>{{ sale.birds_sold }}</span></div>
+                                        <div class="finance-row"><span>Total Weight</span><span>{{ sale.total_weight_kg|floatformat:2 }} kg</span></div>
+                                        <div class="finance-row"><span>Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Discount</span><span>Rs {{ sale.discount_amount|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Net Revenue</span><span>Rs {{ sale.total_amount|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Locked COGS</span><span>Rs {{ sale.cogs_allocated|floatformat:2 }}</span></div>
+
+                                        <div class="finance-row total-row">
+                                            <strong>Gross Profit</strong>
+                                            <span class="{% if sale.gross_profit < 0 %}negative{% else %}positive{% endif %}">
+                                                Rs {{ sale.gross_profit|floatformat:2 }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </details>
+                            {% endfor %}
+                        {% else %}
+                            <p class="muted">No sales recorded yet.</p>
+                        {% endif %}
+                    </div>
+
+                </div>
+
+            {% else %}
+
+                <div class="section-grid">
+
+                    <div class="finance-section">
+                        <h4>Your COGS</h4>
+
+                        <div class="finance-row"><span>Your Chick Cost Share</span><span>Rs {{ row.investor_chick_cost_share|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Your Feed Cost Share</span><span>Rs {{ row.investor_feed_cost|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Your Medicine Cost Share</span><span>Rs {{ row.investor_medicine_cost|floatformat:2 }}</span></div>
+                        <div class="finance-row"><span>Your Carriage Cost Share</span><span>Rs {{ row.investor_carriage_cost|floatformat:2 }}</span></div>
+
+                        <div class="finance-row total-row">
+                            <strong>Your Total COGS Share</strong>
+                            <strong>Rs {{ row.investor_cogs_share|floatformat:2 }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="finance-section">
+                        <h4>Your Sales Summary</h4>
+
+                        <div class="finance-row"><span>Average Weight</span><span>{{ row.average_sale_weight|floatformat:3 }} kg</span></div>
+                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ row.average_sale_rate|floatformat:2 }}/kg</span></div>
+                        <div class="finance-row"><span>Your Birds Sold</span><span>{{ row.investor_sold }}</span></div>
+                        <div class="finance-row"><span>Your Weight Sold</span><span>{{ row.investor_weight_sold|floatformat:2 }} kg</span></div>
+                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ row.investor_discount_share|floatformat:2 }}</span></div>
+
+                        <div class="finance-row total-row">
+                            <strong>Your Revenue Share</strong>
+                            <strong>Rs {{ row.investor_sales_revenue|floatformat:2 }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="finance-section">
+                        <h4>Your Sale History</h4>
+
+                        {% if row.sale_history %}
+                            {% for sale in row.sale_history %}
+                                <details class="sale-item">
+                                    <summary>
+                                       Sale #{{ forloop.revcounter }} • {{ sale.investor_birds_sold }} Birds • Rs {{ sale.investor_revenue|floatformat:0 }}
+                                    </summary>
+
+                                    <div class="sale-details">
+                                        <div class="finance-row"><span>Date</span><span>{{ sale.sale_date }}</span></div>
+                                        <div class="finance-row"><span>Your Birds Sold</span><span>{{ sale.investor_birds_sold }}</span></div>
+                                        <div class="finance-row"><span>Your Weight Sold</span><span>{{ sale.investor_weight_sold|floatformat:2 }} kg</span></div>
+                                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Your Revenue</span><span>Rs {{ sale.investor_gross_revenue|floatformat:2 }}</span></div>
+                                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ sale.investor_discount|floatformat:2 }}</span></div>
+                                        <div class="finance-row total-row">
+                                            <strong>Your Net Revenue</strong>
+                                            <strong>Rs {{ sale.investor_net_revenue|floatformat:2 }}</strong>
+                                        </div>
+                                        <div class="finance-row"><span>Your Locked COGS</span><span>Rs {{ sale.investor_cogs|floatformat:2 }}</span></div>
+
+                                        <div class="finance-row total-row">
+                                            <strong>Your Sale Profit</strong>
+                                            <span class="{% if sale.investor_profit < 0 %}negative{% else %}positive{% endif %}">
+                                                Rs {{ sale.investor_profit|floatformat:2 }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </details>
+                            {% endfor %}
+                        {% else %}
+                            <p class="muted">No sales recorded yet.</p>
+                        {% endif %}
+                    </div>
+
+                    <div class="finance-section highlight-section">
+                        <h4>Your Result</h4>
+
+                        <div class="finance-row">
+                            <span>Revenue Share</span>
+                            <span>Rs {{ row.investor_sales_revenue|floatformat:2 }}</span>
+                        </div>
+
+                        <div class="finance-row">
+                            <span>Sold Birds COGS</span>
+                            <span>Rs {{ row.investor_locked_cogs_total|floatformat:2 }}</span>
+                        </div>
+
+                        <div class="finance-row">
+                            <span>Expense Share</span>
+                            <span>Rs {{ row.investor_expense_share|floatformat:2 }}</span>
+                        </div>
+                        <details class="expense-item">
+                            <summary>View Expense Details</summary>
+
+                            <div class="expense-details">
+                                {% if row.expense_history %}
+                                    {% for expense in row.expense_history %}
+
+                                        <div class="finance-row">
+                                            <span>{{ expense.expense_date }} — {{ expense.category }}</span>
+                                            <span>Rs {{ expense.investor_share_amount|floatformat:2 }}</span>
+                                        </div>
+
+
+
+                                    {% endfor %}
+                                {% else %}
+                                    <p class="muted">No expenses recorded yet.</p>
+                                {% endif %}
+                            </div>
+                        </details>
+
+                        <div class="finance-row total-row">
+                            <strong>Net Income</strong>
+                            <strong class="positive">Rs  {{ row.investor_net_income|floatformat:2 }}</strong>
+                        </div>
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+            <div class="roi-row">
+                <div class="roi-box">
+                    <div class="roi-title">
+                        <strong> {% if is_admin %}
+                       Batch ROI{% else %}
+                        Investor ROI{% endif %}</strong>
+                    </div>
+                    <div class="roi-value">
+                        {% if is_admin %}
+                            {{ row.batch_roi|floatformat:2 }}%
+                        {% else %}
+                            {{ row.investor_roi|floatformat:2 }}%
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if is_admin %}
+                <div class="roi-box">
+                    <div class="roi-title"><strong>Admin ROI</strong></div>
+                    <div class="roi-value">
+                        {{ row.admin_roi|floatformat:2 }}%
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+              </div>
+
+    {% empty %}
+        <div class="finance-card">
+            <p>No finance records available.</p>
+        </div>
+    {% endfor %}
+
+</div>
+
+</body>
+</html>

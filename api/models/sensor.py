@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class Shed(models.Model):
@@ -62,6 +63,9 @@ class MortalityRecord(models.Model):
     date = models.DateField()
     count = models.PositiveIntegerField(default=0)
     notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(
+        default=timezone.now
+    )
 
     def __str__(self):
         return f"{self.batch.batch_number} - {self.date} - {self.count}"
