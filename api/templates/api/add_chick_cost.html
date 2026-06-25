@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Chick Cost</title>
+
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background:#f4f6f8;
+            margin:0;
+            padding:30px;
+        }
+
+        .container{
+            max-width:700px;
+            margin:auto;
+        }
+
+        .card{
+            background:white;
+            border-radius:16px;
+            padding:30px;
+            box-shadow:0 4px 15px rgba(0,0,0,0.08);
+        }
+
+        .icon{
+            text-align:center;
+            font-size:48px;
+            margin-bottom:10px;
+        }
+
+        h2{
+            text-align:center;
+            color:#1f4e79;
+            margin-bottom:25px;
+        }
+
+        .form-group{
+            margin-bottom:18px;
+        }
+
+        label{
+            display:block;
+            font-weight:bold;
+            color:#344054;
+            margin-bottom:6px;
+        }
+
+        input, select, textarea{
+            width:100%;
+            padding:12px;
+            border:1px solid #d0d5dd;
+            border-radius:10px;
+            font-size:15px;
+            box-sizing:border-box;
+        }
+
+        textarea{
+            resize:vertical;
+        }
+
+        .btn-row{
+            display:flex;
+            gap:10px;
+            margin-top:20px;
+        }
+
+        .btn{
+            text-decoration:none;
+            padding:12px 20px;
+            border-radius:10px;
+            border:none;
+            cursor:pointer;
+            font-weight:bold;
+            font-size:15px;
+        }
+
+        .btn-back{
+            background:#667085;
+            color:white;
+        }
+
+        .btn-save{
+            background:#f59e0b;
+            color:white;
+        }
+
+        .btn-save:hover{
+            background:#d97706;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <div class="card">
+
+        <div class="icon">🐣</div>
+
+        <h2>Add Chick Cost</h2>
+
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label>Batch</label>
+                <select name="batch_id" required>
+                    <option value="">Select Batch</option>
+                    {% for batch in batches %}
+                        <option value="{{ batch.id }}">
+                            Batch #{{ batch.batch_number }}
+                            ({{ batch.shed.shed_type|title }})
+                            - {{ batch.current_birds }} Birds Available
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Entry Date</label>
+                <input type="date" name="entry_date" required>
+            </div>
+
+            <div class="form-group">
+                <label>Chick Cost (Rs)</label>
+                <input type="number" step="0.01" name="chick_cost" placeholder="Enter chick cost" required>
+            </div>
+
+            <div class="form-group">
+                <label>Carriage Cost (Rs)</label>
+                <input type="number" step="0.01" name="carriage_cost" value="0" required>
+            </div>
+
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea name="notes" rows="4" placeholder="Optional notes..."></textarea>
+            </div>
+
+            <div class="btn-row">
+                <a href="{% url 'finance_tracker' %}" class="btn btn-back">
+                    ← Back
+                </a>
+
+                <button type="submit" class="btn btn-save">
+                    Save Chick Cost
+                </button>
+            </div>
+
+        </form>
+
+    </div>
+</div>
+
+</body>
+</html>

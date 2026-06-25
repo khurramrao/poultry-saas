@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Feed List</title>
+
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            background:#f4f6f8;
+            margin:0;
+            color:#111827;
+        }
+
+        .header{
+            background:#1f4e79;
+            color:white;
+            padding:22px;
+            text-align:center;
+        }
+
+        .container{
+            max-width:1000px;
+            margin:25px auto;
+            padding:15px;
+        }
+
+        .top-actions{
+            margin-bottom:20px;
+        }
+
+        .btn{
+            display:inline-block;
+            background:#1f4e79;
+            color:white;
+            text-decoration:none;
+            padding:10px 16px;
+            border-radius:8px;
+            margin-right:8px;
+        }
+
+        .add-btn{
+            background:#f59e0b;
+        }
+
+        .add-btn:hover{
+            background:#d97706;
+        }
+
+        .batch-card{
+            background:white;
+            border-radius:14px;
+            padding:20px;
+            margin-bottom:22px;
+            box-shadow:0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .batch-title{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            margin-bottom:15px;
+        }
+
+        .batch-title h3{
+            margin:0;
+            color:#1f4e79;
+        }
+
+        .total-badge{
+            background:#fff7ed;
+            color:#c2410c;
+            padding:8px 14px;
+            border-radius:20px;
+            font-weight:bold;
+        }
+
+        .feed-row{
+            display:grid;
+            grid-template-columns:140px 1fr 140px;
+            gap:12px;
+            padding:12px 0;
+            border-bottom:1px solid #edf2f7;
+            align-items:center;
+        }
+
+        .feed-row:last-child{
+            border-bottom:none;
+        }
+
+        .category{
+            font-weight:bold;
+            color:#344054;
+        }
+
+        .desc{
+            color:#667085;
+            font-size:14px;
+        }
+
+        .amount{
+            text-align:right;
+            font-weight:bold;
+            color:#c2410c;
+        }
+
+        .empty{
+            color:#667085;
+            padding:15px;
+            background:#f8fafc;
+            border-radius:10px;
+        }
+
+        @media(max-width:768px){
+            .batch-title{
+                flex-direction:column;
+                align-items:flex-start;
+                gap:10px;
+            }
+
+            .feed-row{
+                grid-template-columns:1fr;
+            }
+
+            .amount{
+                text-align:left;
+            }
+
+            .btn{
+                width:100%;
+                text-align:center;
+                box-sizing:border-box;
+                margin-bottom:10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    <h2>🌾 Feed List</h2>
+</div>
+
+<div class="container">
+
+    <div class="top-actions">
+        <a href="{% url 'finance_tracker' %}" class="btn">
+            ← Finance Tracker
+        </a>
+
+    {% if is_admin %}
+    <a href="{% url 'add_feed_entry' %}" class="btn add-btn">
+        ➕ Add Feed
+    </a>
+    {% endif %}
+    </div>
+
+    {% if feed_groups %}
+        {% for group in feed_groups %}
+
+            <div class="batch-card">
+
+                <div class="batch-title">
+                    <h3>
+                        {{ group.batch.shed.shed_type|title }}
+                        Batch #{{ group.batch.batch_number }}
+                    </h3>
+
+                    <div class="total-badge">
+                        Total Feed: Rs {{ group.total_feed|floatformat:2 }}
+                    </div>
+                </div>
+
+                {% if group.feed_entries %}
+                    {% for feed in group.feed_entries %}
+
+                        <div class="feed-row">
+                            <div>
+                                {{ feed.entry_date }}
+                            </div>
+
+                            <div>
+                                <div class="category">
+                                    Feed Entry
+                                </div>
+
+                                <div class="desc">
+                                    {{ feed.notes|default:"No notes" }}
+                                </div>
+                            </div>
+
+                            <div class="amount">
+                                {% if is_admin %}
+                                    Rs {{ feed.amount|floatformat:2 }}
+                                {% else %}
+                                    Rs {{ feed.amount|floatformat:2 }}
+                                {% endif %}
+
+                            </div>
+                        </div>
+
+                    {% endfor %}
+                {% else %}
+                    <div class="empty">
+                        No feed entries for this batch.
+                    </div>
+                {% endif %}
+
+            </div>
+
+        {% endfor %}
+    {% else %}
+        <div class="batch-card">
+            <p>No active batches found.</p>
+        </div>
+    {% endif %}
+
+</div>
+
+</body>
+</html>

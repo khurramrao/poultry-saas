@@ -420,10 +420,14 @@ body {
     <div class="top-actions">
         <a href="{% url 'dashboard' %}" class="btn">← Dashboard</a>
 
+
         {% if is_admin %}
+            <a href="{% url 'add_chick_cost' %}" class="btn">🐣 Add Chick Cost</a>
             <a href="{% url 'add_sale_record' %}" class="btn sale-btn">💰 Record Sale</a>
-            <a href="{% url 'add_feed_entry' %}" class="btn btn-feed">🌾 Add Feed</a>
-            <a href="{% url 'add_medicine_entry' %}" class="btn btn-medicine">💊 Add Medicine</a>
+         {% endif %}
+            <a href="{% url 'feed_list' %}" class="btn btn-feed">🌾 Feed</a>
+            <a href="{% url 'medicine_list' %}" class="btn btn-medicine">💊 Medicine</a>
+         {% if is_admin %}
             <a href="{% url 'expense_list' %}" class="btn">🧾 Expenses</a>
         {% endif %}
     </div>

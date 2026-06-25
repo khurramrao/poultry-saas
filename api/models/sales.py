@@ -5,6 +5,25 @@ from datetime import date
 from decimal import Decimal
 
 
+
+class ChickCostEntry(models.Model):
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
+    entry_date = models.DateField()
+
+    chick_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    carriage_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def total_amount(self):
+        return self.chick_cost + self.carriage_cost
+
+    def __str__(self):
+        return f"Batch {self.batch.batch_number} Chick + Carriage"
+
+
 class SaleRecord(models.Model):
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
     sale_date = models.DateField(default=date.today)

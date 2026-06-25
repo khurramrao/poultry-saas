@@ -1,31 +1,16 @@
-
-from django.shortcuts import get_object_or_404, redirect, render
-
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum
-
-from api.models.sensor import (
-    Batch,
-    Device,
-    MortalityRecord,
-    SensorData,
-    Shed,
-    VaccineRecord,
-    VaccineSchedule,
-)
-from api.models.temperature import TemperatureRule
-from api.models.sales import SaleRecord, Expense
-from api.models.investors import InvestorAllocation, InvestorProfile, UserFeedStatus, BatchCost, FeedEntry, MedicineEntry
+from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
-from decimal import Decimal
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
-import math
 from django.db.models import Sum
 
+from decimal import Decimal
+import math
 
-from django.shortcuts import render, redirect, get_object_or_404
-
+from api.models.sensor import Batch, MortalityRecord
+from api.models.sales import ChickCostEntry, SaleRecord, Expense
+from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
 
 
 @login_required
@@ -33,9 +18,7 @@ def finance_tracker(request):
     is_admin = request.user.is_superuser or request.user.is_staff
 
     if is_admin:
-        batches = Batch.objects.filter(
-            is_active=True
-        ).order_by("-start_date", "batch_number")
+        batches = Batch.objects.filter(is_active=True).order_by("-start_date", "batch_number")
     else:
         if not hasattr(request.user, "investor_profile"):
             return redirect("dashboard")
@@ -52,85 +35,58 @@ def finance_tracker(request):
     finance_rows = []
 
     for batch in batches:
-        total_mortality = sum(
-            MortalityRecord.objects.filter(batch=batch).values_list("count", flat=True)
-        )
+        total_mortality = MortalityRecord.objects.filter(batch=batch).aggregate(
+            total=Sum("count")
+        )["total"] or 0
 
         sales_records = SaleRecord.objects.filter(batch=batch).order_by("-sale_date", "-id")
 
-        total_sold = sum(
-            sales_records.values_list("birds_sold", flat=True)
-        )
+        total_sold = sales_records.aggregate(
+            total=Sum("birds_sold")
+        )["total"] or 0
 
-        total_sales_revenue = sum(
-            float(sale.total_amount) for sale in sales_records
-        )
+        total_sales_revenue = sum(float(sale.total_amount) for sale in sales_records)
+        total_discount = sum(float(sale.discount_amount) for sale in sales_records)
+        total_sale_weight = sum(float(sale.total_weight_kg) for sale in sales_records)
+        gross_sales_revenue = sum(float(sale.gross_amount) for sale in sales_records)
 
-        total_discount = sum(
-            float(sale.discount_amount) for sale in sales_records
-        )
-
-        total_sale_weight = sum(
-            float(sale.total_weight_kg) for sale in sales_records
-        )
-
-        gross_sales_revenue = sum(
-            float(sale.gross_amount) for sale in sales_records
-        )
-
-        average_sale_weight = 0
-        average_sale_rate = 0
-
-        if total_sold > 0:
-            average_sale_weight = round(total_sale_weight / total_sold, 3)
-
-        if total_sale_weight > 0:
-            average_sale_rate = round(gross_sales_revenue / total_sale_weight, 2)
+        average_sale_weight = round(total_sale_weight / total_sold, 3) if total_sold > 0 else 0
+        average_sale_rate = round(gross_sales_revenue / total_sale_weight, 2) if total_sale_weight > 0 else 0
 
         current_birds = batch.bird_count_initial - total_mortality - total_sold
 
-        batch_cost = BatchCost.objects.filter(batch=batch).first()
-
         expenses = Expense.objects.filter(batch=batch)
+        total_expenses = expenses.aggregate(total=Sum("amount"))["total"] or 0
 
-        total_expenses = expenses.aggregate(
+        # NEW COGS LOGIC — BatchCost discontinued
+        chick_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+            total=Sum("chick_cost")
+        )["total"] or 0
+
+        carriage_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+            total=Sum("carriage_cost")
+        )["total"] or 0
+
+        feed_cost = FeedEntry.objects.filter(batch=batch).aggregate(
             total=Sum("amount")
         )["total"] or 0
 
-        chick_cost = batch_cost.chick_cost if batch_cost else 0
-        carriage_cost = batch_cost.carriage_cost if batch_cost else 0
-        base_feed_cost = batch_cost.feed_cost if batch_cost else 0
-        base_medicine_cost = batch_cost.medicine_cost if batch_cost else 0
-
-        extra_feed_cost = FeedEntry.objects.filter(batch=batch).aggregate(
+        medicine_cost = MedicineEntry.objects.filter(batch=batch).aggregate(
             total=Sum("amount")
         )["total"] or 0
 
-        extra_medicine_cost = MedicineEntry.objects.filter(batch=batch).aggregate(
-            total=Sum("amount")
-        )["total"] or 0
-
-        feed_cost = base_feed_cost + extra_feed_cost
-        medicine_cost = base_medicine_cost + extra_medicine_cost
-
-        total_cogs = (
-                chick_cost
-                + carriage_cost
-                + feed_cost
-                + medicine_cost
-        )
+        total_cogs = chick_cost + carriage_cost + feed_cost + medicine_cost
 
         current_chick_cost_per_bird = 0
         if current_birds > 0:
             current_chick_cost_per_bird = round(float(chick_cost) / current_birds, 2)
 
-        allocated_investor_birds = sum(
-            InvestorAllocation.objects.filter(batch=batch).values_list("birds_owned", flat=True)
-        )
+        allocated_investor_birds = InvestorAllocation.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("birds_owned"))["total"] or 0
 
         admin_birds = batch.bird_count_initial - allocated_investor_birds
 
-        # ---------------- DEFAULT VALUES ----------------
         investor_percentage = 0
         investor_birds = 0
         investor_current_birds = 0
@@ -165,7 +121,6 @@ def finance_tracker(request):
         investor_share_ratio = 0
         admin_share_ratio = 0
 
-        # ---------------- INVESTOR VALUES ----------------
         if not is_admin and hasattr(request.user, "investor_profile"):
             allocation = InvestorAllocation.objects.filter(
                 batch=batch,
@@ -177,11 +132,9 @@ def finance_tracker(request):
                 investor_share_ratio = investor_birds / batch.bird_count_initial
 
                 investor_percentage = round(investor_share_ratio * 100, 1)
-
                 investor_mortality = round(total_mortality * investor_share_ratio)
                 investor_sold = math.floor(total_sold * investor_share_ratio)
                 investor_current_birds = investor_birds - investor_mortality - investor_sold
-
                 investor_weight_sold = round(total_sale_weight * investor_share_ratio, 2)
 
                 investor_chick_cost_share = round(float(chick_cost) * investor_share_ratio, 2)
@@ -194,7 +147,6 @@ def finance_tracker(request):
                 investor_discount_share = round(total_discount * investor_share_ratio, 2)
                 investor_expense_share = round(float(total_expenses) * investor_share_ratio, 2)
 
-        # ---------------- ADMIN VALUES ----------------
         if is_admin and batch.bird_count_initial > 0 and admin_birds > 0:
             admin_share_ratio = admin_birds / batch.bird_count_initial
             investor_share_for_admin = allocated_investor_birds / batch.bird_count_initial
@@ -212,16 +164,15 @@ def finance_tracker(request):
             admin_weight_sold = round(total_sale_weight - investor_weight_for_admin, 2)
 
             admin_chick_cost_share = round(float(chick_cost) * admin_share_ratio, 2)
+            admin_carriage_cost_share = round(float(carriage_cost) * admin_share_ratio, 2)
             admin_feed_cost_share = round(float(feed_cost) * admin_share_ratio, 2)
             admin_medicine_cost_share = round(float(medicine_cost) * admin_share_ratio, 2)
-            admin_carriage_cost_share = round(float(carriage_cost) * admin_share_ratio, 2)
             admin_cogs_share = round(float(total_cogs) * admin_share_ratio, 2)
 
             admin_sales_revenue = round(total_sales_revenue * admin_share_ratio, 2)
             admin_discount_share = round(total_discount * admin_share_ratio, 2)
             admin_expense_share = round(float(total_expenses) * admin_share_ratio, 2)
 
-        # ---------------- SALE HISTORY ----------------
         sale_history = []
 
         for sale in sales_records:
@@ -260,8 +211,8 @@ def finance_tracker(request):
                 "investor_profit": investor_profit,
 
                 "admin_birds_sold": (
-                        sale.birds_sold
-                        - math.floor(sale.birds_sold * (allocated_investor_birds / batch.bird_count_initial))
+                    sale.birds_sold
+                    - math.floor(sale.birds_sold * (allocated_investor_birds / batch.bird_count_initial))
                 ) if batch.bird_count_initial > 0 else 0,
                 "admin_weight_sold": round(float(sale.total_weight_kg) * admin_share_ratio, 2),
                 "admin_gross_revenue": admin_gross_revenue,
@@ -273,57 +224,35 @@ def finance_tracker(request):
             })
 
         investor_net_income = round(
-            investor_sales_revenue
-            - investor_locked_cogs_total
-            - investor_expense_share,
+            investor_sales_revenue - investor_locked_cogs_total - investor_expense_share,
             2
         )
 
         admin_net_income = round(
-            admin_sales_revenue
-            - admin_locked_cogs_total
-            - admin_expense_share,
+            admin_sales_revenue - admin_locked_cogs_total - admin_expense_share,
             2
         )
 
-        batch_locked_cogs_total = sum(
-            float(sale.cogs_allocated) for sale in sales_records
-        )
+        batch_locked_cogs_total = sum(float(sale.cogs_allocated) for sale in sales_records)
 
         batch_net_income = round(
-            total_sales_revenue
-            - batch_locked_cogs_total
-            - float(total_expenses),
+            total_sales_revenue - batch_locked_cogs_total - float(total_expenses),
             2
         )
 
-        # ---------------- ROI ----------------
-
-        investor_total_investment = (
-                investor_cogs_share
-                + investor_expense_share
-        )
-
+        investor_total_investment = investor_cogs_share + investor_expense_share
         investor_roi = round(
             (investor_net_income / investor_total_investment) * 100,
             2
         ) if investor_total_investment > 0 else 0
 
-        admin_total_investment = (
-                admin_cogs_share
-                + admin_expense_share
-        )
-
+        admin_total_investment = admin_cogs_share + admin_expense_share
         admin_roi = round(
             (admin_net_income / admin_total_investment) * 100,
             2
         ) if admin_total_investment > 0 else 0
 
-        batch_total_investment = (
-                float(total_cogs)
-                + float(total_expenses)
-        )
-
+        batch_total_investment = float(total_cogs) + float(total_expenses)
         batch_roi = round(
             (batch_net_income / batch_total_investment) * 100,
             2
@@ -339,20 +268,17 @@ def finance_tracker(request):
                 "category": expense.get_category_display(),
                 "description": expense.description,
                 "amount": full_amount,
-
                 "investor_share_amount": round(full_amount * investor_share_ratio, 2),
                 "admin_share_amount": round(full_amount * admin_share_ratio, 2),
             })
 
         finance_rows.append({
             "batch": batch,
-
             "current_birds": current_birds,
             "total_mortality": total_mortality,
             "total_sold": total_sold,
             "total_discount": round(total_discount, 2),
             "gross_sales_revenue": round(gross_sales_revenue, 2),
-
             "total_sales_revenue": round(total_sales_revenue, 2),
             "total_sale_weight": round(total_sale_weight, 2),
             "average_sale_weight": average_sale_weight,
@@ -412,15 +338,13 @@ def finance_tracker(request):
 
             "investor_total_investment": investor_total_investment,
             "admin_total_investment": admin_total_investment,
-
-
-
         })
 
     return render(request, "api/finance_tracker.html", {
         "finance_rows": finance_rows,
         "is_admin": is_admin,
     })
+
 
 def attach_current_birds(batches):
     for batch in batches:
@@ -432,13 +356,10 @@ def attach_current_birds(batches):
             batch=batch
         ).aggregate(total=Sum("birds_sold"))["total"] or 0
 
-        batch.current_birds = (
-            batch.bird_count_initial
-            - total_mortality
-            - total_sold
-        )
+        batch.current_birds = batch.bird_count_initial - total_mortality - total_sold
 
     return batches
+
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -460,6 +381,10 @@ def add_sale_record(request):
         batch_id = request.POST.get("batch_id")
         batch = get_object_or_404(Batch, id=batch_id)
 
+        if batch.status == "closed" or not batch.is_active:
+            messages.error(request, "This batch is closed.")
+            return redirect("finance_tracker")
+
         sale_date = request.POST.get("sale_date")
         birds_sold = int(request.POST.get("birds_sold") or 0)
         total_weight_kg = Decimal(request.POST.get("total_weight_kg") or "0")
@@ -467,13 +392,13 @@ def add_sale_record(request):
         discount_amount = Decimal(request.POST.get("discount_amount") or "0")
         notes = request.POST.get("notes", "")
 
-        total_mortality = sum(
-            MortalityRecord.objects.filter(batch=batch).values_list("count", flat=True)
-        )
+        total_mortality = MortalityRecord.objects.filter(batch=batch).aggregate(
+            total=Sum("count")
+        )["total"] or 0
 
-        previous_sold = sum(
-            SaleRecord.objects.filter(batch=batch).values_list("birds_sold", flat=True)
-        )
+        previous_sold = SaleRecord.objects.filter(batch=batch).aggregate(
+            total=Sum("birds_sold")
+        )["total"] or 0
 
         current_birds_before_sale = batch.bird_count_initial - total_mortality - previous_sold
 
@@ -485,33 +410,27 @@ def add_sale_record(request):
             messages.error(request, "Birds sold cannot be more than current available birds.")
             return redirect("add_sale_record")
 
-        batch_cost = BatchCost.objects.filter(batch=batch).first()
+        chick_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+            total=Sum("chick_cost")
+        )["total"] or Decimal("0")
 
-        chick_cost = batch_cost.chick_cost if batch_cost else Decimal("0")
-        carriage_cost = batch_cost.carriage_cost if batch_cost else Decimal("0")
-        base_feed_cost = batch_cost.feed_cost if batch_cost else Decimal("0")
-        base_medicine_cost = batch_cost.medicine_cost if batch_cost else Decimal("0")
+        carriage_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+            total=Sum("carriage_cost")
+        )["total"] or Decimal("0")
 
-        extra_feed_cost = FeedEntry.objects.filter(batch=batch).aggregate(
+        feed_cost = FeedEntry.objects.filter(batch=batch).aggregate(
             total=Sum("amount")
         )["total"] or Decimal("0")
 
-        extra_medicine_cost = MedicineEntry.objects.filter(batch=batch).aggregate(
+        medicine_cost = MedicineEntry.objects.filter(batch=batch).aggregate(
             total=Sum("amount")
         )["total"] or Decimal("0")
 
-        total_cogs = (
-                chick_cost
-                + carriage_cost
-                + base_feed_cost
-                + base_medicine_cost
-                + extra_feed_cost
-                + extra_medicine_cost
-        )
+        total_cogs = chick_cost + carriage_cost + feed_cost + medicine_cost
 
-        previous_locked_cogs = sum(
-            SaleRecord.objects.filter(batch=batch).values_list("cogs_allocated", flat=True)
-        ) or Decimal("0")
+        previous_locked_cogs = SaleRecord.objects.filter(batch=batch).aggregate(
+            total=Sum("cogs_allocated")
+        )["total"] or Decimal("0")
 
         remaining_cogs_before_sale = Decimal(total_cogs) - Decimal(previous_locked_cogs)
 
@@ -545,6 +464,79 @@ def add_sale_record(request):
         "batches": batches,
     })
 
+@login_required
+def feed_list(request):
+    is_admin = request.user.is_superuser or request.user.is_staff
+    is_investor = hasattr(request.user, "investor_profile")
+
+    if is_admin:
+        batches = Batch.objects.filter(
+            is_active=True,
+            status="active"
+        ).order_by("-start_date", "batch_number")
+
+    elif is_investor:
+        investor_batch_ids = InvestorAllocation.objects.filter(
+            investor=request.user.investor_profile
+        ).values_list("batch_id", flat=True)
+
+        batches = Batch.objects.filter(
+            id__in=investor_batch_ids,
+            is_active=True,
+            status="active"
+        ).order_by("-start_date", "batch_number")
+
+    else:
+        messages.error(request, "You are not allowed to view feed entries.")
+        return redirect("dashboard")
+
+    feed_groups = []
+
+    for batch in batches:
+        share_ratio = 1
+
+        if is_investor and not is_admin:
+            allocation = InvestorAllocation.objects.filter(
+                batch=batch,
+                investor=request.user.investor_profile
+            ).first()
+
+            share_ratio = (
+                allocation.birds_owned / batch.bird_count_initial
+                if allocation and batch.bird_count_initial > 0
+                else 0
+            )
+
+        feed_entries = FeedEntry.objects.filter(
+            batch=batch
+        ).order_by("-entry_date", "-id")
+
+        feed_rows = []
+
+        for entry in feed_entries:
+            amount = float(entry.amount)
+
+            if not is_admin:
+                amount = round(amount * share_ratio, 2)
+
+            feed_rows.append({
+                "entry_date": entry.entry_date,
+                "notes": entry.notes,
+                "amount": amount,
+            })
+
+        total_feed = sum(row["amount"] for row in feed_rows)
+
+        feed_groups.append({
+            "batch": batch,
+            "feed_entries": feed_rows,
+            "total_feed": total_feed,
+        })
+
+    return render(request, "api/feed_list.html", {
+        "feed_groups": feed_groups,
+        "is_admin": is_admin,
+    })
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -591,6 +583,40 @@ def add_feed_entry(request):
         "batches": batches,
     })
 
+
+@login_required
+def medicine_list(request):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        messages.error(request, "Only admin can view medicine entries.")
+        return redirect("dashboard")
+
+    batches = Batch.objects.filter(
+        is_active=True,
+        status="active"
+    ).order_by("-start_date", "batch_number")
+
+    medicine_groups = []
+
+    for batch in batches:
+        medicine_entries = MedicineEntry.objects.filter(
+            batch=batch
+        ).order_by("-entry_date", "-id")
+
+        total_medicine = sum(entry.amount for entry in medicine_entries)
+
+        medicine_groups.append({
+            "batch": batch,
+            "medicine_entries": medicine_entries,
+            "total_medicine": total_medicine,
+        })
+
+    return render(request, "api/medicine_list.html", {
+        "medicine_groups": medicine_groups,
+    })
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def add_medicine_entry(request):
@@ -634,3 +660,50 @@ def add_medicine_entry(request):
         "api/add_medicine_entry.html",
         {"batches": batches},
     )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def add_chick_cost(request):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        messages.error(request, "Only admin can add chick cost.")
+        return redirect("dashboard")
+
+    batches = Batch.objects.filter(
+        is_active=True,
+        status="active"
+    ).order_by("-start_date", "batch_number")
+
+    batches = attach_current_birds(batches)
+
+    if request.method == "POST":
+        batch_id = request.POST.get("batch_id")
+        batch = get_object_or_404(Batch, id=batch_id)
+
+        if batch.status == "closed" or not batch.is_active:
+            messages.error(request, "This batch is closed.")
+            return redirect("finance_tracker")
+
+        entry_date = request.POST.get("entry_date") or timezone.now().date()
+        chick_cost = request.POST.get("chick_cost") or 0
+        carriage_cost = request.POST.get("carriage_cost") or 0
+        notes = request.POST.get("notes", "")
+
+        ChickCostEntry.objects.create(
+            batch=batch,
+            entry_date=entry_date,
+            chick_cost=chick_cost,
+            carriage_cost=carriage_cost,
+            notes=notes,
+        )
+
+        messages.success(request, "Chick and carriage cost added successfully.")
+        return redirect("finance_tracker")
+
+    return render(request, "api/add_chick_cost.html", {
+        "batches": batches,
+    })
+
+
