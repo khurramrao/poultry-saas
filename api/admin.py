@@ -11,7 +11,7 @@ from api.models.sensor import (
     VaccineRecord,
 )
 from api.models.temperature import TemperatureRule
-from api.models.sales import SaleRecord, Expense
+from api.models.sales import SaleRecord, Expense, ChickCostEntry
 
 
 
@@ -137,6 +137,12 @@ class FeedEntryAdmin(admin.ModelAdmin):
 @admin.register(MedicineEntry)
 class MedicineEntryAdmin(admin.ModelAdmin):
     list_display = ("batch", "entry_date", "amount", "notes", "created_at")
+
+
+@admin.register(ChickCostEntry)
+class ChickCostEntry(admin.ModelAdmin):
+    list_display = ("batch", "chick_cost", "carriage_cost", "notes", "created_at")
+
 
 admin.site.register(TemperatureRule)
 

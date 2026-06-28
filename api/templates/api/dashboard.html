@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -49,6 +50,52 @@ body {
     text-decoration: none;
     font-size: 14px;
     font-weight: bold;
+}
+
+.logo-welcome{
+    display:flex;
+    align-items:center;
+    gap:18px;
+}
+
+.dashboard-logo{
+    width:70px;
+    height:70px;
+    object-fit:contain;
+    flex-shrink:0;
+}
+
+.logo-welcome h2{
+    margin:0;
+    color:#1f4e79;
+}
+
+.logo-welcome p{
+    margin-top:6px;
+    color:#667085;
+}
+
+/* Mobile */
+@media(max-width:768px){
+
+    .logo-welcome{
+        flex-direction:row;   /* keep logo on left even on mobile */
+        align-items:center;
+        gap:12px;
+    }
+
+    .dashboard-logo{
+        width:55px;
+        height:55px;
+    }
+
+    .logo-welcome h2{
+        font-size:28px;
+    }
+
+    .logo-welcome p{
+        font-size:14px;
+    }
 }
 
 .welcome-card,
@@ -470,29 +517,43 @@ body {
 
     <div class="welcome-card welcome-row">
 
-    <div>
-        <h2>👋 Hi {{ request.user.username|title }}</h2>
+    <div class="logo-welcome">
 
-        {% if is_admin %}
-            <p>Welcome back to your farm management dashboard.</p>
-        {% else %}
-            <p>Here is your flock performance and investment overview.</p>
-        {% endif %}
+        <img src="{% static 'images/raynoor-logo.png' %}"
+             class="dashboard-logo"
+             alt="RayNoor Logo" style="width:100px;">
+
+        <div>
+            <h2>👋 Hi {{ request.user.username|title }}</h2>
+
+            {% if is_admin %}
+                <p>Welcome back to your farm management dashboard.</p>
+            {% else %}
+                <p>Here is your flock performance and investment overview.</p>
+            {% endif %}
+
+        </div>
+
     </div>
 
+    <div>
+        <a href="{% url 'batch_report' %}" class="daily-log-btn">
+    📊 Report
+</a>
         <a href="{% url 'finance_tracker' %}" class="daily-log-btn">
-    💰 Finance Tracker
+            💰 Finance Tracker
         </a>
 
-    <a href="{% url 'daily_log' %}" class="daily-log-btn">
-        📰 Daily Log
+        <a href="{% url 'daily_log' %}" class="daily-log-btn">
+            📰 Daily Log
 
-        {% if new_log_count > 0 %}
-            <span class="notification-badge">
-                {{ new_log_count }}
-            </span>
-        {% endif %}
-    </a>
+            {% if new_log_count > 0 %}
+                <span class="notification-badge">
+                    {{ new_log_count }}
+                </span>
+            {% endif %}
+        </a>
+    </div>
 
 </div>
 

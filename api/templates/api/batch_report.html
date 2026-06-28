@@ -1,0 +1,335 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Batch Report</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body{
+            font-family:Arial,sans-serif;
+            background:#f4f6f8;
+            margin:0;
+            color:#111827;
+        }
+
+        .header{
+            background:#1f4e79;
+            color:white;
+            text-align:center;
+            padding:22px;
+        }
+
+        .container{
+            max-width:1100px;
+            margin:25px auto;
+            padding:15px;
+        }
+
+        .btn{
+            display:inline-block;
+            background:#1f4e79;
+            color:white;
+            text-decoration:none;
+            padding:10px 16px;
+            border-radius:8px;
+            margin-bottom:20px;
+            font-weight:bold;
+        }
+
+        .report-card{
+            background:white;
+            border-radius:14px;
+            margin-bottom:16px;
+            box-shadow:0 2px 10px rgba(0,0,0,0.08);
+            overflow:hidden;
+        }
+
+        .report-card summary{
+            cursor:pointer;
+            padding:18px 22px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:15px;
+            list-style:none;
+        }
+
+        .report-card summary::-webkit-details-marker{
+            display:none;
+        }
+
+        .report-card summary::after{
+            content:"⌄";
+            font-size:24px;
+            color:#1f4e79;
+            font-weight:bold;
+        }
+
+        .report-card[open] summary::after{
+            content:"⌃";
+        }
+
+        .summary-left strong{
+            color:#1f4e79;
+            font-size:20px;
+            display:block;
+        }
+
+        .summary-left span{
+            color:#667085;
+            font-size:14px;
+        }
+
+        .summary-money{
+            font-size:18px;
+            font-weight:bold;
+            white-space:nowrap;
+        }
+
+        .report-body{
+            padding:0 22px 22px 22px;
+            border-top:1px solid #e5e7eb;
+        }
+
+        .title{
+            color:#1f4e79;
+            margin-top:20px;
+            margin-bottom:10px;
+        }
+
+        .grid{
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+            gap:12px;
+            margin-top:15px;
+        }
+
+        .box{
+            background:#f8fafc;
+            border:1px solid #e5e7eb;
+            border-radius:12px;
+            padding:14px;
+            text-align:center;
+        }
+
+        .label{
+            color:#667085;
+            font-size:13px;
+        }
+
+        .value{
+            font-size:24px;
+            font-weight:bold;
+            color:#1f4e79;
+            margin-top:5px;
+        }
+
+        .section{
+            margin-top:20px;
+            border-top:1px solid #e5e7eb;
+            padding-top:15px;
+        }
+
+        .positive{
+            color:green;
+        }
+
+        .negative{
+            color:#dc2626;
+        }
+
+        .empty-card{
+            background:white;
+            border-radius:14px;
+            padding:22px;
+            box-shadow:0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        @media(max-width:768px){
+            .container{
+                padding:10px;
+            }
+
+            .report-card summary{
+                flex-direction:column;
+                align-items:flex-start;
+                padding:16px;
+            }
+
+            .report-body{
+                padding:0 16px 16px 16px;
+            }
+
+            .summary-money{
+                font-size:16px;
+            }
+
+            .grid{
+                grid-template-columns:1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    <h2>📊 Batch Report</h2>
+</div>
+
+<div class="container">
+
+    <a href="{% url 'dashboard' %}" class="btn">← Dashboard</a>
+
+    {% for row in report_rows %}
+
+        <details class="report-card" {% if not is_admin and forloop.first %}open{% endif %}>
+
+            <summary>
+                <div class="summary-left">
+                    <strong>
+                        {{ row.batch.shed.shed_type|title }} Batch #{{ row.batch.batch_number }}
+                    </strong>
+                    <span>
+                        {{ row.report_title }} — Share {{ row.share_percentage }}%
+                    </span>
+                </div>
+
+                <div class="summary-money {% if row.net_income < 0 %}negative{% else %}positive{% endif %}">
+                    Net Income: Rs {{ row.net_income|floatformat:2|intcomma }}
+                </div>
+            </summary>
+
+            <div class="report-body">
+
+                <h3 class="title">🐥 Bird Position</h3>
+
+                <div class="grid">
+                    <div class="box">
+                        <div class="label">Starting Birds</div>
+                        <div class="value">{{ row.starting_birds }}</div>
+                    </div>
+
+                    <div class="box">
+                        <div class="label">Current Birds</div>
+                        <div class="value">{{ row.current_birds }}</div>
+                    </div>
+
+                    <div class="box">
+                        <div class="label">Mortality</div>
+                        <div class="value">{{ row.mortality }}</div>
+                    </div>
+
+                    <div class="box">
+                        <div class="label">Sold</div>
+                        <div class="value">{{ row.sold }}</div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3 class="title">💰 Financial Summary</h3>
+
+                    <div class="grid">
+                        <div class="box">
+                            <div class="label">Revenue</div>
+                            <div class="value">Rs {{ row.revenue|floatformat:2|intcomma }}</div>
+                        </div>
+
+                        <div class="box">
+                            <div class="label">Sold Birds COGS</div>
+                            <div class="value">Rs {{ row.locked_cogs|floatformat:2|intcomma }}</div>
+                        </div>
+
+                        <div class="box">
+                            <div class="label">Expense Share</div>
+                            <div class="value">Rs {{ row.expenses|floatformat:2|intcomma }}</div>
+                        </div>
+
+                        <div class="box">
+                            <div class="label">Net Income</div>
+                            <div class="value {% if row.net_income < 0 %}negative{% else %}positive{% endif %}">
+                                Rs {{ row.net_income|floatformat:2|intcomma }}
+                            </div>
+                        </div>
+
+                        <div class="box">
+                            <div class="label">ROI</div>
+                            <div class="value {% if row.roi < 0 %}negative{% else %}positive{% endif %}">
+                                {{ row.roi|floatformat:2 }}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if is_admin %}
+                    <div class="section">
+                        <h3 class="title">📦 Total Batch Report</h3>
+
+                        <div class="grid">
+                            <div class="box">
+                                <div class="label">Batch Start Birds</div>
+                                <div class="value">{{ row.total_batch_start }}</div>
+                            </div>
+
+                            <div class="box">
+                                <div class="label">Batch Current Birds</div>
+                                <div class="value">{{ row.total_batch_current }}</div>
+                            </div>
+
+                            <div class="box">
+                                <div class="label">Total Mortality</div>
+                                <div class="value">{{ row.total_batch_mortality }}</div>
+                            </div>
+
+                            <div class="box">
+                                <div class="label">Total Sold</div>
+                                <div class="value">{{ row.total_batch_sold }}</div>
+                            </div>
+
+                            <div class="box">
+                                <div class="label">Total Revenue</div>
+                                <div class="value">Rs {{ row.total_batch_revenue|floatformat:2|intcomma }}</div>
+                            </div>
+
+                            <div class="box">
+                                <div class="label">Sold Birds COGS</div>
+                                <div class="value">Rs {{ row.total_batch_cogs|floatformat:2|intcomma }}</div>
+                            </div>
+
+                            <div class="box">
+                                <div class="label">Total Expenses</div>
+                                <div class="value">Rs {{ row.total_batch_expenses|floatformat:2|intcomma }}</div>
+                            </div>
+
+                            <div class="box">
+                                <div class="label">Batch Net Income</div>
+                                <div class="value {% if row.total_batch_net_income < 0 %}negative{% else %}positive{% endif %}">
+                                    Rs {{ row.total_batch_net_income|floatformat:2|intcomma }}
+                                </div>
+                            </div>
+
+                            <div class="box">
+                                <div class="label">Batch ROI</div>
+                                <div class="value {% if row.total_batch_roi < 0 %}negative{% else %}positive{% endif %}">
+                                    {{ row.total_batch_roi|floatformat:2 }}%
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+            </div>
+
+        </details>
+
+    {% empty %}
+        <div class="empty-card">
+            <p>No batch report available.</p>
+        </div>
+    {% endfor %}
+
+</div>
+
+</body>
+</html>

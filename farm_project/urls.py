@@ -20,10 +20,18 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from api.views.home import home
 
+from django.conf import settings
+from django.conf.urls.static import static
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("", home, name="home"),   # ✅ fixed
+    path('', home, name='home'),
     path('api/', include('api.urls')),
-    path("login/", auth_views.LoginView.as_view(template_name="api/login.html"), name="login"),
-    path("logout/", auth_views.LogoutView.as_view(), name="logout"),
+    path('login/', auth_views.LoginView.as_view(
+        template_name='api/login.html'
+    ), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
 ]
+
+urlpatterns += static(settings.STATIC_URL, document_root=settings.BASE_DIR / "static")

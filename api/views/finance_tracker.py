@@ -29,8 +29,8 @@ def finance_tracker(request):
 
         batches = Batch.objects.filter(
             id__in=investor_batch_ids,
-            is_active=True
-        ).order_by("-start_date", "batch_number")
+            is_active=False
+        ).order_by("-end_date", "-start_date", "batch_number")
 
     finance_rows = []
 
@@ -704,6 +704,141 @@ def add_chick_cost(request):
 
     return render(request, "api/add_chick_cost.html", {
         "batches": batches,
+    })
+
+
+@login_required
+def batch_report(request):
+    is_admin = request.user.is_superuser or request.user.is_staff
+    is_investor = hasattr(request.user, "investor_profile")
+
+    if is_admin:
+        batches = Batch.objects.filter(is_active=True).order_by("-start_date", "batch_number")
+    elif is_investor:
+        investor_batch_ids = InvestorAllocation.objects.filter(
+            investor=request.user.investor_profile
+        ).values_list("batch_id", flat=True)
+
+        batches = Batch.objects.filter(
+            id__in=investor_batch_ids,
+            is_active=True
+        ).order_by("-start_date", "batch_number")
+    else:
+        messages.error(request, "You are not allowed to view reports.")
+        return redirect("dashboard")
+
+    report_rows = []
+
+    for batch in batches:
+        total_mortality = MortalityRecord.objects.filter(batch=batch).aggregate(
+            total=Sum("count")
+        )["total"] or 0
+
+        sales = SaleRecord.objects.filter(batch=batch)
+
+        total_sold = sales.aggregate(total=Sum("birds_sold"))["total"] or 0
+        total_revenue = sum(float(sale.total_amount) for sale in sales)
+        total_weight = sum(float(sale.total_weight_kg) for sale in sales)
+        locked_cogs = sum(float(sale.cogs_allocated) for sale in sales)
+
+        chick_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+            total=Sum("chick_cost")
+        )["total"] or 0
+
+        carriage_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+            total=Sum("carriage_cost")
+        )["total"] or 0
+
+        feed_cost = FeedEntry.objects.filter(batch=batch).aggregate(
+            total=Sum("amount")
+        )["total"] or 0
+
+        medicine_cost = MedicineEntry.objects.filter(batch=batch).aggregate(
+            total=Sum("amount")
+        )["total"] or 0
+
+        expenses = Expense.objects.filter(batch=batch).aggregate(
+            total=Sum("amount")
+        )["total"] or 0
+
+        total_cogs = float(chick_cost + carriage_cost + feed_cost + medicine_cost)
+        current_birds = batch.bird_count_initial - total_mortality - total_sold
+
+        allocated_investor_birds = InvestorAllocation.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("birds_owned"))["total"] or 0
+
+        admin_birds = batch.bird_count_initial - allocated_investor_birds
+
+        if is_admin:
+            share_ratio = admin_birds / batch.bird_count_initial if batch.bird_count_initial > 0 else 0
+            report_title = "Admin Share Report"
+            starting_birds = admin_birds
+        else:
+            allocation = InvestorAllocation.objects.filter(
+                batch=batch,
+                investor=request.user.investor_profile
+            ).first()
+
+            share_ratio = allocation.birds_owned / batch.bird_count_initial if allocation and batch.bird_count_initial > 0 else 0
+            report_title = "Investor Share Report"
+            starting_birds = allocation.birds_owned if allocation else 0
+
+        share_mortality = round(total_mortality * share_ratio)
+        share_sold = math.floor(total_sold * share_ratio)
+        share_current_birds = starting_birds - share_mortality - share_sold
+
+        share_revenue = round(total_revenue * share_ratio, 2)
+        share_locked_cogs = round(locked_cogs * share_ratio, 2)
+        share_expenses = round(float(expenses) * share_ratio, 2)
+        share_net_income = round(share_revenue - share_locked_cogs - share_expenses, 2)
+
+        share_total_investment = round((total_cogs * share_ratio) + share_expenses, 2)
+
+        share_roi = round(
+            (share_net_income / share_total_investment) * 100,
+            2
+        ) if share_total_investment > 0 else 0
+
+        batch_net_income = round(total_revenue - locked_cogs - float(expenses), 2)
+
+        batch_roi = round(
+            (batch_net_income / (total_cogs + float(expenses))) * 100,
+            2
+        ) if (total_cogs + float(expenses)) > 0 else 0
+
+        report_rows.append({
+            "batch": batch,
+            "report_title": report_title,
+            "share_percentage": round(share_ratio * 100, 1),
+
+            "starting_birds": starting_birds,
+            "current_birds": share_current_birds,
+            "mortality": share_mortality,
+            "sold": share_sold,
+
+            "revenue": share_revenue,
+            "locked_cogs": share_locked_cogs,
+            "expenses": share_expenses,
+            "net_income": share_net_income,
+            "roi": share_roi,
+
+            "total_batch_start": batch.bird_count_initial,
+            "total_batch_current": current_birds,
+            "total_batch_mortality": total_mortality,
+            "total_batch_sold": total_sold,
+            "total_batch_revenue": round(total_revenue, 2),
+            "total_batch_cogs": round(locked_cogs, 2),
+            "total_batch_expenses": round(float(expenses), 2),
+            "total_batch_net_income": batch_net_income,
+            "total_batch_roi": batch_roi,
+
+            "total_weight": round(total_weight * share_ratio, 2),
+        })
+
+    return render(request, "api/batch_report.html", {
+        "report_rows": report_rows,
+        "is_admin": is_admin,
     })
 
 
