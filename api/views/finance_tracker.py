@@ -16,9 +16,11 @@ from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
 @login_required
 def finance_tracker(request):
     is_admin = request.user.is_superuser or request.user.is_staff
-
     if is_admin:
-        batches = Batch.objects.filter(is_active=True).order_by("-start_date", "batch_number")
+        batches = Batch.objects.filter().order_by(
+            '-is_active',
+            '-start_date'
+        )
     else:
         if not hasattr(request.user, "investor_profile"):
             return redirect("dashboard")
@@ -28,9 +30,11 @@ def finance_tracker(request):
         ).values_list("batch_id", flat=True)
 
         batches = Batch.objects.filter(
-            id__in=investor_batch_ids,
-            is_active=False
-        ).order_by("-end_date", "-start_date", "batch_number")
+            id__in=investor_batch_ids
+        ).order_by(
+            '-is_active',
+            '-start_date'
+        )
 
     finance_rows = []
 
@@ -713,7 +717,7 @@ def batch_report(request):
     is_investor = hasattr(request.user, "investor_profile")
 
     if is_admin:
-        batches = Batch.objects.filter(is_active=True).order_by("-start_date", "batch_number")
+        batches = Batch.objects.filter(is_active=False).order_by("-start_date", "batch_number")
     elif is_investor:
         investor_batch_ids = InvestorAllocation.objects.filter(
             investor=request.user.investor_profile
@@ -721,7 +725,7 @@ def batch_report(request):
 
         batches = Batch.objects.filter(
             id__in=investor_batch_ids,
-            is_active=True
+            is_active=False
         ).order_by("-start_date", "batch_number")
     else:
         messages.error(request, "You are not allowed to view reports.")

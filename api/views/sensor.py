@@ -502,3 +502,8 @@ def mark_vaccine_done(request, record_id):
     record.save()
 
     return redirect('vaccine_records', batch_id=record.batch.id)
+
+
+@login_required
+def dashboard_v2(request):
+    return render(request, "api/dashboard_v2.html")

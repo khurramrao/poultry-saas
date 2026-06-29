@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Batch Report</title>
+    <title>Batch Performance Report</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <style>
@@ -26,6 +26,15 @@
             padding:15px;
         }
 
+        .top-row{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            margin-bottom:20px;
+            flex-wrap:wrap;
+        }
+
         .btn{
             display:inline-block;
             background:#1f4e79;
@@ -33,8 +42,12 @@
             text-decoration:none;
             padding:10px 16px;
             border-radius:8px;
-            margin-bottom:20px;
             font-weight:bold;
+        }
+
+        .hint{
+            color:#667085;
+            font-size:14px;
         }
 
         .report-card{
@@ -74,6 +87,7 @@
             color:#1f4e79;
             font-size:20px;
             display:block;
+            margin-bottom:4px;
         }
 
         .summary-left span{
@@ -81,10 +95,36 @@
             font-size:14px;
         }
 
+        .summary-right{
+            display:flex;
+            align-items:center;
+            gap:12px;
+            flex-wrap:wrap;
+            justify-content:flex-end;
+        }
+
         .summary-money{
             font-size:18px;
             font-weight:bold;
             white-space:nowrap;
+        }
+
+        .status-badge{
+            padding:6px 12px;
+            border-radius:20px;
+            font-size:12px;
+            font-weight:bold;
+            white-space:nowrap;
+        }
+
+        .active{
+            background:#ddffdd;
+            color:green;
+        }
+
+        .closed{
+            background:#e5e7eb;
+            color:#475467;
         }
 
         .report-body{
@@ -151,10 +191,26 @@
                 padding:10px;
             }
 
+            .top-row{
+                flex-direction:column;
+                align-items:stretch;
+            }
+
+            .btn{
+                width:100%;
+                text-align:center;
+                box-sizing:border-box;
+            }
+
             .report-card summary{
                 flex-direction:column;
                 align-items:flex-start;
                 padding:16px;
+            }
+
+            .summary-right{
+                width:100%;
+                justify-content:space-between;
             }
 
             .report-body{
@@ -175,12 +231,15 @@
 <body>
 
 <div class="header">
-    <h2>📊 Batch Report</h2>
+    <h2>📊 Batch Performance Report</h2>
 </div>
 
 <div class="container">
 
-    <a href="{% url 'dashboard' %}" class="btn">← Dashboard</a>
+    <div class="top-row">
+        <a href="{% url 'dashboard' %}" class="btn">← Dashboard</a>
+
+    </div>
 
     {% for row in report_rows %}
 
@@ -191,13 +250,22 @@
                     <strong>
                         {{ row.batch.shed.shed_type|title }} Batch #{{ row.batch.batch_number }}
                     </strong>
+
                     <span>
                         {{ row.report_title }} — Share {{ row.share_percentage }}%
                     </span>
                 </div>
 
-                <div class="summary-money {% if row.net_income < 0 %}negative{% else %}positive{% endif %}">
-                    Net Income: Rs {{ row.net_income|floatformat:2|intcomma }}
+                <div class="summary-right">
+                    {% if row.batch.is_active %}
+                        <span class="status-badge active">Active</span>
+                    {% else %}
+                        <span class="status-badge closed">Closed</span>
+                    {% endif %}
+
+                    <div class="summary-money {% if row.net_income < 0 %}negative{% else %}positive{% endif %}">
+                        Net: Rs {{ row.net_income|floatformat:2|intcomma }}
+                    </div>
                 </div>
             </summary>
 
@@ -324,9 +392,14 @@
         </details>
 
     {% empty %}
-        <div class="empty-card">
-            <p>No batch report available.</p>
-        </div>
+      <h3>📊 No Final Batch Report Available</h3>
+<p>
+    Final batch reports are generated only after a batch is closed.
+    Your active batch performance is available in the Finance Tracker.
+</p>
+    <a href="{% url 'finance_tracker' %}" class="btn">
+    💰 View Finance Tracker
+</a>
     {% endfor %}
 
 </div>

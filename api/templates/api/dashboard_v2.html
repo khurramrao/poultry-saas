@@ -1,0 +1,1233 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RayNoor Dashboard V2</title>
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <style>
+        *{
+            box-sizing:border-box;
+        }
+
+        body{
+            margin:0;
+            font-family:Arial, sans-serif;
+            background:#f5f7fb;
+            color:#10233f;
+        }
+
+        .app-layout{
+            min-height:100vh;
+            display:flex;
+        }
+
+        /* SIDEBAR */
+
+        .sidebar{
+            width:265px;
+            min-height:100vh;
+            background:linear-gradient(180deg,#042b4f,#00325c);
+            color:white;
+            padding:18px 14px;
+            position:sticky;
+            top:0;
+            height:100vh;
+            display:flex;
+            flex-direction:column;
+            flex-shrink:0;
+        }
+
+        .sidebar-logo{
+            text-align:center;
+            padding:0 8px 18px;
+        }
+
+        .sidebar-logo img{
+            width:185px;
+            max-width:100%;
+            height:185px;
+            object-fit:contain;
+        }
+
+        .sidebar-nav{
+            display:flex;
+            flex-direction:column;
+            gap:7px;
+        }
+
+        .sidebar-nav a{
+            color:white;
+            text-decoration:none;
+            border-radius:10px;
+            padding:13px 14px;
+            display:flex;
+            align-items:center;
+            gap:14px;
+            font-size:15px;
+            font-weight:bold;
+            transition:0.2s;
+        }
+
+        .sidebar-nav a i{
+            width:20px;
+            font-size:18px;
+            text-align:center;
+        }
+
+        .sidebar-nav a:hover,
+        .sidebar-nav a.active{
+            background:linear-gradient(90deg,#2570d7,#1661bd);
+        }
+
+        .nav-badge{
+            margin-left:auto;
+            min-width:23px;
+            height:23px;
+            padding:0 6px;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:#ff4d54;
+            color:white;
+            border-radius:50%;
+            font-size:12px;
+        }
+
+        .sidebar-bottom{
+            margin-top:auto;
+            padding-top:20px;
+            border-top:1px solid rgba(255,255,255,0.22);
+        }
+
+        .profile-mini{
+            display:flex;
+            align-items:center;
+            gap:12px;
+            padding:12px 8px 4px;
+        }
+
+        .profile-icon{
+            width:46px;
+            height:46px;
+            background:white;
+            color:#174a7b;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:25px;
+        }
+
+        .profile-text strong{
+            display:block;
+            font-size:15px;
+        }
+
+        .profile-text span{
+            display:block;
+            color:#dbeafe;
+            margin-top:4px;
+            font-size:13px;
+        }
+
+        .profile-arrow{
+            margin-left:auto;
+        }
+
+        /* MAIN */
+
+        .main-content{
+            min-width:0;
+            flex:1;
+        }
+
+        .topbar{
+            height:64px;
+            background:white;
+            border-bottom:1px solid #e6ebf2;
+            display:flex;
+            justify-content:flex-end;
+            align-items:center;
+            padding:0 32px;
+            gap:24px;
+        }
+
+        .bell{
+            position:relative;
+            font-size:23px;
+            color:#122f4c;
+        }
+
+        .bell-badge{
+            position:absolute;
+            top:-10px;
+            right:-11px;
+            width:20px;
+            height:20px;
+            border-radius:50%;
+            background:#f0444b;
+            color:white;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:11px;
+            font-weight:bold;
+        }
+
+        .top-user{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            padding-left:22px;
+            border-left:1px solid #e6ebf2;
+            font-weight:bold;
+        }
+
+        .top-user-icon{
+            width:35px;
+            height:35px;
+            border-radius:50%;
+            background:#eef4fb;
+            color:#174a7b;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+        }
+
+        .page-content{
+            padding:18px 20px 24px;
+            max-width:1600px;
+            margin:auto;
+        }
+
+        /* WELCOME */
+
+        .welcome-card{
+            background:white;
+            border:1px solid #e8edf4;
+            border-radius:14px;
+            padding:18px 22px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:20px;
+            box-shadow:0 3px 12px rgba(26,57,88,0.05);
+        }
+
+        .welcome-left{
+            display:flex;
+            align-items:center;
+            gap:18px;
+        }
+
+        .welcome-logo{
+            width:105px;
+            height:105px;
+            object-fit:contain;
+            flex-shrink:0;
+        }
+
+        .welcome-text h1{
+            margin:0;
+            font-size:31px;
+            color:#101820;
+        }
+
+        .welcome-text p{
+            margin:10px 0 13px;
+            color:#46566a;
+            font-size:15px;
+        }
+
+        .welcome-meta{
+            display:flex;
+            gap:10px;
+            flex-wrap:wrap;
+        }
+
+        .meta-pill{
+            background:#f8fbff;
+            border:1px solid #e7edf5;
+            border-radius:7px;
+            padding:8px 11px;
+            color:#22344f;
+            font-size:13px;
+        }
+
+        .meta-pill i{
+            color:#1459bd;
+            margin-right:7px;
+        }
+
+        .welcome-actions{
+            display:flex;
+            gap:12px;
+            align-self:flex-start;
+            padding-top:8px;
+        }
+
+        .welcome-btn{
+            background:#042d57;
+            color:white;
+            text-decoration:none;
+            padding:13px 19px;
+            border-radius:9px;
+            font-size:15px;
+            font-weight:bold;
+            white-space:nowrap;
+        }
+
+        .welcome-btn:hover{
+            background:#124a82;
+        }
+
+        /* KPI */
+
+        .kpi-grid{
+            display:grid;
+            grid-template-columns:repeat(5,minmax(0,1fr));
+            gap:14px;
+            margin-top:18px;
+        }
+
+        .kpi-card{
+            min-height:114px;
+            background:white;
+            border:1px solid #e7ecf3;
+            border-radius:14px;
+            padding:17px;
+            display:flex;
+            align-items:center;
+            gap:15px;
+            box-shadow:0 3px 12px rgba(26,57,88,0.04);
+        }
+
+        .kpi-icon{
+            width:56px;
+            height:56px;
+            min-width:56px;
+            border-radius:50%;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            font-size:25px;
+            color:white;
+        }
+
+        .green{ background:#43a047; }
+        .orange{ background:#ffb300; }
+        .red{ background:#ff6464; }
+        .blue{ background:#4d8fda; }
+
+        .kpi-label{
+            font-size:13px;
+            color:#39485a;
+            margin-bottom:6px;
+        }
+
+        .kpi-value{
+            font-size:25px;
+            font-weight:bold;
+            color:#172433;
+            margin-bottom:7px;
+        }
+
+        .kpi-note{
+            font-size:12px;
+            color:#536173;
+            white-space:nowrap;
+        }
+
+        .kpi-note.success{
+            color:#15913a;
+        }
+
+        /* SHED SECTION */
+
+        .shed-section{
+            margin-top:16px;
+            background:white;
+            border:1px solid #e8edf4;
+            border-radius:14px;
+            padding:12px;
+        }
+
+        .section-heading{
+            margin:4px 2px 12px;
+            font-size:19px;
+            color:#172433;
+        }
+
+        .shed-row{
+            display:grid;
+            grid-template-columns:250px repeat(4,minmax(120px,1fr)) 210px;
+            gap:10px;
+            align-items:stretch;
+            margin-bottom:11px;
+        }
+
+        .shed-main,
+        .sensor-box,
+        .shed-alert{
+            border:1px solid #e8edf4;
+            border-radius:12px;
+            background:#fff;
+            padding:14px;
+        }
+
+        .shed-main{
+            display:flex;
+            align-items:center;
+            gap:12px;
+        }
+
+        .shed-icon{
+            width:48px;
+            height:48px;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:#e7f1ff;
+            color:#1a66bf;
+            font-size:25px;
+        }
+
+        .layer-icon{
+            background:#f0ebff;
+            color:#6d46c9;
+        }
+
+        .shed-main h3{
+            margin:0 0 8px;
+            color:#0b3f9c;
+            font-size:17px;
+        }
+
+        .shed-main p{
+            margin:4px 0;
+            color:#24364e;
+            font-size:12px;
+        }
+
+        .online-dot{
+            color:#20a83b;
+            font-size:10px;
+        }
+
+        .sensor-box{
+            text-align:center;
+        }
+
+        .sensor-box .sensor-title{
+            font-size:12px;
+            color:#24364e;
+        }
+
+        .sensor-box .sensor-icon{
+            display:block;
+            margin-bottom:5px;
+            font-size:23px;
+        }
+
+        .sensor-value{
+            font-size:18px;
+            font-weight:bold;
+            margin:3px 0 6px;
+        }
+
+        .sensor-value.good{
+            color:#208036;
+        }
+
+        .sensor-value.high{
+            color:#ef3434;
+        }
+
+        .sensor-pill{
+            display:inline-block;
+            padding:4px 9px;
+            font-size:11px;
+            border-radius:12px;
+        }
+
+        .normal-pill{
+            color:#168131;
+            background:#e5f7e7;
+        }
+
+        .high-pill{
+            color:#e33232;
+            background:#ffe3e3;
+        }
+
+        .shed-alert{
+            display:flex;
+            flex-direction:column;
+            justify-content:center;
+            gap:11px;
+        }
+
+        .shed-alert strong{
+            font-size:14px;
+        }
+
+        .all-normal{
+            display:flex;
+            align-items:center;
+            gap:10px;
+            color:#168131;
+            font-size:13px;
+        }
+
+        .check-circle{
+            width:22px;
+            height:22px;
+            border-radius:50%;
+            background:#28a745;
+            color:white;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:12px;
+        }
+
+        /* TABLE */
+
+        .batch-table-wrap{
+            border:1px solid #e8edf4;
+            border-radius:11px;
+            overflow-x:auto;
+            margin-bottom:11px;
+        }
+
+        .batch-caption{
+            padding:10px 12px;
+            font-size:14px;
+            font-weight:bold;
+            color:#172433;
+            border-bottom:1px solid #e8edf4;
+        }
+
+        .batch-table{
+            width:100%;
+            min-width:1030px;
+            border-collapse:collapse;
+            font-size:12px;
+        }
+
+        .batch-table th{
+            color:#29384a;
+            background:#fbfcfe;
+            text-align:center;
+            padding:9px 8px;
+            border-bottom:1px solid #edf0f5;
+            font-weight:bold;
+        }
+
+        .batch-table td{
+            text-align:center;
+            padding:10px 8px;
+            border-bottom:1px solid #edf0f5;
+            color:#1e2e40;
+        }
+
+        .batch-table tr:last-child td{
+            border-bottom:none;
+        }
+
+        .batch-code{
+            font-weight:bold;
+            color:#19713b !important;
+        }
+
+        .type-tag{
+            border-radius:6px;
+            padding:5px 10px;
+            font-weight:bold;
+            font-size:11px;
+        }
+
+        .meat-tag{
+            color:#27833d;
+            background:#e5f7e7;
+        }
+
+        .layer-tag{
+            color:#6341b8;
+            background:#eee8ff;
+        }
+
+        .danger-text{
+            color:#f02e2e !important;
+        }
+
+        .active-tag{
+            color:#157c32;
+            background:#e5f7e7;
+            border-radius:6px;
+            padding:5px 11px;
+            font-weight:bold;
+        }
+
+        .active-dot{
+            color:#18a33d;
+            margin-right:3px;
+        }
+
+        .footer-note{
+            background:#eaf6ff;
+            border:1px solid #d9edff;
+            color:#1764bc;
+            padding:10px 12px;
+            border-radius:7px;
+            font-size:12px;
+        }
+
+        /* RESPONSIVE */
+
+        @media(max-width:1250px){
+            .kpi-grid{
+                grid-template-columns:repeat(3,1fr);
+            }
+
+            .shed-row{
+                grid-template-columns:repeat(3,1fr);
+            }
+
+            .shed-main{
+                grid-column:span 1;
+            }
+
+            .shed-alert{
+                grid-column:span 1;
+            }
+        }
+
+        @media(max-width:900px){
+            .sidebar{
+                width:78px;
+                padding:16px 10px;
+            }
+
+            .sidebar-logo img{
+                width:55px;
+                height:55px;
+            }
+
+            .sidebar-nav a{
+                justify-content:center;
+                padding:14px 8px;
+            }
+
+            .sidebar-nav a span,
+            .profile-text,
+            .profile-arrow,
+            .nav-badge{
+                display:none;
+            }
+
+            .sidebar-nav a i{
+                margin:0;
+                font-size:19px;
+            }
+
+            .profile-mini{
+                justify-content:center;
+            }
+
+            .topbar{
+                padding:0 18px;
+            }
+
+            .welcome-card{
+                flex-direction:column;
+                align-items:stretch;
+            }
+
+            .welcome-actions{
+                align-self:auto;
+            }
+        }
+
+        @media(max-width:700px){
+            .app-layout{
+                display:block;
+            }
+
+            .sidebar{
+                position:static;
+                width:100%;
+                min-height:auto;
+                height:auto;
+                display:block;
+            }
+
+            .sidebar-logo{
+                display:none;
+            }
+
+            .sidebar-nav{
+                display:grid;
+                grid-template-columns:repeat(3,1fr);
+                gap:6px;
+            }
+
+            .sidebar-nav a{
+                padding:10px 5px;
+            }
+
+            .sidebar-bottom{
+                display:none;
+            }
+
+            .topbar{
+                height:55px;
+            }
+
+            .page-content{
+                padding:12px;
+            }
+
+            .welcome-left{
+                align-items:flex-start;
+            }
+
+            .welcome-logo{
+                width:68px;
+                height:68px;
+            }
+
+            .welcome-text h1{
+                font-size:23px;
+            }
+
+            .welcome-actions{
+                flex-direction:column;
+                padding-top:0;
+            }
+
+            .welcome-btn{
+                text-align:center;
+            }
+
+            .kpi-grid{
+                grid-template-columns:repeat(2,1fr);
+                gap:10px;
+            }
+
+            .kpi-card{
+                min-height:98px;
+                padding:12px;
+                gap:10px;
+            }
+
+            .kpi-icon{
+                width:45px;
+                min-width:45px;
+                height:45px;
+                font-size:20px;
+            }
+
+            .kpi-value{
+                font-size:19px;
+            }
+
+            .kpi-note{
+                display:none;
+            }
+
+            .shed-row{
+                grid-template-columns:1fr 1fr;
+            }
+
+            .shed-main,
+            .shed-alert{
+                grid-column:span 2;
+            }
+        }
+
+        @media(max-width:430px){
+            .kpi-grid{
+                grid-template-columns:1fr;
+            }
+
+            .shed-row{
+                grid-template-columns:1fr;
+            }
+
+            .shed-main,
+            .shed-alert{
+                grid-column:span 1;
+            }
+        }
+      .age-days{
+    font-size:13px;
+    font-weight:bold;
+    color:#1e2e40;
+}
+
+.age-weeks{
+    font-size:12px;
+    color:#667085;
+    margin-top:4px;
+}
+    </style>
+</head>
+
+<body>
+
+<div class="app-layout">
+
+    <aside class="sidebar">
+
+        <div class="sidebar-logo">
+            <img src="{% static 'images/raynoor-logo.png' %}" alt="RayNoor Organic Farms">
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="{% url 'dashboard' %}" class="active">
+                <i class="fa-solid fa-house"></i>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="{% url 'daily_log' %}">
+                <i class="fa-regular fa-calendar-check"></i>
+                <span>Daily Log</span>
+                <span class="nav-badge">3</span>
+            </a>
+
+            <a href="#">
+                <i class="fa-solid fa-list-ol"></i>
+                <span>Batches</span>
+            </a>
+
+             <a href="#">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Ownership Shares</span>
+            </a>
+
+
+            <a href="{% url 'add_sale_record' %}">
+                <i class="fa-solid fa-circle-down"></i>
+                <span>Sales</span>
+            </a>
+
+            <a href="{% url 'finance_tracker' %}">
+                <i class="fa-regular fa-money-bill-1"></i>
+                <span>Finance Tracker</span>
+            </a>
+
+            <a href="{% url 'feed_list' %}">
+                <i class="fa-solid fa-bucket"></i>
+                <span>Feed Management</span>
+            </a>
+
+            <a href="{% url 'medicine_list' %}">
+                <i class="fa-solid fa-suitcase-medical"></i>
+                <span>Medicine</span>
+            </a>
+
+            <a href="{% url 'expense_list' %}">
+                <i class="fa-regular fa-clipboard"></i>
+                <span>Expenses</span>
+            </a>
+
+            <a href="#">
+                <i class="fa-solid fa-syringe"></i>
+                <span>Vaccine Records</span>
+            </a>
+
+
+
+
+
+
+            <a href="{% url 'batch_report' %}">
+                <i class="fa-regular fa-chart-bar"></i>
+                <span>Reports</span>
+            </a>
+
+            <a href="#">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <div class="profile-mini">
+                <div class="profile-icon">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+
+                <div class="profile-text">
+                    <strong>Farmtest</strong>
+                    <span>Administrator</span>
+                </div>
+
+                <i class="fa-solid fa-angle-down profile-arrow"></i>
+            </div>
+        </div>
+
+    </aside>
+
+    <main class="main-content">
+
+        <div class="topbar">
+            <div class="bell">
+                <i class="fa-regular fa-bell"></i>
+                <span class="bell-badge">3</span>
+            </div>
+
+            <div class="top-user">
+                <div class="top-user-icon">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <span>Farmtest</span>
+                <i class="fa-solid fa-angle-down"></i>
+            </div>
+        </div>
+
+        <div class="page-content">
+
+            <section class="welcome-card">
+
+                <div class="welcome-left">
+                    <img src="{% static 'images/raynoor-logo.png' %}"
+                         class="welcome-logo"
+                         alt="RayNoor Logo">
+
+                    <div class="welcome-text">
+                        <h1>👋 Hi Farmtest</h1>
+                        <p>Welcome back to your farm management dashboard.</p>
+
+                        <div class="welcome-meta">
+                            <div class="meta-pill">
+                                <i class="fa-regular fa-calendar-days"></i>
+                                24 June 2025, Tuesday
+                            </div>
+
+                            <div class="meta-pill">
+                                <i class="fa-regular fa-clock"></i>
+                                Last updated: Just now
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="welcome-actions">
+                    <a href="{% url 'daily_log' %}" class="welcome-btn">
+                        <i class="fa-regular fa-calendar-check"></i>
+                        Daily Log
+                    </a>
+
+                    <a href="{% url 'finance_tracker' %}" class="welcome-btn">
+                        <i class="fa-solid fa-sack-dollar"></i>
+                        Finance Tracker
+                    </a>
+                </div>
+
+            </section>
+
+            <section class="kpi-grid">
+
+                <div class="kpi-card">
+                    <div class="kpi-icon green">
+                        <i class="fa-solid fa-dove"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">Total Birds</div>
+                        <div class="kpi-value">3,250</div>
+                        <div class="kpi-note">Across 3 Batches <span style="color:#15913a;">↑</span></div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon orange">
+                        <i class="fa-solid fa-wave-square"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">Active Batches</div>
+                        <div class="kpi-value">3</div>
+                        <div class="kpi-note success">All Running Smooth</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon red">
+                        <i class="fa-solid fa-heart-pulse"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">Total Mortality</div>
+                        <div class="kpi-value">215</div>
+                        <div class="kpi-note">6.62% of Total Birds</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon blue">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">Total Sold</div>
+                        <div class="kpi-value">1,245</div>
+                        <div class="kpi-note">38.31% of Total Birds</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-icon green">
+                        <i class="fa-solid fa-dollar-sign"></i>
+                    </div>
+                    <div>
+                        <div class="kpi-label">Total Sales</div>
+                        <div class="kpi-value" style="font-size:21px;">Rs 512,450</div>
+                        <div class="kpi-note">All Batches</div>
+                    </div>
+                </div>
+
+            </section>
+
+            <section class="shed-section">
+
+                <h2 class="section-heading">Shed Overview &amp; Sensor Status</h2>
+
+                <!-- MEAT SHED -->
+
+                <div class="shed-row">
+
+                    <div class="shed-main">
+                        <div class="shed-icon">
+                            <i class="fa-solid fa-warehouse"></i>
+                        </div>
+
+                        <div>
+                            <h3>Meat Shed</h3>
+                            <p>Device: DEV-MEAT-01</p>
+                            <p>Last Update: 2 minutes ago <span class="online-dot">●</span></p>
+                        </div>
+                    </div>
+
+                    <div class="sensor-box">
+                        <span class="sensor-icon" style="color:#ff3939;">
+                            <i class="fa-solid fa-temperature-three-quarters"></i>
+                        </span>
+                        <div class="sensor-title">Temperature</div>
+                        <div class="sensor-value high">29.4 °C</div>
+                        <span class="sensor-pill high-pill">High</span>
+                    </div>
+
+                    <div class="sensor-box">
+                        <span class="sensor-icon" style="color:#1f75ff;">
+                            <i class="fa-solid fa-droplet"></i>
+                        </span>
+                        <div class="sensor-title">Humidity</div>
+                        <div class="sensor-value good">68 %</div>
+                        <span class="sensor-pill normal-pill">Normal</span>
+                    </div>
+
+                    <div class="sensor-box">
+                        <span class="sensor-icon" style="color:#ffad00;">
+                            <i class="fa-regular fa-sun"></i>
+                        </span>
+                        <div class="sensor-title">Light</div>
+                        <div class="sensor-value good">65 %</div>
+                        <span class="sensor-pill normal-pill">Normal</span>
+                    </div>
+
+                    <div class="sensor-box">
+                        <span class="sensor-icon" style="color:#2d7aff;">
+                            <i class="fa-solid fa-cloud"></i>
+                        </span>
+                        <div class="sensor-title">Ammonia</div>
+                        <div class="sensor-value good">12 ppm</div>
+                        <span class="sensor-pill normal-pill">Normal</span>
+                    </div>
+
+                    <div class="shed-alert">
+                        <strong>Shed Alerts</strong>
+                        <div class="all-normal">
+                            <span class="check-circle">
+                                <i class="fa-solid fa-check"></i>
+                            </span>
+                            All Normal
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="batch-table-wrap">
+                    <div class="batch-caption">Active Batches in Meat Shed</div>
+
+                    <table class="batch-table">
+                        <thead>
+                            <tr>
+                                <th>Batch #</th>
+                                <th>Type</th>
+                                <th>Start Date</th>
+                                <th>Age (days)</th>
+                                <th>Start Birds</th>
+                                <th>Current Birds</th>
+                                <th>Mortality</th>
+                                <th>Sold</th>
+                                <th>Status</th>
+                                <th>Alerts</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td class="batch-code">MEAT-001</td>
+                                <td><span class="type-tag meat-tag">Meat</span></td>
+                                <td>10 May 2025</td>
+                                <td>
+                                    <div class="age-days">45 days</div>
+                                    <div class="age-weeks">(6 weeks)</div>
+                                </td>
+                                <td>1,000</td>
+                                <td>765</td>
+                                <td class="danger-text">65 (6.50%)</td>
+                                <td>170 (17.00%)</td>
+                                <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
+                                <td style="color:#168131;">All Normal</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- LAYER SHED -->
+
+                <div class="shed-row">
+
+                    <div class="shed-main">
+                        <div class="shed-icon layer-icon">
+                            <i class="fa-solid fa-warehouse"></i>
+                        </div>
+
+                        <div>
+                            <h3 style="color:#5b32b3;">Layer Shed</h3>
+                            <p>Device: DEV-LAYER-01</p>
+                            <p>Last Update: 1 minute ago <span class="online-dot">●</span></p>
+                        </div>
+                    </div>
+
+                    <div class="sensor-box">
+                        <span class="sensor-icon" style="color:#2d7aff;">
+                            <i class="fa-solid fa-temperature-three-quarters"></i>
+                        </span>
+                        <div class="sensor-title">Temperature</div>
+                        <div class="sensor-value good">27.1 °C</div>
+                        <span class="sensor-pill normal-pill">Normal</span>
+                    </div>
+
+                    <div class="sensor-box">
+                        <span class="sensor-icon" style="color:#1f75ff;">
+                            <i class="fa-solid fa-droplet"></i>
+                        </span>
+                        <div class="sensor-title">Humidity</div>
+                        <div class="sensor-value good">62 %</div>
+                        <span class="sensor-pill normal-pill">Normal</span>
+                    </div>
+
+                    <div class="sensor-box">
+                        <span class="sensor-icon" style="color:#ffad00;">
+                            <i class="fa-regular fa-sun"></i>
+                        </span>
+                        <div class="sensor-title">Light</div>
+                        <div class="sensor-value good">55 %</div>
+                        <span class="sensor-pill normal-pill">Normal</span>
+                    </div>
+
+                    <div class="sensor-box">
+                        <span class="sensor-icon" style="color:#2d7aff;">
+                            <i class="fa-solid fa-cloud"></i>
+                        </span>
+                        <div class="sensor-title">Ammonia</div>
+                        <div class="sensor-value good">8 ppm</div>
+                        <span class="sensor-pill normal-pill">Normal</span>
+                    </div>
+
+                    <div class="shed-alert">
+                        <strong>Shed Alerts</strong>
+                        <div class="all-normal">
+                            <span class="check-circle">
+                                <i class="fa-solid fa-check"></i>
+                            </span>
+                            All Normal
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="batch-table-wrap">
+                    <div class="batch-caption">Active Batches in Layer Shed</div>
+
+                    <table class="batch-table">
+                        <thead>
+                            <tr>
+                                <th>Batch #</th>
+                                <th>Type</th>
+                                <th>Start Date</th>
+                                <th>Age (days)</th>
+                                <th>Start Birds</th>
+                                <th>Current Birds</th>
+                                <th>Mortality</th>
+                                <th>Sold</th>
+                                <th>Status</th>
+                                <th>Alerts</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            <tr>
+                                <td class="batch-code">LAYER-001</td>
+                                <td><span class="type-tag layer-tag">Layer</span></td>
+                                <td>05 May 2025</td>
+                                <td>
+                                    <div class="age-days">50 days</div>
+                                    <div class="age-weeks">(7 weeks)</div>
+                                </td>
+                                <td>1,200</td>
+                                <td>1,120</td>
+                                <td class="danger-text">80 (6.67%)</td>
+                                <td>0 (0.00%)</td>
+                                <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
+                                <td style="color:#168131;">All Normal</td>
+                            </tr>
+
+                            <tr>
+                                <td class="batch-code">LAYER-002</td>
+                                <td><span class="type-tag layer-tag">Layer</span></td>
+                                <td>12 May 2025</td>
+                                <td>
+                                    <div class="age-days">45 days</div>
+                                    <div class="age-weeks">(6 weeks)</div>
+                                </td>
+                                <td>930</td>
+                                <td class="danger-text">70 (6.67%)</td>
+                                <td>50 (4.76%)</td>
+                                <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
+                                <td style="color:#168131;">All Normal</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="footer-note">
+                    <i class="fa-solid fa-circle-info"></i>
+                    &nbsp; Note: Data is auto-refreshing every 30 seconds.
+                </div>
+
+            </section>
+
+        </div>
+    </main>
+</div>
+
+</body>
+</html>

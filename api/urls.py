@@ -22,6 +22,11 @@ urlpatterns = [
     path("add-expense/",sales.add_expense,name="add_expense"),
     path("add-chick-cost/", finance_tracker.add_chick_cost, name="add_chick_cost"),
  path("batch-report/", finance_tracker.batch_report, name="batch_report"),
+path(
+    "dashboard-v2/",
+    sensor.dashboard_v2,
+    name="dashboard_v2"
+)
 
 
 

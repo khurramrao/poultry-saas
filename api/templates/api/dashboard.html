@@ -524,7 +524,14 @@ body {
              alt="RayNoor Logo" style="width:100px;">
 
         <div>
-            <h2>👋 Hi {{ request.user.username|title }}</h2>
+          <h2>
+                👋 Hi
+                {% if request.user.first_name %}
+                    {{ request.user.first_name|title }} {{ request.user.last_name|title }}
+                {% else %}
+                    {{ request.user.username|title }}
+                {% endif %}
+            </h2>
 
             {% if is_admin %}
                 <p>Welcome back to your farm management dashboard.</p>
