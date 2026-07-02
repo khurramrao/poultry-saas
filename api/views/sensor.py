@@ -12,8 +12,12 @@ from django.contrib.auth.decorators import login_required
 from django.apps import apps
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib import messages
+import json
+import logging
 from urllib.parse import urlencode
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
+logger = logging.getLogger(__name__)
+
 from django.core.cache import cache
 
 
@@ -188,10 +192,16 @@ def get_dunyapur_weather():
             + urlencode(params)
         )
 
-        with urlopen(weather_url, timeout=6) as response:
-            weather_json = json.loads(
-                response.read().decode("utf-8")
-            )
+        weather_request = Request(
+            weather_url,
+            headers={
+                "User-Agent": "RayNoorFarmDashboard/1.0",
+                "Accept": "application/json",
+            },
+        )
+
+        with urlopen(weather_request, timeout=15) as response:
+            weather_json = json.load(response)
 
         current = weather_json.get("current", {})
 
@@ -233,12 +243,12 @@ def get_dunyapur_weather():
             "icon": icon,
         }
 
-        # Refresh outdoor weather once every 15 minutes
         cache.set(cache_key, weather_data, 15 * 60)
 
         return weather_data
 
-    except Exception:
+    except Exception as error:
+        logger.exception("Dunyapur weather request failed: %s", error)
         return None
 
 
