@@ -3,6 +3,7 @@ from datetime import date, timedelta
 from django.utils import timezone
 from django.conf import settings
 from django.db.models import Sum
+from django.contrib.auth.models import User
 
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -10,6 +11,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.apps import apps
 from django.core.exceptions import ObjectDoesNotExist
+from django.contrib import messages
+from urllib.parse import urlencode
+from urllib.request import urlopen
+from django.core.cache import cache
+
 
 from api.models.sensor import (
     Batch,
@@ -22,7 +28,7 @@ from api.models.sensor import (
 )
 from api.models.temperature import TemperatureRule
 
-from api.models.investors import InvestorAllocation, InvestorProfile, UserFeedStatus, BatchCost
+from api.models.investors import InvestorProfile, InvestorAllocation, BatchCost, UserProfile
 from api.models.investors import (
     InvestorAllocation,
     UserFeedStatus,
@@ -35,6 +41,8 @@ from api.models.sales import (
     Expense,
 )
 from django.utils import timezone
+
+from django.utils.timesince import timesince
 
 
 @csrf_exempt
@@ -160,14 +168,108 @@ def build_batch_summary(batch):
     }
 
 
+def get_dunyapur_weather():
+    cache_key = "dunyapur_outdoor_weather"
+    cached_weather = cache.get(cache_key)
+
+    if cached_weather:
+        return cached_weather
+
+    try:
+        params = {
+            "latitude": 29.80,
+            "longitude": 71.74,
+            "current": "temperature_2m,relative_humidity_2m,weather_code",
+            "timezone": "Asia/Karachi",
+        }
+
+        weather_url = (
+            "https://api.open-meteo.com/v1/forecast?"
+            + urlencode(params)
+        )
+
+        with urlopen(weather_url, timeout=6) as response:
+            weather_json = json.loads(
+                response.read().decode("utf-8")
+            )
+
+        current = weather_json.get("current", {})
+
+        temperature = current.get("temperature_2m")
+        humidity = current.get("relative_humidity_2m")
+        weather_code = current.get("weather_code", -1)
+
+        if temperature is None:
+            return None
+
+        weather_map = {
+            0: ("Clear", "fa-solid fa-sun"),
+            1: ("Mostly Clear", "fa-solid fa-cloud-sun"),
+            2: ("Partly Cloudy", "fa-solid fa-cloud-sun"),
+            3: ("Cloudy", "fa-solid fa-cloud"),
+            45: ("Foggy", "fa-solid fa-smog"),
+            48: ("Foggy", "fa-solid fa-smog"),
+            51: ("Light Drizzle", "fa-solid fa-cloud-rain"),
+            53: ("Drizzle", "fa-solid fa-cloud-rain"),
+            55: ("Heavy Drizzle", "fa-solid fa-cloud-rain"),
+            61: ("Light Rain", "fa-solid fa-cloud-rain"),
+            63: ("Rain", "fa-solid fa-cloud-rain"),
+            65: ("Heavy Rain", "fa-solid fa-cloud-showers-heavy"),
+            80: ("Rain Showers", "fa-solid fa-cloud-rain"),
+            81: ("Rain Showers", "fa-solid fa-cloud-rain"),
+            82: ("Heavy Showers", "fa-solid fa-cloud-showers-heavy"),
+            95: ("Thunderstorm", "fa-solid fa-cloud-bolt"),
+        }
+
+        condition, icon = weather_map.get(
+            weather_code,
+            ("Outdoor Weather", "fa-solid fa-cloud")
+        )
+
+        weather_data = {
+            "temperature": round(float(temperature), 1),
+            "humidity": humidity,
+            "condition": condition,
+            "icon": icon,
+        }
+
+        # Refresh outdoor weather once every 15 minutes
+        cache.set(cache_key, weather_data, 15 * 60)
+
+        return weather_data
+
+    except Exception:
+        return None
+
+
+def format_last_update(created_at):
+    if not created_at:
+        return "No sensor data"
+
+    now = timezone.now()
+    difference = now - created_at
+
+    # Two days or older: show only total days
+    if difference.days >= 2:
+        return f"{difference.days} days ago"
+
+    # Under two days: show normal relative time
+    return f"{timesince(created_at, now)} ago"
 
 @login_required
-def dashboard(request):
+def dashboard(request, template_name="api/dashboard_v2.html"):
     is_admin = request.user.is_superuser or request.user.is_staff
     sheds = Shed.objects.all()
+    profile_obj, created = UserProfile.objects.get_or_create(
+        user=request.user
+    )
+
+    outdoor_weather = get_dunyapur_weather()
 
     dashboard_rows = []
     farm_total_birds = 0
+
+
 
     for shed in sheds:
         devices = Device.objects.filter(shed=shed)
@@ -383,8 +485,10 @@ def dashboard(request):
         if is_admin and latest and not device_offline:
             if latest.ammonia_raw is not None and latest.ammonia_raw > 600:
                 shed_alerts.append("Ammonia High")
+
             if latest.ldr_raw is not None and latest.ldr_raw > 1500:
                 shed_alerts.append("Low Light")
+
             if latest.sensor_error:
                 shed_alerts.append("Sensor Error")
 
@@ -396,10 +500,12 @@ def dashboard(request):
             "devices": devices,
             "device": devices.first(),
             "latest": latest,
+            "device_offline": device_offline,
             "latest_readings": latest_readings,
             "alerts": shed_alerts,
             "batches": batch_summaries,
             "total_birds_in_shed": total_birds_in_shed,
+            "last_update_display": format_last_update(latest.created_at) if latest else "No sensor data",
         })
 
     # --- DAILY LOG NOTIFICATION COUNT ---
@@ -424,7 +530,109 @@ def dashboard(request):
     else:
         accessible_batches = Batch.objects.none()
 
+    active_batch_count = accessible_batches.distinct().count()
+    total_mortality = 0
+    mortality_starting_birds = 0
+
+    for batch in accessible_batches:
+        batch_mortality = sum(
+            MortalityRecord.objects.filter(batch=batch).values_list("count", flat=True)
+        )
+
+        if is_admin:
+            total_mortality += batch_mortality
+            mortality_starting_birds += batch.bird_count_initial
+
+        else:
+            allocation = InvestorAllocation.objects.filter(
+                batch=batch,
+                investor=request.user.investor_profile
+            ).first()
+
+            if allocation and batch.bird_count_initial > 0:
+                investor_share = allocation.birds_owned / batch.bird_count_initial
+
+                total_mortality += round(batch_mortality * investor_share)
+                mortality_starting_birds += allocation.birds_owned
+
+    if mortality_starting_birds > 0:
+        mortality_percentage = round(
+            (total_mortality / mortality_starting_birds) * 100,
+            2
+        )
+    else:
+        mortality_percentage = 0
+
+    # --- INVESTOR OWNERSHIP KPI ---
+    investor_owned_birds = 0
+    investor_total_starting_birds = 0
+    investor_ownership_percentage = 0
+
+    if not is_admin and hasattr(request.user, "investor_profile"):
+        investor_allocations = InvestorAllocation.objects.filter(
+            investor=request.user.investor_profile,
+            batch__in=accessible_batches
+        ).select_related("batch")
+
+        for allocation in investor_allocations:
+            investor_owned_birds += allocation.birds_owned
+            investor_total_starting_birds += allocation.batch.bird_count_initial
+
+        if investor_total_starting_birds > 0:
+            investor_ownership_percentage = round(
+                (investor_owned_birds / investor_total_starting_birds) * 100,
+                1
+            )
+
     if last_seen:
+
+        # --- SOLD + SALES KPI ---
+        total_sold_kpi = 0
+        sold_starting_birds = 0
+        total_sales_kpi = 0
+
+        for batch in accessible_batches:
+            batch_sold = sum(
+                SaleRecord.objects.filter(batch=batch).values_list(
+                    "birds_sold",
+                    flat=True
+                )
+            )
+
+            batch_sales = sum(
+                (sale.total_amount for sale in SaleRecord.objects.filter(batch=batch)),
+                0
+            )
+
+            if is_admin:
+                total_sold_kpi += batch_sold
+                sold_starting_birds += batch.bird_count_initial
+                total_sales_kpi += batch_sales
+
+            else:
+                allocation = InvestorAllocation.objects.filter(
+                    batch=batch,
+                    investor=request.user.investor_profile
+                ).first()
+
+                if allocation and batch.bird_count_initial > 0:
+                    total_sold_kpi += round(
+                        batch_sold * allocation.birds_owned / batch.bird_count_initial
+                    )
+
+                    sold_starting_birds += allocation.birds_owned
+
+                    total_sales_kpi += (
+                            batch_sales * allocation.birds_owned / batch.bird_count_initial
+                    )
+
+        if sold_starting_birds > 0:
+            sold_percentage = round(
+                (total_sold_kpi / sold_starting_birds) * 100,
+                2
+            )
+        else:
+            sold_percentage = 0
         mortality_count = MortalityRecord.objects.filter(
             batch__in=accessible_batches,
             created_at__gt=last_seen
@@ -466,13 +674,29 @@ def dashboard(request):
                 + Expense.objects.filter(batch__in=accessible_batches).count()
         )
 
-    return render(request, "api/dashboard.html", {
+    return render(request, template_name, {
         "dashboard_rows": dashboard_rows,
         "farm_total_birds": farm_total_birds,
         "is_admin": is_admin,
         "new_log_count": new_feed_count,
+        "active_batch_count": active_batch_count,
+        "total_mortality": total_mortality,
+        "mortality_percentage": mortality_percentage,
+
+        "investor_owned_birds": investor_owned_birds,
+        "investor_total_starting_birds": investor_total_starting_birds,
+        "investor_ownership_percentage": investor_ownership_percentage,
+
+        "total_sold_kpi": total_sold_kpi,
+        "sold_percentage": sold_percentage,
+        "total_sales_kpi": total_sales_kpi,
+        "user_profile": profile_obj,
+        "outdoor_weather": outdoor_weather,
     })
 
+@login_required
+def dashboard_v2(request):
+    return dashboard(request, template_name="api/dashboard_v2.html")
 
 @login_required
 def vaccine_records(request, batch_id):
@@ -505,5 +729,190 @@ def mark_vaccine_done(request, record_id):
 
 
 @login_required
-def dashboard_v2(request):
-    return render(request, "api/dashboard_v2.html")
+def ownership_shares(request):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect("dashboard")
+
+    active_batches = Batch.objects.filter(
+        is_active=True
+    ).select_related("shed").order_by(
+        "shed__name", "-start_date", "batch_number"
+    )
+
+    ownership_batches = []
+
+    for batch in active_batches:
+        total_mortality = sum(
+            MortalityRecord.objects.filter(
+                batch=batch
+            ).values_list("count", flat=True)
+        )
+
+        total_sold = sum(
+            SaleRecord.objects.filter(
+                batch=batch
+            ).values_list("birds_sold", flat=True)
+        )
+
+        current_birds = (
+            batch.bird_count_initial
+            - total_mortality
+            - total_sold
+        )
+
+        allocations = list(
+            InvestorAllocation.objects.filter(
+                batch=batch
+            ).select_related("investor__user")
+        )
+
+        allocated_investor_birds = sum(
+            allocation.birds_owned
+            for allocation in allocations
+        )
+
+        owners = []
+
+        # Admin share
+        admin_start_birds = (
+            batch.bird_count_initial
+            - allocated_investor_birds
+        )
+
+        if admin_start_birds > 0 and batch.bird_count_initial > 0:
+            admin_share = admin_start_birds / batch.bird_count_initial
+
+            owners.append({
+                "name": "You (Admin)",
+                "share_percentage": round(admin_share * 100, 1),
+                "start_birds": admin_start_birds,
+                "mortality": round(total_mortality * admin_share),
+                "sold": round(total_sold * admin_share),
+                "current": (
+                    admin_start_birds
+                    - round(total_mortality * admin_share)
+                    - round(total_sold * admin_share)
+                ),
+                "is_admin": True,
+            })
+
+        # Investor shares
+        for allocation in allocations:
+            if batch.bird_count_initial <= 0:
+                continue
+
+            investor_share = (
+                allocation.birds_owned
+                / batch.bird_count_initial
+            )
+
+            investor_name = (
+                allocation.investor.user.get_full_name().strip()
+                or allocation.investor.user.username
+            )
+
+            owners.append({
+                "name": investor_name,
+                "share_percentage": round(investor_share * 100, 1),
+                "start_birds": allocation.birds_owned,
+                "mortality": round(total_mortality * investor_share),
+                "sold": round(total_sold * investor_share),
+                "current": (
+                    allocation.birds_owned
+                    - round(total_mortality * investor_share)
+                    - round(total_sold * investor_share)
+                ),
+                "is_admin": False,
+            })
+
+        mortality_percentage = 0
+        if batch.bird_count_initial > 0:
+            mortality_percentage = round(
+                (total_mortality / batch.bird_count_initial) * 100,
+                2
+            )
+
+        ownership_batches.append({
+            "batch": batch,
+            "start_birds": batch.bird_count_initial,
+            "current_birds": current_birds,
+            "total_mortality": total_mortality,
+            "total_sold": total_sold,
+            "mortality_percentage": mortality_percentage,
+            "owners": owners,
+        })
+
+    return render(request, "api/ownership_shares.html", {
+        "ownership_batches": ownership_batches,
+        "is_admin": True,
+    })
+
+@login_required
+def user_profile(request):
+    is_admin = request.user.is_superuser or request.user.is_staff
+    investor_profile = getattr(request.user, "investor_profile", None)
+
+    profile_obj, created = UserProfile.objects.get_or_create(
+        user=request.user
+    )
+
+    phone_number = ""
+    if investor_profile:
+        phone_number = investor_profile.phone_number or ""
+
+    if request.method == "POST":
+        first_name = request.POST.get("first_name", "").strip()
+        last_name = request.POST.get("last_name", "").strip()
+        email = request.POST.get("email", "").strip()
+        phone_number = request.POST.get("phone_number", "").strip()
+        profile_image = request.FILES.get("profile_image")
+
+        if email and User.objects.exclude(
+            pk=request.user.pk
+        ).filter(
+            email__iexact=email
+        ).exists():
+            messages.error(
+                request,
+                "This email is already being used by another account."
+            )
+
+        elif profile_image and profile_image.size > 2 * 1024 * 1024:
+            messages.error(
+                request,
+                "Profile picture must be smaller than 2 MB."
+            )
+
+        else:
+            request.user.first_name = first_name
+            request.user.last_name = last_name
+            request.user.email = email
+            request.user.save()
+
+            if investor_profile:
+                investor_profile.phone_number = phone_number
+                investor_profile.save()
+
+            if profile_image:
+                profile_obj.profile_image = profile_image
+
+            profile_obj.save()
+
+            messages.success(request, "Profile updated successfully.")
+            return redirect("user_profile")
+
+    if is_admin:
+        role_label = "Administrator"
+    elif investor_profile:
+        role_label = "Investor"
+    else:
+        role_label = "User"
+
+    return render(request, "api/user_profile.html", {
+        "account_user": request.user,
+        "user_profile": profile_obj,
+        "is_admin": is_admin,
+        "is_investor": bool(investor_profile),
+        "phone_number": phone_number,
+        "role_label": role_label,
+    })

@@ -1,11 +1,17 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Medicine List</title>
+    <title>
+        {% if is_admin %}
+            Medicine List
+        {% else %}
+            Medicine Summary
+        {% endif %}
+    </title>
 
     <style>
         body{
-            font-family: Arial, sans-serif;
+            font-family:Arial, sans-serif;
             background:#f4f6f8;
             margin:0;
             color:#111827;
@@ -16,6 +22,16 @@
             color:white;
             padding:22px;
             text-align:center;
+        }
+
+        .header h2{
+            margin:0;
+        }
+
+        .header p{
+            margin:7px 0 0;
+            font-size:14px;
+            opacity:0.9;
         }
 
         .container{
@@ -59,6 +75,7 @@
             justify-content:space-between;
             align-items:center;
             margin-bottom:15px;
+            gap:12px;
         }
 
         .batch-title h3{
@@ -72,13 +89,14 @@
             padding:8px 14px;
             border-radius:20px;
             font-weight:bold;
+            white-space:nowrap;
         }
 
         .medicine-row{
             display:grid;
-            grid-template-columns:140px 1fr 140px;
+            grid-template-columns:120px 1fr 140px;
             gap:12px;
-            padding:12px 0;
+            padding:13px 0;
             border-bottom:1px solid #edf2f7;
             align-items:center;
         }
@@ -87,14 +105,51 @@
             border-bottom:none;
         }
 
-        .category{
+        .medicine-date{
+            color:#667085;
+            font-size:14px;
+        }
+
+        .medicine-name{
             font-weight:bold;
-            color:#344054;
+            color:#1f4e79;
+            margin-bottom:6px;
+        }
+
+        .medicine-meta{
+            display:flex;
+            align-items:center;
+            gap:8px;
+            flex-wrap:wrap;
+            margin-bottom:5px;
+        }
+
+        .medicine-type{
+            display:inline-block;
+            padding:4px 8px;
+            border-radius:7px;
+            font-size:11px;
+            font-weight:bold;
+        }
+
+        .type-vaccine{
+            color:#633db0;
+            background:#eee8ff;
+        }
+
+        .type-medicine{
+            color:#157c32;
+            background:#e5f7e7;
+        }
+
+        .type-multivitamin{
+            color:#a96700;
+            background:#fff1d6;
         }
 
         .desc{
             color:#667085;
-            font-size:14px;
+            font-size:13px;
         }
 
         .amount{
@@ -115,11 +170,11 @@
             .batch-title{
                 flex-direction:column;
                 align-items:flex-start;
-                gap:10px;
             }
 
             .medicine-row{
                 grid-template-columns:1fr;
+                gap:7px;
             }
 
             .amount{
@@ -133,14 +188,24 @@
                 margin-bottom:10px;
             }
         }
-
     </style>
 </head>
 
 <body>
 
 <div class="header">
-    <h2>💊 Medicine List</h2>
+    <h2>
+        💊
+        {% if is_admin %}
+            Medicine List
+        {% else %}
+            Medicine Summary
+        {% endif %}
+    </h2>
+
+    {% if not is_admin %}
+        <p>Your medicine cost share for invested active batches.</p>
+    {% endif %}
 </div>
 
 <div class="container">
@@ -151,9 +216,11 @@
             ← Finance Tracker
         </a>
 
-        <a href="{% url 'add_medicine_entry' %}" class="btn add-btn">
-            ➕ Add Medicine
-        </a>
+        {% if is_admin %}
+            <a href="{% url 'add_medicine_entry' %}" class="btn add-btn">
+                ➕ Add Medicine
+            </a>
+        {% endif %}
 
     </div>
 
@@ -171,7 +238,12 @@
                     </h3>
 
                     <div class="total-badge">
-                        Total Medicine: Rs {{ group.total_medicine|floatformat:2 }}
+                        {% if is_admin %}
+                            Total Medicine:
+                        {% else %}
+                            Your Medicine Share:
+                        {% endif %}
+                        Rs {{ group.total_medicine|floatformat:2 }}
                     </div>
 
                 </div>
@@ -182,14 +254,20 @@
 
                         <div class="medicine-row">
 
-                            <div>
-                                {{ medicine.entry_date }}
+                            <div class="medicine-date">
+                                {{ medicine.entry_date|date:"d M Y" }}
                             </div>
 
                             <div>
 
-                                <div class="category">
-                                    Medicine Entry
+                                <div class="medicine-name">
+                                    {{ medicine.medicine_name }}
+                                </div>
+
+                                <div class="medicine-meta">
+                                    <span class="medicine-type type-{{ medicine.medicine_type }}">
+                                        {{ medicine.medicine_type_display }}
+                                    </span>
                                 </div>
 
                                 <div class="desc">

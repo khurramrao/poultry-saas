@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
+from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
 
 from api.models.sensor import (
     Batch,
@@ -115,26 +116,64 @@ def close_batch(request, batch_id):
 @login_required
 def expense_list(request):
     is_admin = request.user.is_superuser or request.user.is_staff
+    is_investor = hasattr(request.user, "investor_profile")
 
-    if not is_admin:
-        messages.error(request, "Only admin can view expenses.")
+    if is_admin:
+        batches = Batch.objects.filter(
+            is_active=True,
+            status="active"
+        ).order_by("-start_date", "batch_number")
+
+    elif is_investor:
+        investor_batch_ids = InvestorAllocation.objects.filter(
+            investor=request.user.investor_profile
+        ).values_list("batch_id", flat=True)
+
+        batches = Batch.objects.filter(
+            id__in=investor_batch_ids,
+            is_active=True,
+            status="active"
+        ).order_by("-start_date", "batch_number")
+
+    else:
+        messages.error(request, "You are not allowed to view expenses.")
         return redirect("dashboard")
 
-    batches = Batch.objects.filter(
-        is_active=True,
-        status="active"
-    ).order_by("-start_date", "batch_number")
-
     batches = attach_current_birds(batches)
-
     expense_groups = []
 
     for batch in batches:
+        share_ratio = 1
+
+        if is_investor and not is_admin:
+            allocation = InvestorAllocation.objects.filter(
+                batch=batch,
+                investor=request.user.investor_profile
+            ).first()
+
+            share_ratio = (
+                allocation.birds_owned / batch.bird_count_initial
+                if allocation and batch.bird_count_initial > 0
+                else 0
+            )
+
         expenses = Expense.objects.filter(
             batch=batch
         ).order_by("-expense_date", "-id")
 
-        total_expense = sum(exp.amount for exp in expenses)
+        total_expense = 0
+
+        for expense in expenses:
+            # Keeps original model fields such as category, notes, etc. working
+            expense.display_amount = expense.amount
+
+            if not is_admin:
+                expense.display_amount = round(
+                    float(expense.amount) * share_ratio,
+                    2
+                )
+
+            total_expense += float(expense.display_amount)
 
         expense_groups.append({
             "batch": batch,
@@ -144,8 +183,8 @@ def expense_list(request):
 
     return render(request, "api/expense_list.html", {
         "expense_groups": expense_groups,
+        "is_admin": is_admin,
     })
-
 
 @login_required
 @require_http_methods(["GET", "POST"])

@@ -4,8 +4,31 @@ from decimal import Decimal
 from django.db import models
 from api.models.sensor import Batch
 
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="profile"
+    )
+
+    profile_image = models.ImageField(
+        upload_to="profile_pictures/",
+        blank=True,
+        null=True
+    )
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} Profile"
+
+
 class InvestorProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="investor_profile")
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="investor_profile"
+    )
     phone_number = models.CharField(max_length=15, blank=True)
 
     def __str__(self):
@@ -73,12 +96,35 @@ class FeedEntry(models.Model):
 
 
 class MedicineEntry(models.Model):
+
+    MEDICINE_TYPE_CHOICES = [
+        ("vaccine", "Vaccine"),
+        ("medicine", "Medicine"),
+        ("multivitamin", "Multivitamin"),
+    ]
+
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
     entry_date = models.DateField()
+
+    medicine_name = models.CharField(
+        max_length=120,
+        default="Not specified"
+    )
+
+    medicine_type = models.CharField(
+        max_length=20,
+        choices=MEDICINE_TYPE_CHOICES,
+        default="medicine"
+    )
+
     amount = models.DecimalField(max_digits=12, decimal_places=2)
     notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Batch {self.batch.batch_number} Medicine - Rs {self.amount}"
+        return (
+            f"Batch {self.batch.batch_number} - "
+            f"{self.get_medicine_type_display()} - "
+            f"{self.medicine_name} - Rs {self.amount}"
+        )

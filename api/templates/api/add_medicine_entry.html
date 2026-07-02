@@ -127,6 +127,26 @@
             </div>
 
             <div class="form-group">
+                <label for="medicine_name">Medicine Name</label>
+                <input
+                    type="text"
+                    id="medicine_name"
+                    name="medicine_name"
+                    placeholder="Example: Enrofloxacin, Lasota Vaccine, AD3E"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="medicine_type">Type</label>
+                <select id="medicine_type" name="medicine_type" required>
+                    <option value="medicine">Medicine</option>
+                    <option value="vaccine">Vaccine</option>
+                    <option value="multivitamin">Multivitamin</option>
+                </select>
+            </div>
+
+            <div class="form-group">
                 <label>Medicine Cost (Rs)</label>
                 <input type="number"
                        step="0.01"

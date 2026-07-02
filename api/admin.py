@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from api.models import InvestorProfile, InvestorAllocation, BatchCost, FeedEntry, MedicineEntry
+from api.models import InvestorProfile, InvestorAllocation, BatchCost, FeedEntry, MedicineEntry, UserProfile
 from api.models.sensor import (
     Shed,
     Device,
@@ -143,7 +143,7 @@ class MedicineEntryAdmin(admin.ModelAdmin):
 class ChickCostEntry(admin.ModelAdmin):
     list_display = ("batch", "chick_cost", "carriage_cost", "notes", "created_at")
 
-
+admin.site.register(UserProfile)
 admin.site.register(TemperatureRule)
 
 admin.site.register(InvestorProfile)

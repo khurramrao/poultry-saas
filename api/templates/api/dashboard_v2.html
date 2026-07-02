@@ -1,10 +1,10 @@
-{% load static %}
+{% load static humanize %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RayNoor Dashboard V2</title>
+    <title>RayNoor Dashboard</title>
 
     <link rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
@@ -112,16 +112,31 @@
         }
 
         .profile-icon{
-            width:46px;
-            height:46px;
-            background:white;
-            color:#174a7b;
-            border-radius:50%;
-            display:flex;
-            align-items:center;
-            justify-content:center;
-            font-size:25px;
-        }
+    width:46px;
+    height:46px;
+    min-width:46px;
+    border-radius:50%;
+    overflow:hidden;
+    background:white;
+    color:#174a7b;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:25px;
+    flex-shrink:0;
+}
+
+.profile-icon img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    display:block;
+}
+
+.profile-icon i{
+    font-size:22px;
+    color:#174a7b;
+}
 
         .profile-text strong{
             display:block;
@@ -222,7 +237,7 @@
         .welcome-left{
             display:flex;
             align-items:center;
-            gap:18px;
+            gap:0px;
         }
 
         .welcome-logo{
@@ -777,8 +792,305 @@
     color:#667085;
     margin-top:4px;
 }
+
+        .device-update{
+    white-space:nowrap;
+    font-size:12px !important;
+    margin-top:5px !important;
+}
+
+.device-update span:first-child{
+    font-weight:600;
+}
+
+  .temp-normal-icon{
+    color:#208036;
+}
+
+.temp-alert-icon{
+    color:#ef3434;
+}
+
+.temp-offline-icon,
+.temp-offline-value{
+    color:#d98700;
+}
+
+.temp-na-icon,
+.temp-na-value{
+    color:#7b8794;
+}
+
+.offline-pill{
+    color:#a96700;
+    background:#fff1d6;
+}
+
+.na-pill{
+    color:#667085;
+    background:#eef2f6;
+}
+
+        .humidity-normal-icon{
+    color:#208036;
+}
+
+.humidity-high-icon{
+    color:#ef3434;
+}
+
+.humidity-low-icon,
+.humidity-low-value{
+    color:#2878e8;
+}
+
+.humidity-offline-icon,
+.humidity-offline-value{
+    color:#d98700;
+}
+
+        .light-normal-icon{
+    color:#ffad00;
+}
+
+.light-low-icon,
+.ammonia-high-icon{
+    color:#ef3434;
+}
+
+.light-offline-icon,
+.light-offline-value,
+.ammonia-offline-icon,
+.ammonia-offline-value{
+    color:#d98700;
+}
+
+.ammonia-normal-icon{
+    color:#2d7aff;
+}
+
+        .shed-alert-list{
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+}
+
+.shed-alert-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:12px;
+    font-weight:600;
+}
+
+.alert-circle{
+    width:21px;
+    height:21px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:white;
+    font-size:11px;
+}
+
+.alert-offline{
+    color:#c62828;
+}
+
+.alert-offline .alert-circle{
+    background:#ef3434;
+}
+
+.alert-warning{
+    color:#b36a00;
+}
+
+.alert-warning .alert-circle{
+    background:#f59e0b;
+}
+
+        .layer-shed-title{
+    color:#5b32b3 !important;
+}
+
+        .batch-alert-cell{
+    min-width:130px;
+}
+
+.batch-alerts{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:5px;
+}
+
+.batch-alert-pill,
+.batch-normal-status{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    padding:4px 8px;
+    border-radius:7px;
+    font-size:11px;
+    font-weight:600;
+    white-space:nowrap;
+}
+
+.batch-alert-pill.warning{
+    color:#a96700;
+    background:#fff1d6;
+}
+
+.batch-alert-pill.offline{
+    color:#c62828;
+    background:#ffe5e5;
+}
+
+.batch-normal-status{
+    color:#168131;
+    background:#e5f7e7;
+    }
+
+ .vaccine-cell{
+    width:125px;
+    min-width:125px;
+    text-align:center;
+    white-space:nowrap;
+}
+
+.vaccine-summary{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    flex-wrap:nowrap;
+    white-space:nowrap;
+}
+
+.vaccine-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    padding:4px 7px;
+    border-radius:7px;
+    font-size:10px;
+    font-weight:600;
+    white-space:nowrap;
+}
+
+.vaccine-view-btn{
+    width:25px;
+    height:25px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid #cfe0fb;
+    border-radius:7px;
+    color:#155fc3;
+    background:#f8fbff;
+    text-decoration:none;
+    font-size:11px;
+    flex-shrink:0;
+}
+
+.vaccine-view-btn:hover{
+    background:#eaf3ff;
+    border-color:#155fc3;
+}
+
+   .welcome-right{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    align-self:center;
+    padding-top:0;
+}
+
+.outdoor-weather-card{
+    min-width:290px;
+    min-height:94px;
+    display:flex;
+    align-items:center;
+    gap:15px;
+    padding:16px 20px;
+    border:1px solid #d7e6f7;
+    border-radius:14px;
+    background:linear-gradient(135deg,#f8fbff,#eef6ff);
+    box-shadow:0 4px 12px rgba(20,55,90,0.07);
+}
+
+.weather-icon{
+    width:54px;
+    height:54px;
+    min-width:54px;
+    border-radius:50%;
+    background:#fff1cf;
+    color:#e59b00;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:25px;
+}
+
+.weather-details{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+}
+
+.weather-location{
+    color:#52647a;
+    font-size:12px;
+    font-weight:700;
+}
+
+.weather-details strong{
+    color:#123f70;
+    font-size:25px;
+    line-height:1;
+}
+
+.weather-condition{
+    color:#64748b;
+    font-size:12px;
+    white-space:nowrap;
+}
+        .notification-link{
+    text-decoration:none;
+    color:#122f4c;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+}
+
+.notification-link:hover{
+    color:#155fc3;
+}
+
+.top-user-clickable{
+    cursor:pointer;
+    border-radius:8px;
+    transition:0.2s;
+}
+
+.top-user-clickable:hover{
+    background:#f5f8fc;
+}
+
+        .purple{
+    background:#7b4fc9;
+}
     </style>
 </head>
+<script>
+    setInterval(function () {
+        if (!document.hidden) {
+            window.location.reload();
+        }
+    }, 30000);
+</script>
 
 <body>
 
@@ -799,15 +1111,17 @@
             <a href="{% url 'daily_log' %}">
                 <i class="fa-regular fa-calendar-check"></i>
                 <span>Daily Log</span>
-                <span class="nav-badge">3</span>
+                  {% if new_log_count > 0 %}
+                <span class="nav-badge"> {{ new_log_count }}</span>
+                {% endif %}
             </a>
 
             <a href="#">
                 <i class="fa-solid fa-list-ol"></i>
                 <span>Batches</span>
             </a>
-
-             <a href="#">
+{% if is_admin %}
+             <a href="{% url 'ownership_shares' %}">
                 <i class="fa-solid fa-chart-pie"></i>
                 <span>Ownership Shares</span>
             </a>
@@ -817,6 +1131,15 @@
                 <i class="fa-solid fa-circle-down"></i>
                 <span>Sales</span>
             </a>
+             <a href="#">
+                <i class="fa-solid fa-syringe"></i>
+                <span>Vaccine Records</span>
+            </a>
+              <a href="#">
+                <i class="fa-solid fa-gear"></i>
+                <span>Settings</span>
+            </a>
+{% endif %}
 
             <a href="{% url 'finance_tracker' %}">
                 <i class="fa-regular fa-money-bill-1"></i>
@@ -838,10 +1161,7 @@
                 <span>Expenses</span>
             </a>
 
-            <a href="#">
-                <i class="fa-solid fa-syringe"></i>
-                <span>Vaccine Records</span>
-            </a>
+
 
 
 
@@ -853,25 +1173,12 @@
                 <span>Reports</span>
             </a>
 
-            <a href="#">
-                <i class="fa-solid fa-gear"></i>
-                <span>Settings</span>
-            </a>
+
         </nav>
 
         <div class="sidebar-bottom">
-            <div class="profile-mini">
-                <div class="profile-icon">
-                    <i class="fa-solid fa-user"></i>
-                </div>
 
-                <div class="profile-text">
-                    <strong>Farmtest</strong>
-                    <span>Administrator</span>
-                </div>
 
-                <i class="fa-solid fa-angle-down profile-arrow"></i>
-            </div>
         </div>
 
     </aside>
@@ -880,15 +1187,43 @@
 
         <div class="topbar">
             <div class="bell">
-                <i class="fa-regular fa-bell"></i>
-                <span class="bell-badge">3</span>
+                <a href="{% url 'daily_log' %}"
+   class="bell notification-link"
+   title="View new activity">
+
+    <i class="fa-regular fa-bell"></i>
+
+    {% if new_log_count > 0 %}
+        <span class="bell-badge">{{ new_log_count }}</span>
+    {% endif %}
+</a>
             </div>
 
-            <div class="top-user">
+           <div class="top-user top-user-clickable"
+     role="link"
+     tabindex="0"
+     onclick="window.location.href='{% url 'user_profile' %}'">
+
+{% comment %}
                 <div class="top-user-icon">
-                    <i class="fa-solid fa-user"></i>
+
+                                        {% if user_profile.profile_image %}
+                        <img src="{{ user_profile.profile_image.url }}"
+                             alt="{{ user.username }}">
+
+                    {% else %}
+                        <i class="fa-solid fa-user"></i>
+                    {% endif %}
                 </div>
-                <span>Farmtest</span>
+               {% endcomment %}
+                 <SPAN>
+
+                {% if request.user.first_name %}
+                    {{ request.user.first_name|title }} {{ request.user.last_name|title }}
+                {% else %}
+                    {{ request.user.username|title }}
+                {% endif %}
+            </SPAN>
                 <i class="fa-solid fa-angle-down"></i>
             </div>
         </div>
@@ -898,38 +1233,73 @@
             <section class="welcome-card">
 
                 <div class="welcome-left">
-                    <img src="{% static 'images/raynoor-logo.png' %}"
-                         class="welcome-logo"
-                         alt="RayNoor Logo">
 
                     <div class="welcome-text">
-                        <h1>👋 Hi Farmtest</h1>
-                        <p>Welcome back to your farm management dashboard.</p>
+                        <h2>
+                            👋 Hi
+                            {% if request.user.first_name %}
+                                {{ request.user.first_name|title }} {{ request.user.last_name|title }}
+                            {% else %}
+                                {{ request.user.username|title }}
+                            {% endif %}
+                        </h2>
+                        {% if is_admin %}
+                            <p>Welcome back to your farm management dashboard.</p>
+                        {% else %}
+                            <p>Here is your flock performance and investment overview.</p>
+                        {% endif %}
 
                         <div class="welcome-meta">
                             <div class="meta-pill">
                                 <i class="fa-regular fa-calendar-days"></i>
-                                24 June 2025, Tuesday
+                                {% now "j F Y, l" %}
                             </div>
 
                             <div class="meta-pill">
                                 <i class="fa-regular fa-clock"></i>
-                                Last updated: Just now
+                                Last updated: {% now "g:i a" %}
+
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="welcome-actions">
-                    <a href="{% url 'daily_log' %}" class="welcome-btn">
-                        <i class="fa-regular fa-calendar-check"></i>
-                        Daily Log
-                    </a>
+                <div class="welcome-right">
 
-                    <a href="{% url 'finance_tracker' %}" class="welcome-btn">
-                        <i class="fa-solid fa-sack-dollar"></i>
-                        Finance Tracker
-                    </a>
+                    {% if outdoor_weather %}
+                        <div class="outdoor-weather-card">
+                            <div class="weather-icon">
+                                <i class="{{ outdoor_weather.icon }}"></i>
+                            </div>
+
+                            <div class="weather-details">
+                                <span class="weather-location">Outdoor · Dunyapur</span>
+
+                                <strong>{{ outdoor_weather.temperature|floatformat:0 }}°C</strong>
+
+                                <span class="weather-condition">
+                                    {{ outdoor_weather.condition }}
+                                    {% if outdoor_weather.humidity %}
+                                        · {{ outdoor_weather.humidity }}% Humidity
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="outdoor-weather-card weather-unavailable">
+                            <div class="weather-icon">
+                                <i class="fa-solid fa-cloud"></i>
+                            </div>
+
+                            <div class="weather-details">
+                                <span class="weather-location">Outdoor · Dunyapur</span>
+                                <strong>--</strong>
+                                <span class="weather-condition">Weather unavailable</span>
+                            </div>
+                        </div>
+                    {% endif %}
+
+
                 </div>
 
             </section>
@@ -942,8 +1312,19 @@
                     </div>
                     <div>
                         <div class="kpi-label">Total Birds</div>
-                        <div class="kpi-value">3,250</div>
-                        <div class="kpi-note">Across 3 Batches <span style="color:#15913a;">↑</span></div>
+                        <div class="kpi-value"> {% if is_admin %}
+                                                 {{ farm_total_birds }}
+                                            {% else %}
+                                                {{ farm_total_birds }}
+                                            {% endif %}
+                        </div>
+                        <div class="kpi-note"> {% if is_admin %}
+                                                    Across {{ active_batch_count }} Active Batch{{ active_batch_count|pluralize:"es" }}
+                                               {% else %}
+                                                    Across {{ active_batch_count }} Active Batch{{ active_batch_count|pluralize:"es" }}
+                                               {% endif %}
+                                                <span style="color:#15913a;">↑</span>
+                        </div>
                     </div>
                 </div>
 
@@ -952,21 +1333,49 @@
                         <i class="fa-solid fa-wave-square"></i>
                     </div>
                     <div>
-                        <div class="kpi-label">Active Batches</div>
-                        <div class="kpi-value">3</div>
+                        <div class="kpi-label">
+                            {% if is_admin %}
+                                Active Batches
+                            {% else %}
+                                Your Active Batches
+                            {% endif %}
+                        </div>
+
+    <div class="kpi-value">{{ active_batch_count }}</div>
+
+
                         <div class="kpi-note success">All Running Smooth</div>
                     </div>
                 </div>
 
                 <div class="kpi-card">
-                    <div class="kpi-icon red">
-                        <i class="fa-solid fa-heart-pulse"></i>
+                    <div class="kpi-icon {% if is_admin %}red{% else %}purple{% endif %}">
+                        {% if is_admin %}
+                            <i class="fa-solid fa-heart-pulse"></i>
+                        {% else %}
+                            <i class="fa-solid fa-chart-pie"></i>
+                        {% endif %}
                     </div>
                     <div>
-                        <div class="kpi-label">Total Mortality</div>
-                        <div class="kpi-value">215</div>
-                        <div class="kpi-note">6.62% of Total Birds</div>
-                    </div>
+    {% if is_admin %}
+
+        <div class="kpi-label">Total Mortality</div>
+        <div class="kpi-value">{{ total_mortality }}</div>
+        <div class="kpi-note">
+            {{ mortality_percentage|floatformat:2 }}% of Starting Birds
+        </div>
+
+    {% else %}
+
+        <div class="kpi-label">Your Ownership Share</div>
+        <div class="kpi-value">{{ investor_ownership_percentage|floatformat:1 }}%</div>
+        <div class="kpi-note">
+            {{ investor_owned_birds }} Your Starting Birds
+        </div>
+
+    {% endif %}
+</div>
+
                 </div>
 
                 <div class="kpi-card">
@@ -974,9 +1383,24 @@
                         <i class="fa-solid fa-cart-shopping"></i>
                     </div>
                     <div>
-                        <div class="kpi-label">Total Sold</div>
-                        <div class="kpi-value">1,245</div>
-                        <div class="kpi-note">38.31% of Total Birds</div>
+                        <div class="kpi-label">
+                            {% if is_admin %}
+                                Total Sold
+                            {% else %}
+                                Your Birds Sold
+                            {% endif %}
+                        </div>
+
+                        <div class="kpi-value">{{ total_sold_kpi }}</div>
+
+                        <div class="kpi-note">
+                            {{ sold_percentage|floatformat:2 }}% of
+                            {% if is_admin %}
+                                Starting Birds
+                            {% else %}
+                                Your Starting Birds
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
 
@@ -985,9 +1409,25 @@
                         <i class="fa-solid fa-dollar-sign"></i>
                     </div>
                     <div>
-                        <div class="kpi-label">Total Sales</div>
-                        <div class="kpi-value" style="font-size:21px;">Rs 512,450</div>
-                        <div class="kpi-note">All Batches</div>
+                        <div class="kpi-label">
+                            {% if is_admin %}
+                                Total Sales
+                            {% else %}
+                                Your Revenue Share
+                            {% endif %}
+                        </div>
+
+                        <div class="kpi-value" style="font-size:21px;">
+                           Rs {{ total_sales_kpi|floatformat:0|intcomma }}
+                        </div>
+
+                        <div class="kpi-note">
+                            {% if is_admin %}
+                                Active Batches Only
+                            {% else %}
+                                Your Active Batch Share
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
 
@@ -996,73 +1436,348 @@
             <section class="shed-section">
 
                 <h2 class="section-heading">Shed Overview &amp; Sensor Status</h2>
-
+ {% for row in dashboard_rows %}
                 <!-- MEAT SHED -->
 
                 <div class="shed-row">
 
-                    <div class="shed-main">
-                        <div class="shed-icon">
-                            <i class="fa-solid fa-warehouse"></i>
+                    {% with shed_kind=row.shed.shed_type|lower %}
+
+                        <div class="shed-main">
+
+                            <div class="shed-icon {% if shed_kind == 'layer' %}layer-icon{% endif %}">
+                                <i class="fa-solid fa-warehouse"></i>
+                            </div>
+
+                            <div>
+                                <h3 class="{% if shed_kind == 'layer' %}layer-shed-title{% endif %}">
+                                    {{ row.shed.name }}
+                                </h3>
+
+                                <p>
+                                    Device:
+                                    {% if row.device %}
+                                        {% if row.device.device_id == "esp32_shed_1" %}
+                                            DEV-01
+                                        {% elif row.device.device_id == "esp32_shed_2" %}
+                                            DEV-02
+                                        {% else %}
+                                            {{ row.device.device_id }}
+                                        {% endif %}
+                                    {% else %}
+                                        No device assigned
+                                    {% endif %}
+                                </p>
+
+                                <p class="device-update">
+                                    <span>Last update:</span>
+                                    {{ row.last_update_display }}
+
+                                    {% if row.device_offline %}
+                                        <span class="offline-dot">●</span>
+                                    {% elif row.latest %}
+                                        <span class="online-dot">●</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+
                         </div>
 
-                        <div>
-                            <h3>Meat Shed</h3>
-                            <p>Device: DEV-MEAT-01</p>
-                            <p>Last Update: 2 minutes ago <span class="online-dot">●</span></p>
-                        </div>
-                    </div>
+                        {% endwith %}
 
-                    <div class="sensor-box">
-                        <span class="sensor-icon" style="color:#ff3939;">
-                            <i class="fa-solid fa-temperature-three-quarters"></i>
-                        </span>
-                        <div class="sensor-title">Temperature</div>
-                        <div class="sensor-value high">29.4 °C</div>
-                        <span class="sensor-pill high-pill">High</span>
-                    </div>
+                  <div class="sensor-box">
 
-                    <div class="sensor-box">
-                        <span class="sensor-icon" style="color:#1f75ff;">
-                            <i class="fa-solid fa-droplet"></i>
-                        </span>
-                        <div class="sensor-title">Humidity</div>
-                        <div class="sensor-value good">68 %</div>
-                        <span class="sensor-pill normal-pill">Normal</span>
-                    </div>
+                        {% if row.device_offline %}
 
-                    <div class="sensor-box">
-                        <span class="sensor-icon" style="color:#ffad00;">
-                            <i class="fa-regular fa-sun"></i>
-                        </span>
-                        <div class="sensor-title">Light</div>
-                        <div class="sensor-value good">65 %</div>
-                        <span class="sensor-pill normal-pill">Normal</span>
-                    </div>
-
-                    <div class="sensor-box">
-                        <span class="sensor-icon" style="color:#2d7aff;">
-                            <i class="fa-solid fa-cloud"></i>
-                        </span>
-                        <div class="sensor-title">Ammonia</div>
-                        <div class="sensor-value good">12 ppm</div>
-                        <span class="sensor-pill normal-pill">Normal</span>
-                    </div>
-
-                    <div class="shed-alert">
-                        <strong>Shed Alerts</strong>
-                        <div class="all-normal">
-                            <span class="check-circle">
-                                <i class="fa-solid fa-check"></i>
+                            <span class="sensor-icon temp-offline-icon">
+                                <i class="fa-solid fa-temperature-three-quarters"></i>
                             </span>
-                            All Normal
-                        </div>
+
+                            <div class="sensor-title">Temperature</div>
+
+                            {% if row.latest and row.latest.temperature is not None %}
+                                <div class="sensor-value temp-offline-value">
+                                    {{ row.latest.temperature|floatformat:1 }} °C
+                                </div>
+                                <span class="sensor-pill offline-pill">Offline · Last Reading</span>
+                            {% else %}
+                                <div class="sensor-value temp-na-value">N/A</div>
+                                <span class="sensor-pill na-pill">No Data</span>
+                            {% endif %}
+
+                        {% elif not row.latest or row.latest.temperature is None %}
+
+                            <span class="sensor-icon temp-na-icon">
+                                <i class="fa-solid fa-temperature-three-quarters"></i>
+                            </span>
+
+                            <div class="sensor-title">Temperature</div>
+                            <div class="sensor-value temp-na-value">N/A</div>
+                            <span class="sensor-pill na-pill">No Data</span>
+
+                        {% else %}
+
+                            <span class="sensor-icon
+                                {% if row.alerts %}
+                                    temp-alert-icon
+                                {% else %}
+                                    temp-normal-icon
+                                {% endif %}">
+                                <i class="fa-solid fa-temperature-three-quarters"></i>
+                            </span>
+
+                            <div class="sensor-title">Temperature</div>
+
+                            <div class="sensor-value
+                                {% if row.alerts %}
+                                    high
+                                {% else %}
+                                    good
+                                {% endif %}">
+                                {{ row.latest.temperature|floatformat:1 }} °C
+                            </div>
+
+                            {% if row.alerts %}
+                                {% for alert in row.alerts %}
+                                    <span class="sensor-pill high-pill">{{ alert }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="sensor-pill normal-pill">Normal</span>
+                            {% endif %}
+
+                        {% endif %}
+
+                    </div>
+
+                   <div class="sensor-box">
+
+                        {% if row.device_offline %}
+
+                            <span class="sensor-icon humidity-offline-icon">
+                                <i class="fa-solid fa-droplet"></i>
+                            </span>
+
+                            <div class="sensor-title">Humidity</div>
+
+                            {% if row.latest and row.latest.humidity is not None %}
+                                <div class="sensor-value humidity-offline-value">
+                                    {{ row.latest.humidity|floatformat:0 }} %
+                                </div>
+                                <span class="sensor-pill offline-pill">Offline · Last Reading</span>
+                            {% else %}
+                                <div class="sensor-value temp-na-value">N/A</div>
+                                <span class="sensor-pill na-pill">No Data</span>
+                            {% endif %}
+
+                        {% elif not row.latest or row.latest.humidity is None %}
+
+                            <span class="sensor-icon temp-na-icon">
+                                <i class="fa-solid fa-droplet"></i>
+                            </span>
+
+                            <div class="sensor-title">Humidity</div>
+                            <div class="sensor-value temp-na-value">N/A</div>
+                            <span class="sensor-pill na-pill">No Data</span>
+
+                        {% elif row.latest.humidity > 70 %}
+
+                            <span class="sensor-icon humidity-high-icon">
+                                <i class="fa-solid fa-droplet"></i>
+                            </span>
+
+                            <div class="sensor-title">Humidity</div>
+                            <div class="sensor-value high">
+                                {{ row.latest.humidity|floatformat:0 }} %
+                            </div>
+                            <span class="sensor-pill high-pill">High</span>
+
+                        {% elif row.latest.humidity < 45 %}
+
+                            <span class="sensor-icon humidity-low-icon">
+                                <i class="fa-solid fa-droplet"></i>
+                            </span>
+
+                            <div class="sensor-title">Humidity</div>
+                            <div class="sensor-value humidity-low-value">
+                                {{ row.latest.humidity|floatformat:0 }} %
+                            </div>
+                            <span class="sensor-pill low-pill">Low</span>
+
+                        {% else %}
+
+                            <span class="sensor-icon humidity-normal-icon">
+                                <i class="fa-solid fa-droplet"></i>
+                            </span>
+
+                            <div class="sensor-title">Humidity</div>
+                            <div class="sensor-value good">
+                                {{ row.latest.humidity|floatformat:0 }} %
+                            </div>
+                            <span class="sensor-pill normal-pill">Normal</span>
+
+                        {% endif %}
+
+                    </div>
+
+                   <div class="sensor-box">
+
+                        {% if row.device_offline %}
+
+                            <span class="sensor-icon light-offline-icon">
+                                <i class="fa-regular fa-sun"></i>
+                            </span>
+
+                            <div class="sensor-title">Light</div>
+
+                            {% if row.latest and row.latest.light_percent is not None %}
+                                <div class="sensor-value light-offline-value">
+                                    {{ row.latest.light_percent|floatformat:0 }} %
+                                </div>
+                                <span class="sensor-pill offline-pill">Offline · Last Reading</span>
+                            {% else %}
+                                <div class="sensor-value temp-na-value">N/A</div>
+                                <span class="sensor-pill na-pill">No Data</span>
+                            {% endif %}
+
+                        {% elif not row.latest or row.latest.light_percent is None %}
+
+                            <span class="sensor-icon temp-na-icon">
+                                <i class="fa-regular fa-sun"></i>
+                            </span>
+
+                            <div class="sensor-title">Light</div>
+                            <div class="sensor-value temp-na-value">N/A</div>
+                            <span class="sensor-pill na-pill">No Data</span>
+
+                        {% elif row.latest.ldr_raw > 1500 %}
+
+                            <span class="sensor-icon light-low-icon">
+                                <i class="fa-regular fa-sun"></i>
+                            </span>
+
+                            <div class="sensor-title">Light</div>
+                            <div class="sensor-value high">
+                                {{ row.latest.light_percent|floatformat:0 }} %
+                            </div>
+                            <span class="sensor-pill high-pill">Low Light</span>
+
+                        {% else %}
+
+                            <span class="sensor-icon light-normal-icon">
+                                <i class="fa-regular fa-sun"></i>
+                            </span>
+
+                            <div class="sensor-title">Light</div>
+                            <div class="sensor-value good">
+                                {{ row.latest.light_percent|floatformat:0 }} %
+                            </div>
+                            <span class="sensor-pill normal-pill">Normal</span>
+
+                        {% endif %}
+
+                    </div>
+
+                    <div class="sensor-box">
+
+                        {% if row.device_offline %}
+
+                            <span class="sensor-icon ammonia-offline-icon">
+                                <i class="fa-solid fa-cloud"></i>
+                            </span>
+
+                            <div class="sensor-title">Ammonia</div>
+
+                            {% if row.latest and row.latest.ammonia_raw is not None %}
+                                <div class="sensor-value ammonia-offline-value">
+                                    {{ row.latest.ammonia_raw|floatformat:0 }}
+                                </div>
+                                <span class="sensor-pill offline-pill">Offline · Last Reading</span>
+                            {% else %}
+                                <div class="sensor-value temp-na-value">N/A</div>
+                                <span class="sensor-pill na-pill">No Data</span>
+                            {% endif %}
+
+                        {% elif not row.latest or row.latest.ammonia_raw is None %}
+
+                            <span class="sensor-icon temp-na-icon">
+                                <i class="fa-solid fa-cloud"></i>
+                            </span>
+
+                            <div class="sensor-title">Ammonia</div>
+                            <div class="sensor-value temp-na-value">N/A</div>
+                            <span class="sensor-pill na-pill">No Data</span>
+
+                        {% elif row.latest.ammonia_raw > 600 %}
+
+                            <span class="sensor-icon ammonia-high-icon">
+                                <i class="fa-solid fa-cloud"></i>
+                            </span>
+
+                            <div class="sensor-title">Ammonia</div>
+                            <div class="sensor-value high">
+                                {{ row.latest.ammonia_raw|floatformat:0 }}
+                            </div>
+                            <span class="sensor-pill high-pill">High</span>
+
+                        {% else %}
+
+                            <span class="sensor-icon ammonia-normal-icon">
+                                <i class="fa-solid fa-cloud"></i>
+                            </span>
+
+                            <div class="sensor-title">Ammonia</div>
+                            <div class="sensor-value good">
+                                {{ row.latest.ammonia_raw|floatformat:0 }}
+                            </div>
+                            <span class="sensor-pill normal-pill">Normal</span>
+
+                        {% endif %}
+
+                    </div>
+
+                  <div class="shed-alert">
+                        <strong>Shed Alerts</strong>
+
+                        {% if row.device_offline %}
+
+                            <div class="shed-alert-item alert-offline">
+                                <span class="alert-circle">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </span>
+                                Device Offline
+                            </div>
+
+                        {% elif row.alerts %}
+
+                            <div class="shed-alert-list">
+                                {% for alert in row.alerts %}
+                                    <div class="shed-alert-item alert-warning">
+                                        <span class="alert-circle">
+                                            <i class="fa-solid fa-triangle-exclamation"></i>
+                                        </span>
+                                        {{ alert }}
+                                    </div>
+                                {% endfor %}
+                            </div>
+
+                        {% else %}
+
+                            <div class="all-normal">
+                                <span class="check-circle">
+                                    <i class="fa-solid fa-check"></i>
+                                </span>
+                                All Normal
+                            </div>
+
+                        {% endif %}
                     </div>
 
                 </div>
-
+         {% if row.batches %}
                 <div class="batch-table-wrap">
-                    <div class="batch-caption">Active Batches in Meat Shed</div>
+                       <div class="batch-caption">Active Batches in  {{ row.shed.shed_type|title }} Shed</div>
+
+
 
                     <table class="batch-table">
                         <thead>
@@ -1076,147 +1791,94 @@
                                 <th>Mortality</th>
                                 <th>Sold</th>
                                 <th>Status</th>
-                                <th>Alerts</th>
+                                <th>Vaccine</th>
                             </tr>
                         </thead>
-
+                {% for batch_row in row.batches %}
                         <tbody>
                             <tr>
-                                <td class="batch-code">MEAT-001</td>
-                                <td><span class="type-tag meat-tag">Meat</span></td>
-                                <td>10 May 2025</td>
-                                <td>
-                                    <div class="age-days">45 days</div>
-                                    <div class="age-weeks">(6 weeks)</div>
+                                <td class="batch-code"> {{ row.shed.shed_type|title }} Batch #{{ batch_row.batch.batch_number }}</td>
+                              <td>
+                                    <span class="type-tag
+                                        {% if row.shed.shed_type|lower == 'layer' %}
+                                            layer-tag
+                                        {% else %}
+                                            meat-tag
+                                        {% endif %}">
+                                        {{ row.shed.shed_type|title }}
+                                    </span>
                                 </td>
-                                <td>1,000</td>
-                                <td>765</td>
-                                <td class="danger-text">65 (6.50%)</td>
-                                <td>170 (17.00%)</td>
-                                <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
-                                <td style="color:#168131;">All Normal</td>
+                                <td>{{ batch_row.batch.start_date }}</td>
+                                <td>
+                                    <div class="age-days">{{ batch_row.age_days }}</div>
+                                    <div class="age-weeks">({{ batch_row.age_weeks }} weeks)</div>
+                                </td>
+                                  {% if is_admin %}
+                                        <td>{{ batch_row.batch.bird_count_initial }}</td>
+                                        <td>{{ batch_row.current_birds }}</td>
+
+                                        <td class="danger-text">{{ batch_row.total_mortality }} ({{ batch_row.mortality_percent }}%)</td>
+                                        <td>{{ batch_row.display_sold }}</td>
+                                       <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
+                                 {% else %}
+                                        <td>{{ batch_row.initial_birds_allocated }}</td>
+                                        <td>{{ batch_row.current_birds }}</td>
+                                        <td class="danger-text">{{ batch_row.total_mortality }} ({{ batch_row.mortality_percent }}%)</td>
+                                        <td>{{ batch_row.display_sold }}</td>
+                                      <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
+                                {% endif %}
+
+
+ <td class="vaccine-cell">
+    <div class="vaccine-summary">
+
+        {% if batch_row.overdue_vaccines %}
+            <span class="vaccine-pill vaccine-overdue">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                {{ batch_row.overdue_vaccines|length }} Overdue
+            </span>
+
+        {% elif batch_row.due_today %}
+            <span class="vaccine-pill vaccine-today">
+                <i class="fa-solid fa-syringe"></i>
+                {{ batch_row.due_today|length }} Due Today
+            </span>
+
+        {% elif batch_row.due_tomorrow %}
+            <span class="vaccine-pill vaccine-tomorrow">
+                <i class="fa-regular fa-clock"></i>
+                {{ batch_row.due_tomorrow|length }} Tomorrow
+            </span>
+
+        {% else %}
+            <span class="vaccine-pill vaccine-ok">
+                <i class="fa-solid fa-circle-check"></i>
+                Up to Date
+            </span>
+        {% endif %}
+
+       <a href="{% url 'vaccine_records' batch_row.batch.id %}"
+   class="vaccine-view-btn"
+   title="View Vaccine Details">
+    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+</a>
+
+    </div>
+</td>
                             </tr>
                         </tbody>
+                         {% endfor %}
                     </table>
-                </div>
 
-                <!-- LAYER SHED -->
+                       {% else %}
+                <p>No active batches in this shed.</p>
+            {% endif %}
 
-                <div class="shed-row">
-
-                    <div class="shed-main">
-                        <div class="shed-icon layer-icon">
-                            <i class="fa-solid fa-warehouse"></i>
-                        </div>
-
-                        <div>
-                            <h3 style="color:#5b32b3;">Layer Shed</h3>
-                            <p>Device: DEV-LAYER-01</p>
-                            <p>Last Update: 1 minute ago <span class="online-dot">●</span></p>
-                        </div>
-                    </div>
-
-                    <div class="sensor-box">
-                        <span class="sensor-icon" style="color:#2d7aff;">
-                            <i class="fa-solid fa-temperature-three-quarters"></i>
-                        </span>
-                        <div class="sensor-title">Temperature</div>
-                        <div class="sensor-value good">27.1 °C</div>
-                        <span class="sensor-pill normal-pill">Normal</span>
-                    </div>
-
-                    <div class="sensor-box">
-                        <span class="sensor-icon" style="color:#1f75ff;">
-                            <i class="fa-solid fa-droplet"></i>
-                        </span>
-                        <div class="sensor-title">Humidity</div>
-                        <div class="sensor-value good">62 %</div>
-                        <span class="sensor-pill normal-pill">Normal</span>
-                    </div>
-
-                    <div class="sensor-box">
-                        <span class="sensor-icon" style="color:#ffad00;">
-                            <i class="fa-regular fa-sun"></i>
-                        </span>
-                        <div class="sensor-title">Light</div>
-                        <div class="sensor-value good">55 %</div>
-                        <span class="sensor-pill normal-pill">Normal</span>
-                    </div>
-
-                    <div class="sensor-box">
-                        <span class="sensor-icon" style="color:#2d7aff;">
-                            <i class="fa-solid fa-cloud"></i>
-                        </span>
-                        <div class="sensor-title">Ammonia</div>
-                        <div class="sensor-value good">8 ppm</div>
-                        <span class="sensor-pill normal-pill">Normal</span>
-                    </div>
-
-                    <div class="shed-alert">
-                        <strong>Shed Alerts</strong>
-                        <div class="all-normal">
-                            <span class="check-circle">
-                                <i class="fa-solid fa-check"></i>
-                            </span>
-                            All Normal
-                        </div>
-                    </div>
 
                 </div>
+                 {% endfor %}
 
-                <div class="batch-table-wrap">
-                    <div class="batch-caption">Active Batches in Layer Shed</div>
 
-                    <table class="batch-table">
-                        <thead>
-                            <tr>
-                                <th>Batch #</th>
-                                <th>Type</th>
-                                <th>Start Date</th>
-                                <th>Age (days)</th>
-                                <th>Start Birds</th>
-                                <th>Current Birds</th>
-                                <th>Mortality</th>
-                                <th>Sold</th>
-                                <th>Status</th>
-                                <th>Alerts</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <tr>
-                                <td class="batch-code">LAYER-001</td>
-                                <td><span class="type-tag layer-tag">Layer</span></td>
-                                <td>05 May 2025</td>
-                                <td>
-                                    <div class="age-days">50 days</div>
-                                    <div class="age-weeks">(7 weeks)</div>
-                                </td>
-                                <td>1,200</td>
-                                <td>1,120</td>
-                                <td class="danger-text">80 (6.67%)</td>
-                                <td>0 (0.00%)</td>
-                                <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
-                                <td style="color:#168131;">All Normal</td>
-                            </tr>
-
-                            <tr>
-                                <td class="batch-code">LAYER-002</td>
-                                <td><span class="type-tag layer-tag">Layer</span></td>
-                                <td>12 May 2025</td>
-                                <td>
-                                    <div class="age-days">45 days</div>
-                                    <div class="age-weeks">(6 weeks)</div>
-                                </td>
-                                <td>930</td>
-                                <td class="danger-text">70 (6.67%)</td>
-                                <td>50 (4.76%)</td>
-                                <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
-                                <td style="color:#168131;">All Normal</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
 
                 <div class="footer-note">
                     <i class="fa-solid fa-circle-info"></i>

@@ -25,7 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-p_rbo02+jj#+1nmp5g96p_k-sl-n)csn9y!+tb5ox5ezrm2ski'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DEBUG", "False") == "True"
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS =  ['*']
 
@@ -128,6 +128,9 @@ LOGOUT_REDIRECT_URL = "home"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / 'staticfiles'

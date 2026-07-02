@@ -587,39 +587,83 @@ def add_feed_entry(request):
         "batches": batches,
     })
 
-
 @login_required
 def medicine_list(request):
     is_admin = request.user.is_superuser or request.user.is_staff
+    is_investor = hasattr(request.user, "investor_profile")
 
-    if not is_admin:
-        messages.error(request, "Only admin can view medicine entries.")
+    if is_admin:
+        batches = Batch.objects.filter(
+            is_active=True,
+            status="active"
+        ).order_by("-start_date", "batch_number")
+
+    elif is_investor:
+        investor_batch_ids = InvestorAllocation.objects.filter(
+            investor=request.user.investor_profile
+        ).values_list("batch_id", flat=True)
+
+        batches = Batch.objects.filter(
+            id__in=investor_batch_ids,
+            is_active=True,
+            status="active"
+        ).order_by("-start_date", "batch_number")
+
+    else:
+        messages.error(request, "You are not allowed to view medicine entries.")
         return redirect("dashboard")
-
-    batches = Batch.objects.filter(
-        is_active=True,
-        status="active"
-    ).order_by("-start_date", "batch_number")
 
     medicine_groups = []
 
     for batch in batches:
+        share_ratio = 1
+
+        if is_investor and not is_admin:
+            allocation = InvestorAllocation.objects.filter(
+                batch=batch,
+                investor=request.user.investor_profile
+            ).first()
+
+            share_ratio = (
+                allocation.birds_owned / batch.bird_count_initial
+                if allocation and batch.bird_count_initial > 0
+                else 0
+            )
+
         medicine_entries = MedicineEntry.objects.filter(
             batch=batch
         ).order_by("-entry_date", "-id")
 
-        total_medicine = sum(entry.amount for entry in medicine_entries)
+        medicine_rows = []
+
+        for entry in medicine_entries:
+            amount = float(entry.amount)
+
+            # Investor sees only their ownership share
+            if not is_admin:
+                amount = round(amount * share_ratio, 2)
+
+            medicine_rows.append({
+                "entry_date": entry.entry_date,
+                "medicine_name": entry.medicine_name,
+                "medicine_type": entry.medicine_type,
+                "medicine_type_display": entry.get_medicine_type_display(),
+                "notes": entry.notes,
+                "amount": amount,
+            })
+
+        total_medicine = sum(row["amount"] for row in medicine_rows)
 
         medicine_groups.append({
             "batch": batch,
-            "medicine_entries": medicine_entries,
+            "medicine_entries": medicine_rows,
             "total_medicine": total_medicine,
         })
 
     return render(request, "api/medicine_list.html", {
         "medicine_groups": medicine_groups,
+        "is_admin": is_admin,
     })
-
 
 @login_required
 @require_http_methods(["GET", "POST"])
@@ -648,10 +692,14 @@ def add_medicine_entry(request):
         entry_date = request.POST.get("entry_date")
         amount = request.POST.get("amount")
         notes = request.POST.get("notes", "")
+        medicine_name = request.POST.get("medicine_name", "").strip()
+        medicine_type = request.POST.get("medicine_type", "medicine")
 
         MedicineEntry.objects.create(
             batch=batch,
             entry_date=entry_date,
+            medicine_name=medicine_name or "Not specified",
+            medicine_type=medicine_type,
             amount=amount,
             notes=notes,
         )

@@ -140,9 +140,10 @@
         <a href="{% url 'finance_tracker' %}" class="btn">
             ← Finance Tracker
         </a>
-        <a href="{% url 'add_expense' %}" class="btn add-btn">
-        ➕ Add Expense
-    </a>
+        {% if is_admin %}
+            <a href="{% url 'add_expense' %}" class="btn add-btn">➕ Add Expense</a>
+        {% endif %}
+
     </div>
 
     {% if expense_groups %}
