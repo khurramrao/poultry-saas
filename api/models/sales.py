@@ -90,7 +90,7 @@ class Expense(models.Model):
     category = models.CharField(
         max_length=50,
         choices=[
-            ("diesel", "Diesel"),
+            ("fuel", "Fuel"),
             ("labor", "Labor"),
             ("electricity", "Electricity"),
             ("transport", "Transport"),
