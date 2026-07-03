@@ -1,5 +1,6 @@
 import json
-from datetime import date, timedelta
+from datetime import date, timedelta, time as clock_time
+from zoneinfo import ZoneInfo
 from django.utils import timezone
 from django.conf import settings
 from django.db.models import Sum
@@ -291,6 +292,15 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
         has_batch_alert = False
         device_offline = False
 
+        farm_time = timezone.now().astimezone(
+            ZoneInfo("Asia/Karachi")
+        ).time()
+
+        lights_scheduled_off = (
+                farm_time >= clock_time(21, 0)  # 9:00 PM onward
+                or farm_time < clock_time(5, 0)  # before 5:00 AM
+        )
+
         for device in devices:
             device_latest = SensorData.objects.filter(device=device).order_by('-created_at').first()
             is_offline = False
@@ -496,7 +506,11 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
             if latest.ammonia_raw is not None and latest.ammonia_raw > 600:
                 shed_alerts.append("Ammonia High")
 
-            if latest.ldr_raw is not None and latest.ldr_raw > 1500:
+            if (
+                    latest.ldr_raw is not None
+                    and latest.ldr_raw > 1500
+                    and not lights_scheduled_off
+            ):
                 shed_alerts.append("Low Light")
 
             if latest.sensor_error:
@@ -505,17 +519,32 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
         if is_admin and has_batch_alert and not device_offline and latest:
             shed_alerts.append("Batch Attention Needed")
 
+        temperature_status = "normal"
+
+        if latest and not device_offline and latest.temperature is not None:
+            if any("Temp High" in batch["alerts"] for batch in batch_summaries):
+                temperature_status = "high"
+
+            elif any("Temp Low" in batch["alerts"] for batch in batch_summaries):
+                temperature_status = "low"
+
+            elif any("No Temp Rule" in batch["alerts"] for batch in batch_summaries):
+                temperature_status = "no_rule"
+
         dashboard_rows.append({
             "shed": shed,
             "devices": devices,
             "device": devices.first(),
             "latest": latest,
             "device_offline": device_offline,
+            "temperature_status": temperature_status,
+            "lights_scheduled_off": lights_scheduled_off,
             "latest_readings": latest_readings,
             "alerts": shed_alerts,
             "batches": batch_summaries,
             "total_birds_in_shed": total_birds_in_shed,
             "last_update_display": format_last_update(latest.created_at) if latest else "No sensor data",
+
         })
 
     # --- DAILY LOG NOTIFICATION COUNT ---

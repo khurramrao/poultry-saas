@@ -1082,6 +1082,10 @@
         .purple{
     background:#7b4fc9;
 }
+
+      .shed-row.investor-shed-row{
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+}
     </style>
 </head>
 <script>
@@ -1207,7 +1211,7 @@
 {% comment %}
                 <div class="top-user-icon">
 
-                                        {% if user_profile.profile_image %}
+                    {% if user_profile.profile_image %}
                         <img src="{{ user_profile.profile_image.url }}"
                              alt="{{ user.username }}">
 
@@ -1439,7 +1443,7 @@
  {% for row in dashboard_rows %}
                 <!-- MEAT SHED -->
 
-                <div class="shed-row">
+               <div class="shed-row {% if not is_admin %}investor-shed-row{% endif %}">
 
                     {% with shed_kind=row.shed.shed_type|lower %}
 
@@ -1485,69 +1489,78 @@
 
                         {% endwith %}
 
-                  <div class="sensor-box">
+                                 <div class="sensor-box">
 
-                        {% if row.device_offline %}
+                            {% if row.device_offline %}
 
-                            <span class="sensor-icon temp-offline-icon">
-                                <i class="fa-solid fa-temperature-three-quarters"></i>
-                            </span>
+                                <span class="sensor-icon temp-offline-icon">
+                                    <i class="fa-solid fa-temperature-three-quarters"></i>
+                                </span>
 
-                            <div class="sensor-title">Temperature</div>
+                                <div class="sensor-title">Temperature</div>
 
-                            {% if row.latest and row.latest.temperature is not None %}
-                                <div class="sensor-value temp-offline-value">
-                                    {{ row.latest.temperature|floatformat:1 }} °C
-                                </div>
-                                <span class="sensor-pill offline-pill">Offline · Last Reading</span>
-                            {% else %}
+                                {% if row.latest and row.latest.temperature is not None %}
+                                    <div class="sensor-value temp-offline-value">
+                                        {{ row.latest.temperature|floatformat:1 }} °C
+                                    </div>
+                                    <span class="sensor-pill offline-pill">Offline · Last Reading</span>
+                                {% else %}
+                                    <div class="sensor-value temp-na-value">N/A</div>
+                                    <span class="sensor-pill na-pill">No Data</span>
+                                {% endif %}
+
+                            {% elif not row.latest or row.latest.temperature is None %}
+
+                                <span class="sensor-icon temp-na-icon">
+                                    <i class="fa-solid fa-temperature-three-quarters"></i>
+                                </span>
+
+                                <div class="sensor-title">Temperature</div>
                                 <div class="sensor-value temp-na-value">N/A</div>
                                 <span class="sensor-pill na-pill">No Data</span>
-                            {% endif %}
 
-                        {% elif not row.latest or row.latest.temperature is None %}
-
-                            <span class="sensor-icon temp-na-icon">
-                                <i class="fa-solid fa-temperature-three-quarters"></i>
-                            </span>
-
-                            <div class="sensor-title">Temperature</div>
-                            <div class="sensor-value temp-na-value">N/A</div>
-                            <span class="sensor-pill na-pill">No Data</span>
-
-                        {% else %}
-
-                            <span class="sensor-icon
-                                {% if row.alerts %}
-                                    temp-alert-icon
-                                {% else %}
-                                    temp-normal-icon
-                                {% endif %}">
-                                <i class="fa-solid fa-temperature-three-quarters"></i>
-                            </span>
-
-                            <div class="sensor-title">Temperature</div>
-
-                            <div class="sensor-value
-                                {% if row.alerts %}
-                                    high
-                                {% else %}
-                                    good
-                                {% endif %}">
-                                {{ row.latest.temperature|floatformat:1 }} °C
-                            </div>
-
-                            {% if row.alerts %}
-                                {% for alert in row.alerts %}
-                                    <span class="sensor-pill high-pill">{{ alert }}</span>
-                                {% endfor %}
                             {% else %}
-                                <span class="sensor-pill normal-pill">Normal</span>
+
+                                <span class="sensor-icon
+                                    {% if row.temperature_status == 'high' or row.temperature_status == 'low' %}
+                                        temp-alert-icon
+                                    {% elif row.temperature_status == 'no_rule' %}
+                                        temp-na-icon
+                                    {% else %}
+                                        temp-normal-icon
+                                    {% endif %}">
+                                    <i class="fa-solid fa-temperature-three-quarters"></i>
+                                </span>
+
+                                <div class="sensor-title">Temperature</div>
+
+                                <div class="sensor-value
+                                    {% if row.temperature_status == 'high' or row.temperature_status == 'low' %}
+                                        high
+                                    {% elif row.temperature_status == 'no_rule' %}
+                                        temp-na-value
+                                    {% else %}
+                                        good
+                                    {% endif %}">
+                                    {{ row.latest.temperature|floatformat:1 }} °C
+                                </div>
+
+                                {% if row.temperature_status == "high" %}
+                                    <span class="sensor-pill high-pill">Temp High</span>
+
+                                {% elif row.temperature_status == "low" %}
+                                    <span class="sensor-pill high-pill">Temp Low</span>
+
+                                {% elif row.temperature_status == "no_rule" %}
+                                    <span class="sensor-pill na-pill">No Temperature Rule</span>
+
+                                {% else %}
+                                    <span class="sensor-pill normal-pill">Normal</span>
+                                {% endif %}
+
                             {% endif %}
 
-                        {% endif %}
-
-                    </div>
+                        </div>
 
                    <div class="sensor-box">
 
@@ -1734,7 +1747,7 @@
                         {% endif %}
 
                     </div>
-
+{% if is_admin %}
                   <div class="shed-alert">
                         <strong>Shed Alerts</strong>
 
@@ -1771,6 +1784,7 @@
 
                         {% endif %}
                     </div>
+ {% endif %}
 
                 </div>
          {% if row.batches %}
