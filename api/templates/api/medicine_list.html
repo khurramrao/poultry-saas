@@ -243,7 +243,7 @@
                         {% else %}
                             Your Medicine Share:
                         {% endif %}
-                        Rs {{ group.total_medicine|floatformat:2 }}
+                        Rs {{ group.total_medicine|floatformat:0 }}
                     </div>
 
                 </div>
@@ -277,7 +277,7 @@
                             </div>
 
                             <div class="amount">
-                                Rs {{ medicine.amount|floatformat:2 }}
+                                Rs {{ medicine.amount|floatformat:0 }}
                             </div>
 
                         </div>

@@ -167,7 +167,7 @@
                     </h3>
 
                     <div class="total-badge">
-                        Total Feed: Rs {{ group.total_feed|floatformat:2 }}
+                        Total Feed: Rs {{ group.total_feed|floatformat:0 }}
                     </div>
                 </div>
 
@@ -181,19 +181,19 @@
 
                             <div>
                                 <div class="category">
-                                    Feed Entry
+                                     {{ feed.notes|default:"No notes" }}
                                 </div>
 
                                 <div class="desc">
-                                    {{ feed.notes|default:"No notes" }}
+
                                 </div>
                             </div>
 
                             <div class="amount">
                                 {% if is_admin %}
-                                    Rs {{ feed.amount|floatformat:2 }}
+                                    Rs {{ feed.amount|floatformat:0 }}
                                 {% else %}
-                                    Rs {{ feed.amount|floatformat:2 }}
+                                    Rs {{ feed.amount|floatformat:0 }}
                                 {% endif %}
 
                             </div>

@@ -20,6 +20,7 @@ from urllib.request import Request, urlopen
 logger = logging.getLogger(__name__)
 
 from django.core.cache import cache
+from decimal import Decimal
 
 
 from api.models.sensor import (
@@ -623,55 +624,56 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
                 1
             )
 
-    if last_seen:
+    # --- SOLD + SALES KPI ---
+    total_sold_kpi = 0
+    sold_starting_birds = 0
+    total_sales_kpi = Decimal("0.00")
 
-        # --- SOLD + SALES KPI ---
-        total_sold_kpi = 0
-        sold_starting_birds = 0
-        total_sales_kpi = 0
+    for batch in accessible_batches:
+        batch_sold = sum(
+            SaleRecord.objects.filter(batch=batch).values_list(
+                "birds_sold",
+                flat=True
+            )
+        )
 
-        for batch in accessible_batches:
-            batch_sold = sum(
-                SaleRecord.objects.filter(batch=batch).values_list(
-                    "birds_sold",
-                    flat=True
+        batch_sales = sum(
+            (sale.total_amount for sale in SaleRecord.objects.filter(batch=batch)),
+            0
+        )
+
+        if is_admin:
+            total_sold_kpi += batch_sold
+            sold_starting_birds += batch.bird_count_initial
+            total_sales_kpi += batch_sales
+
+        elif hasattr(request.user, "investor_profile"):
+            allocation = InvestorAllocation.objects.filter(
+                batch=batch,
+                investor=request.user.investor_profile
+            ).first()
+
+            if allocation and batch.bird_count_initial > 0:
+                share_ratio = allocation.birds_owned / batch.bird_count_initial
+
+                total_sold_kpi += round(batch_sold * share_ratio)
+                sold_starting_birds += allocation.birds_owned
+                total_sales_kpi += (
+                        Decimal(str(batch_sales))
+                        * Decimal(allocation.birds_owned)
+                        / Decimal(batch.bird_count_initial)
                 )
-            )
 
-            batch_sales = sum(
-                (sale.total_amount for sale in SaleRecord.objects.filter(batch=batch)),
-                0
-            )
+    if sold_starting_birds > 0:
+        sold_percentage = round(
+            (total_sold_kpi / sold_starting_birds) * 100,
+            2
+        )
+    else:
+        sold_percentage = 0
 
-            if is_admin:
-                total_sold_kpi += batch_sold
-                sold_starting_birds += batch.bird_count_initial
-                total_sales_kpi += batch_sales
-
-            else:
-                allocation = InvestorAllocation.objects.filter(
-                    batch=batch,
-                    investor=request.user.investor_profile
-                ).first()
-
-                if allocation and batch.bird_count_initial > 0:
-                    total_sold_kpi += round(
-                        batch_sold * allocation.birds_owned / batch.bird_count_initial
-                    )
-
-                    sold_starting_birds += allocation.birds_owned
-
-                    total_sales_kpi += (
-                            batch_sales * allocation.birds_owned / batch.bird_count_initial
-                    )
-
-        if sold_starting_birds > 0:
-            sold_percentage = round(
-                (total_sold_kpi / sold_starting_birds) * 100,
-                2
-            )
-        else:
-            sold_percentage = 0
+    # --- DAILY LOG NOTIFICATION COUNT ---
+    if last_seen:
         mortality_count = MortalityRecord.objects.filter(
             batch__in=accessible_batches,
             created_at__gt=last_seen
@@ -704,13 +706,24 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
                 + medicine_count
                 + expense_count
         )
+
     else:
         new_feed_count = (
-                MortalityRecord.objects.filter(batch__in=accessible_batches).count()
-                + SaleRecord.objects.filter(batch__in=accessible_batches).count()
-                + FeedEntry.objects.filter(batch__in=accessible_batches).count()
-                + MedicineEntry.objects.filter(batch__in=accessible_batches).count()
-                + Expense.objects.filter(batch__in=accessible_batches).count()
+                MortalityRecord.objects.filter(
+                    batch__in=accessible_batches
+                ).count()
+                + SaleRecord.objects.filter(
+            batch__in=accessible_batches
+        ).count()
+                + FeedEntry.objects.filter(
+            batch__in=accessible_batches
+        ).count()
+                + MedicineEntry.objects.filter(
+            batch__in=accessible_batches
+        ).count()
+                + Expense.objects.filter(
+            batch__in=accessible_batches
+        ).count()
         )
 
     return render(request, template_name, {
