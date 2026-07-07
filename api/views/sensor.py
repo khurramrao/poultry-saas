@@ -49,6 +49,8 @@ from api.models.sales import (
 from django.utils import timezone
 
 from django.utils.timesince import timesince
+from django.contrib.auth import logout
+from django.views.decorators.http import require_POST
 
 
 @csrf_exempt
@@ -968,3 +970,8 @@ def user_profile(request):
         "phone_number": phone_number,
         "role_label": role_label,
     })
+
+@require_POST
+def logout_user(request):
+    logout(request)
+    return redirect("login")

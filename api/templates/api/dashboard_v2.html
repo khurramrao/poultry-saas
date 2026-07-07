@@ -1086,6 +1086,58 @@
       .shed-row.investor-shed-row{
     grid-template-columns: repeat(5, minmax(0, 1fr));
 }
+        .user-menu{
+    position:relative;
+}
+
+.user-dropdown{
+    position:absolute;
+    right:0;
+    top:calc(100% + 10px);
+    width:180px;
+    display:none;
+    z-index:3000;
+    padding:6px;
+    background:#fff;
+    border:1px solid #e4eaf2;
+    border-radius:10px;
+    box-shadow:0 10px 24px rgba(20,45,75,0.14);
+}
+
+.user-dropdown.show{
+    display:block;
+}
+
+.user-dropdown a,
+.user-dropdown button{
+    width:100%;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    border:none;
+    border-radius:7px;
+    padding:11px 12px;
+    background:transparent;
+    color:#183550;
+    text-align:left;
+    text-decoration:none;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+}
+
+.user-dropdown a:hover{
+    background:#f2f7fd;
+    color:#155fc3;
+}
+
+.user-dropdown button{
+    color:#c92e35;
+}
+
+.user-dropdown button:hover{
+    background:#fff0f0;
+}
     </style>
 </head>
 <script>
@@ -1094,6 +1146,19 @@
             window.location.reload();
         }
     }, 30000);
+
+     function toggleUserMenu(event) {
+        event.stopPropagation();
+        document.getElementById("userDropdown").classList.toggle("show");
+    }
+
+    document.addEventListener("click", function (event) {
+        const userMenu = document.querySelector(".user-menu");
+
+        if (userMenu && !userMenu.contains(event.target)) {
+            document.getElementById("userDropdown").classList.remove("show");
+        }
+    });
 </script>
 
 <body>
@@ -1203,33 +1268,42 @@
 </a>
             </div>
 
-           <div class="top-user top-user-clickable"
-     role="link"
-     tabindex="0"
-     onclick="window.location.href='{% url 'user_profile' %}'">
+           <div class="user-menu">
 
-{% comment %}
-                <div class="top-user-icon">
+    <div class="top-user top-user-clickable"
+         role="button"
+         tabindex="0"
+         onclick="toggleUserMenu(event)">
 
-                    {% if user_profile.profile_image %}
-                        <img src="{{ user_profile.profile_image.url }}"
-                             alt="{{ user.username }}">
+        <span>
+            {% if request.user.first_name %}
+                {{ request.user.first_name|title }} {{ request.user.last_name|title }}
+            {% else %}
+                {{ request.user.username|title }}
+            {% endif %}
+        </span>
 
-                    {% else %}
-                        <i class="fa-solid fa-user"></i>
-                    {% endif %}
-                </div>
-               {% endcomment %}
-                 <SPAN>
+        <i class="fa-solid fa-angle-down"></i>
+    </div>
 
-                {% if request.user.first_name %}
-                    {{ request.user.first_name|title }} {{ request.user.last_name|title }}
-                {% else %}
-                    {{ request.user.username|title }}
-                {% endif %}
-            </SPAN>
-                <i class="fa-solid fa-angle-down"></i>
-            </div>
+    <div class="user-dropdown" id="userDropdown">
+
+        <a href="{% url 'user_profile' %}">
+            <i class="fa-regular fa-user"></i>
+            My Profile
+        </a>
+
+        <form method="post" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                Logout
+            </button>
+        </form>
+
+    </div>
+
+</div>
         </div>
 
         <div class="page-content">
