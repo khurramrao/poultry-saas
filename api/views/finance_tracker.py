@@ -447,7 +447,20 @@ def add_sale_record(request):
             total=Sum("amount")
         )["total"] or Decimal("0")
 
-        total_cogs = chick_cost + carriage_cost + feed_cost + medicine_cost
+        electricity_cost = Expense.objects.filter(
+            batch=batch,
+            category="electricity"
+        ).aggregate(
+            total=Sum("amount")
+        )["total"] or Decimal("0")
+
+        total_cogs = (
+                chick_cost
+                + carriage_cost
+                + feed_cost
+                + medicine_cost
+                + electricity_cost
+        )
 
         previous_locked_cogs = SaleRecord.objects.filter(batch=batch).aggregate(
             total=Sum("cogs_allocated")
