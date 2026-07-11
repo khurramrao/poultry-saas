@@ -26,6 +26,7 @@ urlpatterns = [
     path("batch-report/", finance_tracker.batch_report, name="batch_report"),
     path("dashboard-v2/", sensor.dashboard_v2, name="dashboard_v2"),
     path("logout/", sensor.logout_user, name="logout"),
+    path("user-activity/", sensor.user_activity, name="user_activity"),
 
 
 

@@ -1185,11 +1185,12 @@
                 {% endif %}
             </a>
 
-            <a href="#">
-                <i class="fa-solid fa-list-ol"></i>
-                <span>Batches</span>
-            </a>
+
 {% if is_admin %}
+             <a href="{% url 'user_activity' %}">
+                <i class="fa-solid fa-user-clock"></i>
+                <span>User Activity</span>
+            </a>
              <a href="{% url 'ownership_shares' %}">
                 <i class="fa-solid fa-chart-pie"></i>
                 <span>Ownership Shares</span>
@@ -1886,19 +1887,19 @@
                         <tbody>
                             <tr>
                               <td class="batch-code">
-    {{ batch_row.batch.batch_type|title }} Batch #{{ batch_row.batch.batch_number }}
-</td>
+                                {{ batch_row.batch.batch_type|title }} Batch #{{ batch_row.batch.batch_number }}
+                            </td>
 
-<td>
-    <span class="type-tag
-        {% if batch_row.batch.batch_type == 'layer' %}
-            layer-tag
-        {% else %}
-            meat-tag
-        {% endif %}">
-        {{ batch_row.batch.batch_type|title }}
-    </span>
-</td>
+                            <td>
+                                <span class="type-tag
+                                    {% if batch_row.batch.batch_type == 'layer' %}
+                                        layer-tag
+                                    {% else %}
+                                        meat-tag
+                                    {% endif %}">
+                                    {{ batch_row.batch.batch_type|title }}
+                                </span>
+                            </td>
                                 <td>{{ batch_row.batch.start_date }}</td>
                                 <td>
                                     <div class="age-days">{{ batch_row.age_days }}</div>

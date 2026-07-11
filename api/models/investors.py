@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from decimal import Decimal
 from django.db import models
 from api.models.sensor import Batch
+from django.utils import timezone
 
 class UserProfile(models.Model):
     user = models.OneToOneField(
@@ -128,3 +129,38 @@ class MedicineEntry(models.Model):
             f"{self.get_medicine_type_display()} - "
             f"{self.medicine_name} - Rs {self.amount}"
         )
+
+
+class UserActivityStatus(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="activity_status"
+    )
+
+    last_seen = models.DateTimeField(null=True, blank=True)
+    last_ip = models.GenericIPAddressField(null=True, blank=True)
+    last_user_agent = models.CharField(max_length=255, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} last seen {self.last_seen}"
+
+
+class UserActivityLog(models.Model):
+    EVENT_CHOICES = [
+        ("login", "Login"),
+        ("logout", "Logout"),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    event_type = models.CharField(max_length=20, choices=EVENT_CHOICES)
+    timestamp = models.DateTimeField(default=timezone.now)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.event_type} - {self.timestamp}"

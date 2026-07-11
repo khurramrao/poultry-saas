@@ -22,7 +22,7 @@
         }
 
         .page{
-            max-width:1350px;
+            max-width:1450px;
             margin:auto;
             padding:28px 22px;
         }
@@ -37,7 +37,7 @@
 
         .title-area h1{
             margin:0;
-            font-size:27px;
+            font-size:28px;
             color:#0b3f74;
         }
 
@@ -60,12 +60,16 @@
             font-weight:bold;
         }
 
+        .back-btn:hover{
+            background:#124a82;
+        }
+
         .ownership-card{
             background:white;
             border:1px solid #e2eaf3;
             border-radius:14px;
             padding:16px;
-            margin-bottom:20px;
+            margin-bottom:22px;
             box-shadow:0 3px 12px rgba(26,57,88,0.04);
         }
 
@@ -80,7 +84,7 @@
         .batch-header h2{
             margin:0;
             color:#0b4b8c;
-            font-size:19px;
+            font-size:21px;
         }
 
         .batch-subtitle{
@@ -109,7 +113,7 @@
 
         .summary-grid{
             display:grid;
-            grid-template-columns:repeat(4, 1fr);
+            grid-template-columns:repeat(5, 1fr);
             gap:12px;
             margin-bottom:16px;
         }
@@ -142,6 +146,37 @@
             color:#c87500;
         }
 
+        .summary-value.money{
+            color:#0b7a28;
+        }
+
+        .cogs-summary{
+            display:grid;
+            grid-template-columns:repeat(5, 1fr);
+            gap:10px;
+            margin-bottom:16px;
+        }
+
+        .cogs-box{
+            background:#eef6ff;
+            border:1px solid #d9eaff;
+            border-radius:10px;
+            padding:12px;
+            text-align:center;
+        }
+
+        .cogs-label{
+            color:#52647a;
+            font-size:12px;
+            margin-bottom:6px;
+        }
+
+        .cogs-value{
+            color:#174a7b;
+            font-size:17px;
+            font-weight:800;
+        }
+
         .table-title{
             color:#0b4b8c;
             font-size:16px;
@@ -157,7 +192,7 @@
 
         table{
             width:100%;
-            min-width:800px;
+            min-width:1280px;
             border-collapse:collapse;
         }
 
@@ -165,8 +200,9 @@
             background:#f2f6fa;
             color:#263b55;
             font-size:13px;
-            text-align:left;
+            text-align:center;
             padding:11px 12px;
+            white-space:nowrap;
         }
 
         td{
@@ -174,6 +210,13 @@
             padding:12px;
             font-size:13px;
             color:#1d2d41;
+            text-align:center;
+            white-space:nowrap;
+        }
+
+        td:first-child,
+        th:first-child{
+            text-align:left;
         }
 
         .owner-name{
@@ -203,6 +246,21 @@
             font-weight:bold;
         }
 
+        .money-value{
+            color:#0b7a28;
+            font-weight:bold;
+        }
+
+        .total-cogs-value{
+            color:#064e1f;
+            font-weight:900;
+            background:#f0fff4;
+        }
+
+        .admin-row{
+            background:#f8fbff;
+        }
+
         .empty-state{
             background:white;
             border:1px solid #e2eaf3;
@@ -218,14 +276,36 @@
             margin-bottom:12px;
         }
 
+        .note-card{
+            background:#eef6ff;
+            border:1px solid #d9eaff;
+            color:#174a7b;
+            padding:13px 15px;
+            border-radius:12px;
+            font-size:14px;
+            font-weight:700;
+            margin-top:10px;
+        }
+
+        @media(max-width:1000px){
+            .summary-grid{
+                grid-template-columns:repeat(2, 1fr);
+            }
+
+            .cogs-summary{
+                grid-template-columns:repeat(2, 1fr);
+            }
+        }
+
         @media(max-width:800px){
             .topbar{
                 align-items:flex-start;
                 flex-direction:column;
             }
 
-            .summary-grid{
-                grid-template-columns:repeat(2, 1fr);
+            .back-btn{
+                width:100%;
+                justify-content:center;
             }
         }
 
@@ -234,8 +314,9 @@
                 padding:18px 12px;
             }
 
-            .summary-grid{
-                grid-template-columns:1fr 1fr;
+            .summary-grid,
+            .cogs-summary{
+                grid-template-columns:1fr;
                 gap:8px;
             }
 
@@ -252,8 +333,11 @@
 
     <div class="topbar">
         <div class="title-area">
-            <h1><i class="fa-solid fa-chart-pie"></i> Ownership Shares</h1>
-            <p>Live ownership breakdown for every active batch.</p>
+            <h1>
+                <i class="fa-solid fa-chart-pie"></i>
+                Ownership Shares
+            </h1>
+            <p>Live ownership and COGS breakdown for every active batch.</p>
         </div>
 
         <a href="{% url 'dashboard_v2' %}" class="back-btn">
@@ -269,7 +353,11 @@
             <div class="batch-header">
                 <div>
                     <h2>
-                        {{ item.batch.shed.shed_type|title }}
+                        {% if item.batch.batch_type %}
+                            {{ item.batch.batch_type|title }}
+                        {% else %}
+                            {{ item.batch.shed.shed_type|title }}
+                        {% endif %}
                         Batch #{{ item.batch.batch_number }}
                     </h2>
 
@@ -288,12 +376,16 @@
             <div class="summary-grid">
                 <div class="summary-box">
                     <div class="summary-label">Total Start Birds</div>
-                    <div class="summary-value">{{ item.start_birds|intcomma }}</div>
+                    <div class="summary-value">
+                        {{ item.start_birds|intcomma }}
+                    </div>
                 </div>
 
                 <div class="summary-box">
                     <div class="summary-label">Current Birds</div>
-                    <div class="summary-value">{{ item.current_birds|intcomma }}</div>
+                    <div class="summary-value">
+                        {{ item.current_birds|intcomma }}
+                    </div>
                 </div>
 
                 <div class="summary-box">
@@ -309,11 +401,55 @@
                         {{ item.total_sold|intcomma }}
                     </div>
                 </div>
+
+                <div class="summary-box">
+                    <div class="summary-label">Total COGS</div>
+                    <div class="summary-value money">
+                        Rs {{ item.total_cogs|floatformat:0|intcomma }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="cogs-summary">
+                <div class="cogs-box">
+                    <div class="cogs-label">Chick Cost</div>
+                    <div class="cogs-value">
+                        Rs {{ item.chick_cost|floatformat:0|intcomma }}
+                    </div>
+                </div>
+
+                <div class="cogs-box">
+                    <div class="cogs-label">Feed Cost</div>
+                    <div class="cogs-value">
+                        Rs {{ item.feed_cost|floatformat:0|intcomma }}
+                    </div>
+                </div>
+
+                <div class="cogs-box">
+                    <div class="cogs-label">Medicine Cost</div>
+                    <div class="cogs-value">
+                        Rs {{ item.medicine_cost|floatformat:0|intcomma }}
+                    </div>
+                </div>
+
+                <div class="cogs-box">
+                    <div class="cogs-label">Electricity Cost</div>
+                    <div class="cogs-value">
+                        Rs {{ item.electricity_cost|floatformat:0|intcomma }}
+                    </div>
+                </div>
+
+                <div class="cogs-box">
+                    <div class="cogs-label">Carriage Cost</div>
+                    <div class="cogs-value">
+                        Rs {{ item.carriage_cost|floatformat:0|intcomma }}
+                    </div>
+                </div>
             </div>
 
             <div class="table-title">
                 <i class="fa-solid fa-users"></i>
-                Ownership Breakdown
+                Ownership & COGS Breakdown
             </div>
 
             <div class="table-wrap">
@@ -326,35 +462,73 @@
                             <th>Mortality</th>
                             <th>Sold</th>
                             <th>Current</th>
+                            <th>Chick</th>
+                            <th>Feed</th>
+                            <th>Medicine</th>
+                            <th>Electricity</th>
+                            <th>Carriage</th>
+                            <th>Total COGS Share</th>
                         </tr>
                     </thead>
 
                     <tbody>
                         {% for owner in item.owners %}
-                        <tr>
-                            <td class="owner-name {% if owner.is_admin %}admin-owner{% else %}investor-owner{% endif %}">
-                                {% if owner.is_admin %}
-                                    <i class="fa-solid fa-user-shield"></i>
-                                {% else %}
-                                    <i class="fa-solid fa-user"></i>
-                                {% endif %}
-                                {{ owner.name }}
-                            </td>
+                            <tr class="{% if owner.is_admin %}admin-row{% endif %}">
+                                <td class="owner-name {% if owner.is_admin %}admin-owner{% else %}investor-owner{% endif %}">
+                                    {% if owner.is_admin %}
+                                        <i class="fa-solid fa-user-shield"></i>
+                                    {% else %}
+                                        <i class="fa-solid fa-user"></i>
+                                    {% endif %}
+                                    {{ owner.name }}
+                                </td>
 
-                            <td>
-                                <span class="share-badge">
-                                    {{ owner.share_percentage|floatformat:1 }}%
-                                </span>
-                            </td>
+                                <td>
+                                    <span class="share-badge">
+                                        {{ owner.share_percentage|floatformat:1 }}%
+                                    </span>
+                                </td>
 
-                            <td>{{ owner.start_birds|intcomma }}</td>
-                            <td>{{ owner.mortality|intcomma }}</td>
-                            <td>{{ owner.sold|intcomma }}</td>
-                            <td class="current-value">{{ owner.current|intcomma }}</td>
-                        </tr>
+                                <td>{{ owner.start_birds|intcomma }}</td>
+                                <td>{{ owner.mortality|intcomma }}</td>
+                                <td>{{ owner.sold|intcomma }}</td>
+                                <td class="current-value">
+                                    {{ owner.current|intcomma }}
+                                </td>
+
+                                <td class="money-value">
+                                    Rs {{ owner.chick_cost|floatformat:0|intcomma }}
+                                </td>
+
+                                <td class="money-value">
+                                    Rs {{ owner.feed_cost|floatformat:0|intcomma }}
+                                </td>
+
+                                <td class="money-value">
+                                    Rs {{ owner.medicine_cost|floatformat:0|intcomma }}
+                                </td>
+
+                                <td class="money-value">
+                                    Rs {{ owner.electricity_cost|floatformat:0|intcomma }}
+                                </td>
+
+                                <td class="money-value">
+                                    Rs {{ owner.carriage_cost|floatformat:0|intcomma }}
+                                </td>
+
+                                <td class="total-cogs-value">
+                                    Rs {{ owner.total_cogs_share|floatformat:0|intcomma }}
+                                </td>
+                            </tr>
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+
+            <div class="note-card">
+                <i class="fa-solid fa-circle-info"></i>
+                Cost share is calculated from each owner’s bird ownership percentage.
+                Electricity is included in COGS.
             </div>
 
         </section>

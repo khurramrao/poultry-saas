@@ -41,6 +41,7 @@ from api.models.temperature import TemperatureRule
 
 from api.models.investors import InvestorProfile, InvestorAllocation, BatchCost, UserProfile
 from api.models.investors import (
+    UserActivityLog,
     InvestorAllocation,
     UserFeedStatus,
     FeedEntry,
@@ -49,6 +50,7 @@ from api.models.investors import (
 )
 from api.models.sales import (
     SaleRecord,
+    ChickCostEntry,
     Expense,
 )
 from django.utils import timezone
@@ -841,6 +843,36 @@ def ownership_shares(request):
             - total_sold
         )
 
+        # ---------- COGS ----------
+        chick_cost = ChickCostEntry.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("chick_cost"))["total"] or 0
+
+        carriage_cost = ChickCostEntry.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("carriage_cost"))["total"] or 0
+
+        feed_cost = FeedEntry.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("amount"))["total"] or 0
+
+        medicine_cost = MedicineEntry.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("amount"))["total"] or 0
+
+        electricity_cost = Expense.objects.filter(
+            batch=batch,
+            category="electricity"
+        ).aggregate(total=Sum("amount"))["total"] or 0
+
+        total_cogs = (
+            chick_cost
+            + carriage_cost
+            + feed_cost
+            + medicine_cost
+            + electricity_cost
+        )
+
         allocations = list(
             InvestorAllocation.objects.filter(
                 batch=batch
@@ -854,7 +886,43 @@ def ownership_shares(request):
 
         owners = []
 
-        # Admin share
+        def build_owner_row(name, start_birds, share_ratio, is_admin_owner=False):
+            owner_mortality = round(total_mortality * share_ratio)
+            owner_sold = round(total_sold * share_ratio)
+            owner_current = start_birds - owner_mortality - owner_sold
+
+            chick_share = round(float(chick_cost) * share_ratio, 2)
+            feed_share = round(float(feed_cost) * share_ratio, 2)
+            medicine_share = round(float(medicine_cost) * share_ratio, 2)
+            electricity_share = round(float(electricity_cost) * share_ratio, 2)
+            carriage_share = round(float(carriage_cost) * share_ratio, 2)
+
+            total_cogs_share = round(
+                chick_share
+                + feed_share
+                + medicine_share
+                + electricity_share
+                + carriage_share,
+                2
+            )
+
+            return {
+                "name": name,
+                "share_percentage": round(share_ratio * 100, 1),
+                "start_birds": start_birds,
+                "mortality": owner_mortality,
+                "sold": owner_sold,
+                "current": owner_current,
+                "chick_cost": chick_share,
+                "feed_cost": feed_share,
+                "medicine_cost": medicine_share,
+                "electricity_cost": electricity_share,
+                "carriage_cost": carriage_share,
+                "total_cogs_share": total_cogs_share,
+                "is_admin": is_admin_owner,
+            }
+
+        # ---------- ADMIN SHARE ----------
         admin_start_birds = (
             batch.bird_count_initial
             - allocated_investor_birds
@@ -863,21 +931,16 @@ def ownership_shares(request):
         if admin_start_birds > 0 and batch.bird_count_initial > 0:
             admin_share = admin_start_birds / batch.bird_count_initial
 
-            owners.append({
-                "name": "You (Admin)",
-                "share_percentage": round(admin_share * 100, 1),
-                "start_birds": admin_start_birds,
-                "mortality": round(total_mortality * admin_share),
-                "sold": round(total_sold * admin_share),
-                "current": (
-                    admin_start_birds
-                    - round(total_mortality * admin_share)
-                    - round(total_sold * admin_share)
-                ),
-                "is_admin": True,
-            })
+            owners.append(
+                build_owner_row(
+                    name="You (Admin)",
+                    start_birds=admin_start_birds,
+                    share_ratio=admin_share,
+                    is_admin_owner=True
+                )
+            )
 
-        # Investor shares
+        # ---------- INVESTOR SHARES ----------
         for allocation in allocations:
             if batch.bird_count_initial <= 0:
                 continue
@@ -892,19 +955,14 @@ def ownership_shares(request):
                 or allocation.investor.user.username
             )
 
-            owners.append({
-                "name": investor_name,
-                "share_percentage": round(investor_share * 100, 1),
-                "start_birds": allocation.birds_owned,
-                "mortality": round(total_mortality * investor_share),
-                "sold": round(total_sold * investor_share),
-                "current": (
-                    allocation.birds_owned
-                    - round(total_mortality * investor_share)
-                    - round(total_sold * investor_share)
-                ),
-                "is_admin": False,
-            })
+            owners.append(
+                build_owner_row(
+                    name=investor_name,
+                    start_birds=allocation.birds_owned,
+                    share_ratio=investor_share,
+                    is_admin_owner=False
+                )
+            )
 
         mortality_percentage = 0
         if batch.bird_count_initial > 0:
@@ -920,6 +978,14 @@ def ownership_shares(request):
             "total_mortality": total_mortality,
             "total_sold": total_sold,
             "mortality_percentage": mortality_percentage,
+
+            "chick_cost": chick_cost,
+            "feed_cost": feed_cost,
+            "medicine_cost": medicine_cost,
+            "electricity_cost": electricity_cost,
+            "carriage_cost": carriage_cost,
+            "total_cogs": total_cogs,
+
             "owners": owners,
         })
 
@@ -996,6 +1062,54 @@ def user_profile(request):
         "is_investor": bool(investor_profile),
         "phone_number": phone_number,
         "role_label": role_label,
+    })
+
+@login_required
+def user_activity(request):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        return redirect("dashboard")
+
+    now = timezone.now()
+    users = User.objects.select_related("activity_status").order_by("username")
+
+    activity_rows = []
+
+    for user in users:
+        status = getattr(user, "activity_status", None)
+
+        last_seen = None
+        last_ip = ""
+        is_online = False
+
+        latest_event = UserActivityLog.objects.filter(
+            user=user
+        ).order_by("-timestamp").first()
+
+        if status:
+            last_seen = status.last_seen
+            last_ip = status.last_ip or ""
+
+            if last_seen and now - last_seen <= timedelta(minutes=5):
+                is_online = True
+
+        # If user clicked logout, show offline immediately
+        if latest_event and latest_event.event_type == "logout":
+            is_online = False
+
+        activity_rows.append({
+            "user": user,
+            "is_online": is_online,
+            "last_seen": last_seen,
+            "last_login": user.last_login,
+            "last_ip": last_ip,
+            "latest_event": latest_event,
+        })
+
+    return render(request, "api/user_activity.html", {
+        "activity_rows": activity_rows,
+        "now": now,
     })
 
 @require_POST

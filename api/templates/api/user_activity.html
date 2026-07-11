@@ -1,0 +1,264 @@
+{% load humanize %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User Activity</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <style>
+        *{
+            box-sizing:border-box;
+        }
+
+        body{
+            margin:0;
+            font-family:Arial, sans-serif;
+            background:#f4f7fb;
+            color:#10233f;
+        }
+
+        .page{
+            max-width:1250px;
+            margin:auto;
+            padding:28px 22px;
+        }
+
+        .topbar{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:15px;
+            margin-bottom:22px;
+        }
+
+        h1{
+            margin:0;
+            color:#0b3f74;
+            font-size:28px;
+        }
+
+        .subtitle{
+            color:#64748b;
+            margin-top:7px;
+            font-size:14px;
+        }
+
+        .back-btn{
+            background:#073966;
+            color:white;
+            padding:11px 15px;
+            border-radius:8px;
+            text-decoration:none;
+            font-weight:bold;
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+        }
+
+        .card{
+            background:white;
+            border:1px solid #e2eaf3;
+            border-radius:14px;
+            box-shadow:0 3px 12px rgba(26,57,88,0.04);
+            overflow:hidden;
+        }
+
+        .table-wrap{
+            overflow-x:auto;
+        }
+
+        table{
+            width:100%;
+            min-width:950px;
+            border-collapse:collapse;
+        }
+
+        th{
+            background:#f2f6fa;
+            color:#263b55;
+            padding:12px;
+            text-align:left;
+            font-size:13px;
+        }
+
+        td{
+            border-top:1px solid #e8edf3;
+            padding:13px 12px;
+            font-size:14px;
+        }
+
+        .user-name{
+            font-weight:bold;
+            color:#0b4b8c;
+        }
+
+        .status-pill{
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            padding:6px 10px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:bold;
+        }
+
+        .online{
+            color:#157c32;
+            background:#e5f7e7;
+        }
+
+        .offline{
+            color:#667085;
+            background:#eef2f6;
+        }
+
+        .event-login{
+            color:#157c32;
+            font-weight:bold;
+        }
+
+        .event-logout{
+            color:#c62828;
+            font-weight:bold;
+        }
+
+        .muted{
+            color:#8a98aa;
+        }
+
+        @media(max-width:700px){
+            .topbar{
+                flex-direction:column;
+                align-items:flex-start;
+            }
+
+            .back-btn{
+                width:100%;
+                justify-content:center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="page">
+
+    <div class="topbar">
+        <div>
+            <h1>
+                <i class="fa-solid fa-user-clock"></i>
+                User Activity
+            </h1>
+            <div class="subtitle">
+                Login time, last seen time, and online status of users.
+            </div>
+        </div>
+
+        <a href="{% url 'dashboard' %}" class="back-btn">
+            <i class="fa-solid fa-arrow-left"></i>
+            Dashboard
+        </a>
+    </div>
+
+    <div class="card">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Last Seen</th>
+                        <th>Last Event</th>
+                        <th>IP Address</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for row in activity_rows %}
+                        <tr>
+                            <td class="user-name">
+                                <i class="fa-solid fa-user"></i>
+                                {% if row.user.get_full_name %}
+                                    {{ row.user.get_full_name|title }}
+                                {% else %}
+                                    {{ row.user.username|title }}
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if row.is_online %}
+                                    <span class="status-pill online">
+                                        <i class="fa-solid fa-circle"></i>
+                                        Online
+                                    </span>
+                                {% else %}
+                                    <span class="status-pill offline">
+                                        <i class="fa-regular fa-circle"></i>
+                                        Offline
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if row.last_login %}
+                                    {{ row.last_login|date:"d M Y, g:i A" }}
+                                {% else %}
+                                    <span class="muted">Never</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if row.last_seen %}
+                                    {{ row.last_seen|date:"d M Y, g:i A" }}
+                                    <br>
+                                    <span class="muted">{{ row.last_seen|timesince }} ago</span>
+                                {% else %}
+                                    <span class="muted">No activity yet</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if row.latest_event %}
+                                    {% if row.latest_event.event_type == "login" %}
+                                        <span class="event-login">Login</span>
+                                    {% else %}
+                                        <span class="event-logout">Logout</span>
+                                    {% endif %}
+                                    <br>
+                                    <span class="muted">
+                                        {{ row.latest_event.timestamp|date:"d M Y, g:i A" }}
+                                    </span>
+                                {% else %}
+                                    <span class="muted">No login record yet</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if row.last_ip %}
+                                    {{ row.last_ip }}
+                                {% else %}
+                                    <span class="muted">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6">No users found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>
