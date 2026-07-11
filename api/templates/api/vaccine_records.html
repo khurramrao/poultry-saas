@@ -3,120 +3,505 @@
 <head>
     <meta charset="UTF-8">
     <title>Vaccine Record</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            padding: 20px;
+        *{
+            box-sizing:border-box;
         }
 
-        h1 {
-            color: #1f4e79;
+        body{
+            margin:0;
+            font-family:Arial, sans-serif;
+            background:#f4f7fb;
+            color:#10233f;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
+        .page-wrap{
+            max-width:1250px;
+            margin:26px auto;
+            padding:0 18px;
         }
 
-        th, td {
-            padding: 12px;
-            border: 1px solid #ddd;
-            text-align: center;
+        .top-bar{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:15px;
+            margin-bottom:18px;
         }
 
-        th {
-            background: #1f4e79;
-            color: white;
+        .back-btn{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            background:#1f4e79;
+            color:white;
+            text-decoration:none;
+            padding:11px 16px;
+            border-radius:9px;
+            font-weight:700;
+            font-size:14px;
         }
 
-        .btn {
-            background: green;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            text-decoration: none;
+        .back-btn:hover{
+            background:#153f68;
         }
 
-        .done {
-            color: green;
-            font-weight: bold;
+        .page-title{
+            background:white;
+            border:1px solid #e4eaf2;
+            border-radius:16px;
+            padding:22px;
+            margin-bottom:18px;
+            box-shadow:0 4px 14px rgba(26,57,88,0.06);
         }
 
-        .due {
-            color: #a06b00;
-            font-weight: bold;
+        .title-row{
+            display:flex;
+            justify-content:space-between;
+            align-items:flex-start;
+            gap:15px;
+            flex-wrap:wrap;
         }
 
-        .overdue {
-            color: red;
-            font-weight: bold;
+        .title-left h1{
+            margin:0 0 8px;
+            color:#174a7b;
+            font-size:30px;
         }
 
-        .not-due {
-            color: gray;
-            font-weight: bold;
+        .title-left p{
+            margin:6px 0;
+            font-size:15px;
+            color:#344054;
+        }
+
+        .batch-badge{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            background:#eaf3ff;
+            color:#155fc3;
+            padding:10px 14px;
+            border-radius:999px;
+            font-weight:700;
+            font-size:14px;
+        }
+
+        .summary-grid{
+            display:grid;
+            grid-template-columns:repeat(4,minmax(0,1fr));
+            gap:12px;
+            margin-top:18px;
+        }
+
+        .summary-box{
+            background:#f8fbff;
+            border:1px solid #e2eaf4;
+            border-radius:12px;
+            padding:14px;
+            text-align:center;
+        }
+
+        .summary-label{
+            font-size:13px;
+            color:#667085;
+            margin-bottom:6px;
+        }
+
+        .summary-value{
+            font-size:18px;
+            font-weight:800;
+            color:#174a7b;
+        }
+
+        .messages{
+            margin-bottom:14px;
+        }
+
+        .message{
+            padding:12px 14px;
+            border-radius:10px;
+            margin-bottom:8px;
+            font-weight:700;
+            font-size:14px;
+        }
+
+        .message.success{
+            background:#e8f7ed;
+            color:#168131;
+            border:1px solid #c9edd4;
+        }
+
+        .message.error{
+            background:#fff0f0;
+            color:#c62828;
+            border:1px solid #ffd0d0;
+        }
+
+        .table-card{
+            background:white;
+            border:1px solid #e4eaf2;
+            border-radius:16px;
+            overflow:hidden;
+            box-shadow:0 4px 14px rgba(26,57,88,0.06);
+        }
+
+        .table-header{
+            padding:16px 18px;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            border-bottom:1px solid #e8edf4;
+        }
+
+        .table-header h2{
+            margin:0;
+            font-size:20px;
+            color:#174a7b;
+        }
+
+        .hint{
+            color:#667085;
+            font-size:13px;
+        }
+
+        .table-wrap{
+            overflow-x:auto;
+        }
+
+        table{
+            width:100%;
+            min-width:950px;
+            border-collapse:collapse;
+        }
+
+        th{
+            background:#1f4e79;
+            color:white;
+            padding:13px 12px;
+            font-size:14px;
+            text-align:center;
+        }
+
+        td{
+            padding:13px 12px;
+            border-bottom:1px solid #edf0f5;
+            text-align:center;
+            font-size:14px;
+            color:#152538;
+        }
+
+        tr:last-child td{
+            border-bottom:none;
+        }
+
+        .vaccine-name{
+            font-weight:800;
+            color:#174a7b;
+        }
+
+        .status-pill{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            gap:6px;
+            padding:6px 11px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:800;
+            min-width:86px;
+        }
+
+        .done{
+            background:#e7f7eb;
+            color:#168131;
+        }
+
+        .due{
+            background:#fff3dc;
+            color:#a06b00;
+        }
+
+        .overdue{
+            background:#ffe8e8;
+            color:#d62828;
+        }
+
+        .not-due{
+            background:#eef2f6;
+            color:#667085;
+        }
+
+        .given-date{
+            color:#168131;
+            font-weight:700;
+        }
+
+        .empty-date{
+            color:#98a2b3;
+            font-weight:700;
+        }
+
+        .update-btn{
+            border:none;
+            background:#16a34a;
+            color:white;
+            padding:8px 13px;
+            border-radius:8px;
+            font-weight:800;
+            cursor:pointer;
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            gap:7px;
+            font-size:13px;
+        }
+
+        .update-btn:hover{
+            background:#11823a;
+        }
+
+        .disabled-action{
+            color:#7a8494;
+            font-weight:800;
+            font-size:13px;
+        }
+
+        .admin-note{
+            margin-top:14px;
+            background:#eef6ff;
+            border:1px solid #d9eaff;
+            color:#174a7b;
+            padding:12px 14px;
+            border-radius:10px;
+            font-size:13px;
+            font-weight:700;
+        }
+
+        @media(max-width:800px){
+            .page-wrap{
+                margin:14px auto;
+                padding:0 12px;
+            }
+
+            .top-bar{
+                align-items:flex-start;
+                flex-direction:column;
+            }
+
+            .back-btn{
+                width:100%;
+                justify-content:center;
+            }
+
+            .title-left h1{
+                font-size:24px;
+            }
+
+            .summary-grid{
+                grid-template-columns:1fr 1fr;
+            }
+        }
+
+        @media(max-width:480px){
+            .summary-grid{
+                grid-template-columns:1fr;
+            }
         }
     </style>
 </head>
+
 <body>
 
-    <h1>Vaccine Record - {{ batch.batch_number }}</h1>
-    <p><strong>Shed:</strong> {{ batch.shed.name }}</p>
-    <p><strong>Start Date:</strong> {{ batch.start_date }}</p>
-    <p><strong>Starting Age:</strong> {{ batch.starting_age_days }} days</p>
+<div class="page-wrap">
 
-    <table>
-        <tr>
-            <th>Vaccine</th>
-            <th>Scheduled Day</th>
-            <th>Due Date</th>
-            <th>Status</th>
-            <th>Given Date</th>
-            <th>Notes</th>
-            <th>Action</th>
-        </tr>
+    <div class="top-bar">
+        <a href="{% url 'dashboard' %}" class="back-btn">
+            <i class="fa-solid fa-arrow-left"></i>
+            Back to Dashboard
+        </a>
+    </div>
 
-        {% for record in records %}
-        <tr>
-            <td>{{ record.vaccine_name }}</td>
-            <td>{{ record.scheduled_day }}</td>
-            <td>{{ record.due_date }}</td>
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <div class="message {{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
 
-            <!-- STATUS -->
-            <td>
-                {% if record.status == 'done' %}
-                    <span class="done">Done</span>
-                {% elif record.status == 'overdue' %}
-                    <span class="overdue">Overdue</span>
-                {% else %}
-                    <span class="due">Due</span>
-                {% endif %}
-            </td>
+    <section class="page-title">
+        <div class="title-row">
+            <div class="title-left">
+                <h1>
+                    <i class="fa-solid fa-syringe"></i>
+                    Vaccine Record
+                </h1>
 
-            <td>{{ record.given_date }}</td>
-            <td>{{ record.notes }}</td>
+                <p>
+                    <strong>Batch:</strong>
+                    {{ batch.batch_type|default:batch.shed.shed_type|title }} Batch #{{ batch.batch_number }}
+                </p>
 
-            <!-- ACTION LOGIC -->
-            <td>
-                {% if record.status == 'done' %}
-                    <span class="done">Done</span>
+                <p>
+                    <strong>Shed:</strong> {{ batch.shed.name }}
+                </p>
+            </div>
 
-                {% elif record.due_date > today %}
-                    <span class="not-due">Not Due Yet</span>
+            <div class="batch-badge">
+                <i class="fa-solid fa-circle-check"></i>
+                {{ batch.status|title }}
+            </div>
+        </div>
 
-                {% else %}
-                    <a href="{% url 'mark_vaccine_done' record.id %}" class="btn">
-                        Mark Done
-                    </a>
-                {% endif %}
-            </td>
+        <div class="summary-grid">
+            <div class="summary-box">
+                <div class="summary-label">Start Date</div>
+                <div class="summary-value">{{ batch.start_date|date:"M d, Y" }}</div>
+            </div>
 
-        </tr>
-        {% endfor %}
-    </table>
+            <div class="summary-box">
+                <div class="summary-label">Starting Age</div>
+                <div class="summary-value">{{ batch.starting_age_days }} days</div>
+            </div>
+
+            <div class="summary-box">
+                <div class="summary-label">Total Records</div>
+                <div class="summary-value">{{ records|length }}</div>
+            </div>
+
+            <div class="summary-box">
+                <div class="summary-label">Today</div>
+                <div class="summary-value">{{ today|date:"M d, Y" }}</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="table-card">
+        <div class="table-header">
+            <h2>Schedule & Updates</h2>
+            <span class="hint">Given date updates automatically when marked given</span>
+        </div>
+
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Vaccine</th>
+                        <th>Scheduled Day</th>
+                        <th>Due Date</th>
+                        <th>Status</th>
+                        <th>Given Date</th>
+                        <th>Notes</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for record in records %}
+                        <tr>
+                            <td class="vaccine-name">{{ record.vaccine_name }}</td>
+
+                            <td>Day {{ record.scheduled_day }}</td>
+
+                            <td>{{ record.due_date|date:"M d, Y" }}</td>
+
+                            <td>
+                                {% if record.status == "done" %}
+                                    <span class="status-pill done">
+                                        <i class="fa-solid fa-check"></i>
+                                        Done
+                                    </span>
+
+                                {% elif record.status == "overdue" %}
+                                    <span class="status-pill overdue">
+                                        <i class="fa-solid fa-triangle-exclamation"></i>
+                                        Overdue
+                                    </span>
+
+                                {% else %}
+                                    <span class="status-pill due">
+                                        <i class="fa-regular fa-clock"></i>
+                                        Due
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if record.given_date %}
+                                    <span class="given-date">
+                                        {{ record.given_date|date:"M d, Y" }}
+                                    </span>
+                                {% else %}
+                                    <span class="empty-date">—</span>
+                                {% endif %}
+                            </td>
+
+                            <td>
+                                {% if record.notes %}
+                                    {{ record.notes }}
+                                {% else %}
+                                    <span class="empty-date">—</span>
+                                {% endif %}
+                            </td>
+
+                     <td>
+    {% if record.status == "done" %}
+
+        <span class="status-pill done">
+            <i class="fa-solid fa-check"></i>
+            Done
+        </span>
+
+    {% else %}
+
+        {% if is_admin %}
+            <form method="post"
+                  action="{% url 'mark_vaccine_done' record.id %}">
+                {% csrf_token %}
+
+                <button type="submit" class="update-btn">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    Update Given
+                </button>
+            </form>
+        {% else %}
+            <span class="disabled-action">
+                Awaiting Confirmation
+            </span>
+        {% endif %}
+
+    {% endif %}
+</td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7">
+                                No vaccine records found for this batch.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    {% if is_admin %}
+        <div class="admin-note">
+            <i class="fa-solid fa-circle-info"></i>
+            Click “Update Given” when vaccine is given. The system will automatically set today as the given date.
+        </div>
+    {% endif %}
+
+</div>
 
 </body>
 </html>

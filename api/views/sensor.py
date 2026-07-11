@@ -1,4 +1,9 @@
 import json
+
+
+
+
+
 from datetime import date, timedelta, time as clock_time
 from zoneinfo import ZoneInfo
 from django.utils import timezone
@@ -755,31 +760,53 @@ def dashboard_v2(request):
 @login_required
 def vaccine_records(request, batch_id):
     batch = get_object_or_404(Batch, id=batch_id)
+    today = timezone.localdate()
 
-    ensure_vaccine_records(batch, batch.shed.shed_type)
-    update_vaccine_statuses(batch)
+    # Automatically update old due vaccines to overdue
+    VaccineRecord.objects.filter(
+        batch=batch,
+        status="due",
+        due_date__lt=today,
+        given_date__isnull=True
+    ).update(status="overdue")
 
     records = VaccineRecord.objects.filter(batch=batch).order_by(
-        'due_date',
-        'scheduled_day',
-        'vaccine_name'
+        "due_date",
+        "scheduled_day",
+        "vaccine_name"
     )
+
+    is_admin = request.user.is_superuser or request.user.is_staff
 
     return render(request, "api/vaccine_records.html", {
         "batch": batch,
         "records": records,
-        "today": date.today(),
+        "today": today,
+        "is_admin": is_admin,
     })
 
 
+@login_required
+@require_POST
 def mark_vaccine_done(request, record_id):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        messages.error(request, "Only admin can update vaccine records.")
+        return redirect("dashboard")
+
     record = get_object_or_404(VaccineRecord, id=record_id)
 
-    record.status = 'done'
-    record.given_date = date.today()
-    record.save()
+    record.status = "done"
+    record.given_date = timezone.localdate()
+    record.save(update_fields=["status", "given_date"])
 
-    return redirect('vaccine_records', batch_id=record.batch.id)
+    messages.success(
+        request,
+        f"{record.vaccine_name} marked as given successfully."
+    )
+
+    return redirect("vaccine_records", batch_id=record.batch.id)
 
 
 @login_required
