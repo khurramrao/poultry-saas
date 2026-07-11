@@ -25,12 +25,24 @@ class Device(models.Model):
 
 
 class Batch(models.Model):
+    BATCH_TYPE_CHOICES = [
+        ("meat", "Meat"),
+        ("layer", "Layer"),
+    ]
+
     shed = models.ForeignKey(Shed, on_delete=models.CASCADE)
+    batch_type = models.CharField(
+        max_length=20,
+        choices=BATCH_TYPE_CHOICES,
+        default="meat"
+    )
+
     batch_number = models.CharField(max_length=50)
     start_date = models.DateField()
     starting_age_days = models.PositiveIntegerField(default=0)
     bird_count_initial = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
+
     STATUS_CHOICES = [
         ("active", "Active"),
         ("sold", "Sold"),
@@ -41,7 +53,7 @@ class Batch(models.Model):
     end_date = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.batch_number} - {self.shed.name}"
+        return f"{self.batch_type.title()} Batch #{self.batch_number} - {self.shed.name}"
 
 
 class SensorData(models.Model):

@@ -60,7 +60,17 @@ def finance_tracker(request):
         current_birds = batch.bird_count_initial - total_mortality - total_sold
 
         expenses = Expense.objects.filter(batch=batch)
-        total_expenses = expenses.aggregate(total=Sum("amount"))["total"] or 0
+
+        electricity_expenses = expenses.filter(category="electricity")
+        other_expenses = expenses.exclude(category="electricity")
+
+        electricity_cost = electricity_expenses.aggregate(
+            total=Sum("amount")
+        )["total"] or 0
+
+        total_expenses = other_expenses.aggregate(
+            total=Sum("amount")
+        )["total"] or 0
 
         # NEW COGS LOGIC — BatchCost discontinued
         chick_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
@@ -79,7 +89,7 @@ def finance_tracker(request):
             total=Sum("amount")
         )["total"] or 0
 
-        total_cogs = chick_cost + carriage_cost + feed_cost + medicine_cost
+        total_cogs = chick_cost + carriage_cost + feed_cost + medicine_cost + electricity_cost
 
         current_chick_cost_per_bird = 0
         if current_birds > 0:
@@ -101,6 +111,7 @@ def finance_tracker(request):
         investor_carriage_cost = 0
         investor_feed_cost = 0
         investor_medicine_cost = 0
+        investor_electricity_cost = 0
         investor_cogs_share = 0
         investor_sales_revenue = 0
         investor_discount_share = 0
@@ -115,6 +126,7 @@ def finance_tracker(request):
         admin_chick_cost_share = 0
         admin_feed_cost_share = 0
         admin_medicine_cost_share = 0
+        admin_electricity_cost_share = 0
         admin_carriage_cost_share = 0
         admin_cogs_share = 0
         admin_sales_revenue = 0
@@ -145,6 +157,7 @@ def finance_tracker(request):
                 investor_carriage_cost = round(float(carriage_cost) * investor_share_ratio, 2)
                 investor_feed_cost = round(float(feed_cost) * investor_share_ratio, 2)
                 investor_medicine_cost = round(float(medicine_cost) * investor_share_ratio, 2)
+                investor_electricity_cost = round(float(electricity_cost) * investor_share_ratio, 2)
                 investor_cogs_share = round(float(total_cogs) * investor_share_ratio, 2)
 
                 investor_sales_revenue = round(total_sales_revenue * investor_share_ratio, 2)
@@ -171,6 +184,7 @@ def finance_tracker(request):
             admin_carriage_cost_share = round(float(carriage_cost) * admin_share_ratio, 2)
             admin_feed_cost_share = round(float(feed_cost) * admin_share_ratio, 2)
             admin_medicine_cost_share = round(float(medicine_cost) * admin_share_ratio, 2)
+            admin_electricity_cost_share = round(float(electricity_cost) * admin_share_ratio, 2)
             admin_cogs_share = round(float(total_cogs) * admin_share_ratio, 2)
 
             admin_sales_revenue = round(total_sales_revenue * admin_share_ratio, 2)
@@ -264,7 +278,7 @@ def finance_tracker(request):
 
         expense_history = []
 
-        for expense in expenses.order_by("-expense_date", "-id"):
+        for expense in other_expenses.order_by("-expense_date", "-id"):
             full_amount = float(expense.amount)
 
             expense_history.append({
@@ -292,6 +306,7 @@ def finance_tracker(request):
             "carriage_cost": carriage_cost,
             "feed_cost": feed_cost,
             "medicine_cost": medicine_cost,
+            "electricity_cost": electricity_cost,
             "total_cogs": total_cogs,
             "current_chick_cost_per_bird": current_chick_cost_per_bird,
 
@@ -305,6 +320,7 @@ def finance_tracker(request):
             "investor_carriage_cost": investor_carriage_cost,
             "investor_feed_cost": investor_feed_cost,
             "investor_medicine_cost": investor_medicine_cost,
+            "investor_electricity_cost": investor_electricity_cost,
             "investor_cogs_share": investor_cogs_share,
             "investor_sales_revenue": investor_sales_revenue,
             "investor_discount_share": investor_discount_share,
@@ -320,6 +336,7 @@ def finance_tracker(request):
             "admin_chick_cost_share": admin_chick_cost_share,
             "admin_feed_cost_share": admin_feed_cost_share,
             "admin_medicine_cost_share": admin_medicine_cost_share,
+            "admin_electricity_cost_share": admin_electricity_cost_share,
             "admin_carriage_cost_share": admin_carriage_cost_share,
             "admin_cogs_share": admin_cogs_share,
             "admin_sales_revenue": admin_sales_revenue,
@@ -809,7 +826,16 @@ def batch_report(request):
             total=Sum("amount")
         )["total"] or 0
 
-        expenses = Expense.objects.filter(batch=batch).aggregate(
+        expenses = Expense.objects.filter(batch=batch)
+
+        electricity_expenses = expenses.filter(category="electricity")
+        other_expenses = expenses.exclude(category="electricity")
+
+        electricity_cost = electricity_expenses.aggregate(
+            total=Sum("amount")
+        )["total"] or 0
+
+        total_expenses = other_expenses.aggregate(
             total=Sum("amount")
         )["total"] or 0
 

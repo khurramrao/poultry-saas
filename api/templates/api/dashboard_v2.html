@@ -1885,17 +1885,20 @@
                 {% for batch_row in row.batches %}
                         <tbody>
                             <tr>
-                                <td class="batch-code"> {{ row.shed.shed_type|title }} Batch #{{ batch_row.batch.batch_number }}</td>
-                              <td>
-                                    <span class="type-tag
-                                        {% if row.shed.shed_type|lower == 'layer' %}
-                                            layer-tag
-                                        {% else %}
-                                            meat-tag
-                                        {% endif %}">
-                                        {{ row.shed.shed_type|title }}
-                                    </span>
-                                </td>
+                              <td class="batch-code">
+    {{ batch_row.batch.batch_type|title }} Batch #{{ batch_row.batch.batch_number }}
+</td>
+
+<td>
+    <span class="type-tag
+        {% if batch_row.batch.batch_type == 'layer' %}
+            layer-tag
+        {% else %}
+            meat-tag
+        {% endif %}">
+        {{ batch_row.batch.batch_type|title }}
+    </span>
+</td>
                                 <td>{{ batch_row.batch.start_date }}</td>
                                 <td>
                                     <div class="age-days">{{ batch_row.age_days }}</div>
