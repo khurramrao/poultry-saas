@@ -2,7 +2,7 @@ import json
 
 
 
-
+import math
 
 from datetime import date, timedelta, time as clock_time
 from zoneinfo import ZoneInfo
@@ -495,6 +495,15 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
             batch_summary["investor_shares"] = investor_shares_list
             batch_summary["display_mortality"] = display_mortality
             batch_summary["display_sold"] = display_sold
+            display_mortality_percent = 0
+
+            if initial_allocated > 0:
+                display_mortality_percent = round(
+                    (display_mortality / initial_allocated) * 100,
+                    2
+                )
+
+            batch_summary["display_mortality_percent"] = display_mortality_percent
             batch_summary["admin_birds_initial"] = admin_birds_initial
             batch_summary["admin_percentage"] = admin_percentage
             batch_summary["admin_mortality"] = admin_mortality
@@ -819,23 +828,21 @@ def ownership_shares(request):
     active_batches = Batch.objects.filter(
         is_active=True
     ).select_related("shed").order_by(
-        "shed__name", "-start_date", "batch_number"
+        "shed__name",
+        "-start_date",
+        "batch_number"
     )
 
     ownership_batches = []
 
     for batch in active_batches:
-        total_mortality = sum(
-            MortalityRecord.objects.filter(
-                batch=batch
-            ).values_list("count", flat=True)
-        )
+        total_mortality = MortalityRecord.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("count"))["total"] or 0
 
-        total_sold = sum(
-            SaleRecord.objects.filter(
-                batch=batch
-            ).values_list("birds_sold", flat=True)
-        )
+        total_sold = SaleRecord.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("birds_sold"))["total"] or 0
 
         current_birds = (
             batch.bird_count_initial
@@ -884,12 +891,94 @@ def ownership_shares(request):
             for allocation in allocations
         )
 
+        admin_start_birds = (
+            batch.bird_count_initial
+            - allocated_investor_birds
+        )
+
+        # ---------- PREPARE OWNERS ----------
+        owner_inputs = []
+
+        if admin_start_birds > 0:
+            owner_inputs.append({
+                "name": "You (Admin)",
+                "start_birds": admin_start_birds,
+                "is_admin": True,
+            })
+
+        for allocation in allocations:
+            investor_name = (
+                allocation.investor.user.get_full_name().strip()
+                or allocation.investor.user.username
+            )
+
+            owner_inputs.append({
+                "name": investor_name,
+                "start_birds": allocation.birds_owned,
+                "is_admin": False,
+            })
+
+        def allocate_whole_count(total_count):
+            total_count = int(total_count or 0)
+
+            if (
+                total_count <= 0
+                or batch.bird_count_initial <= 0
+                or not owner_inputs
+            ):
+                return [0] * len(owner_inputs)
+
+            exact_values = []
+
+            for owner in owner_inputs:
+                exact_value = (
+                    total_count
+                    * owner["start_birds"]
+                    / batch.bird_count_initial
+                )
+                exact_values.append(exact_value)
+
+            allocated_values = [
+                int(value)
+                for value in exact_values
+            ]
+
+            remaining_count = total_count - sum(allocated_values)
+
+            allocation_order = sorted(
+                range(len(owner_inputs)),
+                key=lambda index: (
+                    exact_values[index] - allocated_values[index],
+                    0 if owner_inputs[index]["is_admin"] else 1
+                ),
+                reverse=True
+            )
+
+            for index in allocation_order[:remaining_count]:
+                allocated_values[index] += 1
+
+            return allocated_values
+
+        mortality_allocations = allocate_whole_count(total_mortality)
+        sold_allocations = allocate_whole_count(total_sold)
+
         owners = []
 
-        def build_owner_row(name, start_birds, share_ratio, is_admin_owner=False):
-            owner_mortality = round(total_mortality * share_ratio)
-            owner_sold = round(total_sold * share_ratio)
-            owner_current = start_birds - owner_mortality - owner_sold
+        for index, owner_info in enumerate(owner_inputs):
+            start_birds = owner_info["start_birds"]
+
+            if batch.bird_count_initial > 0:
+                share_ratio = start_birds / batch.bird_count_initial
+            else:
+                share_ratio = 0
+
+            owner_mortality = mortality_allocations[index]
+            owner_sold = sold_allocations[index]
+            owner_current = (
+                start_birds
+                - owner_mortality
+                - owner_sold
+            )
 
             chick_share = round(float(chick_cost) * share_ratio, 2)
             feed_share = round(float(feed_cost) * share_ratio, 2)
@@ -906,63 +995,23 @@ def ownership_shares(request):
                 2
             )
 
-            return {
-                "name": name,
+            owners.append({
+                "name": owner_info["name"],
                 "share_percentage": round(share_ratio * 100, 1),
                 "start_birds": start_birds,
                 "mortality": owner_mortality,
                 "sold": owner_sold,
                 "current": owner_current,
+
                 "chick_cost": chick_share,
                 "feed_cost": feed_share,
                 "medicine_cost": medicine_share,
                 "electricity_cost": electricity_share,
                 "carriage_cost": carriage_share,
                 "total_cogs_share": total_cogs_share,
-                "is_admin": is_admin_owner,
-            }
 
-        # ---------- ADMIN SHARE ----------
-        admin_start_birds = (
-            batch.bird_count_initial
-            - allocated_investor_birds
-        )
-
-        if admin_start_birds > 0 and batch.bird_count_initial > 0:
-            admin_share = admin_start_birds / batch.bird_count_initial
-
-            owners.append(
-                build_owner_row(
-                    name="You (Admin)",
-                    start_birds=admin_start_birds,
-                    share_ratio=admin_share,
-                    is_admin_owner=True
-                )
-            )
-
-        # ---------- INVESTOR SHARES ----------
-        for allocation in allocations:
-            if batch.bird_count_initial <= 0:
-                continue
-
-            investor_share = (
-                allocation.birds_owned
-                / batch.bird_count_initial
-            )
-
-            investor_name = (
-                allocation.investor.user.get_full_name().strip()
-                or allocation.investor.user.username
-            )
-
-            owners.append(
-                build_owner_row(
-                    name=investor_name,
-                    start_birds=allocation.birds_owned,
-                    share_ratio=investor_share,
-                    is_admin_owner=False
-                )
-            )
+                "is_admin": owner_info["is_admin"],
+            })
 
         mortality_percentage = 0
         if batch.bird_count_initial > 0:

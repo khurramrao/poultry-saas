@@ -1915,7 +1915,7 @@
                                  {% else %}
                                         <td>{{ batch_row.initial_birds_allocated }}</td>
                                         <td>{{ batch_row.current_birds }}</td>
-                                        <td class="danger-text">{{ batch_row.total_mortality }} ({{ batch_row.mortality_percent }}%)</td>
+                                        <td class="danger-text">{{batch_row.display_mortality}} ({{ batch_row.display_mortality_percent|floatformat:2  }}%)</td>
                                         <td>{{ batch_row.display_sold }}</td>
                                       <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
                                 {% endif %}
