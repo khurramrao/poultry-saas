@@ -142,10 +142,30 @@ input, textarea, select {
 }
 
 .note {
-    background: #fff8d6;
-    padding: 10px;
-    border-radius: 8px;
-    margin-top: 10px;
+    background: #fff9e8;
+    border: 1px solid #ffe0a3;
+    border-left: 4px solid #f59e0b;
+    padding: 10px 13px;
+    border-radius: 9px;
+    margin-top: 12px;
+}
+
+.note-label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: #9a6500;
+    font-size: 13px;
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.note-text {
+    color: #344054;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 500;
+    white-space: pre-line;
 }
 
 .breakdown {
@@ -415,8 +435,14 @@ input, textarea, select {
 
                 {% if item.notes %}
                     <div class="note">
-                        <strong>Notes:</strong><br>
-                        {{ item.notes }}
+                        <div class="note-label">
+                            <i class="fa-solid fa-note-sticky"></i>
+                            Notes
+                        </div>
+
+                        <div class="note-text">
+                            {{ item.notes|lower|capfirst|linebreaksbr }}
+                        </div>
                     </div>
                 {% endif %}
 

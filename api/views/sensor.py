@@ -6,7 +6,6 @@ import math
 
 from datetime import date, timedelta, time as clock_time
 from zoneinfo import ZoneInfo
-from django.utils import timezone
 from django.conf import settings
 from django.db.models import Sum
 from django.contrib.auth.models import User
@@ -1165,3 +1164,69 @@ def user_activity(request):
 def logout_user(request):
     logout(request)
     return redirect("login")
+
+@login_required
+def active_batches(request):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        return redirect("dashboard")
+
+    batches = Batch.objects.filter(
+        is_active=True
+    ).select_related("shed").order_by(
+        "shed__name",
+        "-start_date",
+        "batch_number"
+    )
+
+    batch_rows = []
+
+    for batch in batches:
+        total_mortality = MortalityRecord.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("count"))["total"] or 0
+
+        total_sold = SaleRecord.objects.filter(
+            batch=batch
+        ).aggregate(total=Sum("birds_sold"))["total"] or 0
+
+        current_birds = (
+            batch.bird_count_initial
+            - total_mortality
+            - total_sold
+        )
+
+        batch_rows.append({
+            "batch": batch,
+            "total_mortality": total_mortality,
+            "total_sold": total_sold,
+            "current_birds": current_birds,
+        })
+
+    return render(request, "api/active_batches.html", {
+        "batch_rows": batch_rows,
+        "is_admin": True,
+    })
+
+@login_required
+@require_POST
+def close_batch(request, batch_id):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        return redirect("dashboard")
+
+    batch = get_object_or_404(Batch, id=batch_id)
+
+    batch.is_active = False
+    batch.status = "closed"
+    batch.end_date = timezone.localdate()
+    batch.save(update_fields=["is_active", "status", "end_date"])
+
+    messages.success(
+        request,
+        f"{batch.batch_type.title()} Batch #{batch.batch_number} closed successfully."
+    )
+
+    return redirect("active_batches")

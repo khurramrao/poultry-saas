@@ -1,0 +1,328 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Active Batches</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+
+    <style>
+        *{
+            box-sizing:border-box;
+        }
+
+        body{
+            margin:0;
+            font-family:Arial, sans-serif;
+            background:#f5f7fb;
+            color:#10233f;
+        }
+
+        .page{
+            max-width:1250px;
+            margin:auto;
+            padding:28px 22px;
+        }
+
+        .topbar{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:15px;
+            margin-bottom:22px;
+        }
+
+        h1{
+            margin:0;
+            color:#0b3f74;
+            font-size:28px;
+        }
+
+        .subtitle{
+            margin-top:7px;
+            color:#64748b;
+            font-size:14px;
+        }
+
+        .back-btn{
+            display:inline-flex;
+            align-items:center;
+            gap:8px;
+            background:#073966;
+            color:white;
+            text-decoration:none;
+            padding:11px 15px;
+            border-radius:8px;
+            font-weight:bold;
+            font-size:14px;
+        }
+
+        .back-btn:hover{
+            background:#124a82;
+        }
+
+        .card{
+            background:white;
+            border:1px solid #e2eaf3;
+            border-radius:14px;
+            box-shadow:0 3px 12px rgba(26,57,88,0.05);
+            overflow:hidden;
+        }
+
+        .message{
+            background:#e8f7ed;
+            color:#168131;
+            border:1px solid #c9edd4;
+            padding:12px 14px;
+            border-radius:10px;
+            margin-bottom:14px;
+            font-weight:bold;
+        }
+
+        .table-wrap{
+            overflow-x:auto;
+        }
+
+        table{
+            width:100%;
+            min-width:1000px;
+            border-collapse:collapse;
+        }
+
+        th{
+            background:#f2f6fa;
+            color:#263b55;
+            padding:12px;
+            font-size:13px;
+            text-align:center;
+        }
+
+        td{
+            border-top:1px solid #e8edf3;
+            padding:13px 12px;
+            font-size:14px;
+            text-align:center;
+        }
+
+        td:first-child,
+        th:first-child{
+            text-align:left;
+        }
+
+        .batch-name{
+            font-weight:800;
+            color:#0b4b8c;
+        }
+
+        .type-pill{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            padding:6px 10px;
+            border-radius:8px;
+            font-weight:bold;
+            font-size:12px;
+        }
+
+        .meat-pill{
+            color:#157c32;
+            background:#e5f7e7;
+        }
+
+        .layer-pill{
+            color:#6341b8;
+            background:#eee8ff;
+        }
+
+        .active-pill{
+            color:#157c32;
+            background:#e5f7e7;
+            padding:6px 10px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:bold;
+        }
+
+        .danger{
+            color:#dc2626;
+            font-weight:bold;
+        }
+
+        .current{
+            color:#0b4b8c;
+            font-weight:bold;
+        }
+
+        .close-btn{
+            border:none;
+            background:#dc2626;
+            color:white;
+            padding:8px 12px;
+            border-radius:8px;
+            font-weight:bold;
+            cursor:pointer;
+            display:inline-flex;
+            align-items:center;
+            gap:7px;
+        }
+
+        .close-btn:hover{
+            background:#b91c1c;
+        }
+
+        .empty{
+            padding:35px;
+            text-align:center;
+            color:#64748b;
+        }
+
+        .note{
+            margin-top:14px;
+            background:#eef6ff;
+            border:1px solid #d9eaff;
+            color:#174a7b;
+            padding:13px 15px;
+            border-radius:12px;
+            font-size:14px;
+            font-weight:700;
+        }
+
+        @media(max-width:700px){
+            .topbar{
+                flex-direction:column;
+                align-items:flex-start;
+            }
+
+            .back-btn{
+                width:100%;
+                justify-content:center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="page">
+
+    <div class="topbar">
+        <div>
+            <h1>
+                <i class="fa-solid fa-list-check"></i>
+                Active Batches
+            </h1>
+            <div class="subtitle">
+                Close completed batches without deleting their history.
+            </div>
+        </div>
+
+        <a href="{% url 'dashboard' %}" class="back-btn">
+            <i class="fa-solid fa-arrow-left"></i>
+            Dashboard
+        </a>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="message">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card">
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Batch</th>
+                        <th>Shed</th>
+                        <th>Type</th>
+                        <th>Start Date</th>
+                        <th>Start Birds</th>
+                        <th>Current Birds</th>
+                        <th>Mortality</th>
+                        <th>Sold</th>
+                        <th>Status</th>
+                        <th>Close</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for row in batch_rows %}
+                        <tr>
+                            <td class="batch-name">
+                                {{ row.batch.batch_type|title }} Batch #{{ row.batch.batch_number }}
+                            </td>
+
+                            <td>{{ row.batch.shed.name }}</td>
+
+                            <td>
+                                {% if row.batch.batch_type == "layer" %}
+                                    <span class="type-pill layer-pill">
+                                        Layer
+                                    </span>
+                                {% else %}
+                                    <span class="type-pill meat-pill">
+                                        Meat
+                                    </span>
+                                {% endif %}
+                            </td>
+
+                            <td>{{ row.batch.start_date|date:"d M Y" }}</td>
+
+                            <td>{{ row.batch.bird_count_initial|intcomma }}</td>
+
+                            <td class="current">
+                                {{ row.current_birds|intcomma }}
+                            </td>
+
+                            <td class="danger">
+                                {{ row.total_mortality|intcomma }}
+                            </td>
+
+                            <td>{{ row.total_sold|intcomma }}</td>
+
+                            <td>
+                                <span class="active-pill">
+                                    ● Active
+                                </span>
+                            </td>
+
+                            <td>
+                                <form method="post"
+                                      action="{% url 'close_batch' row.batch.id %}"
+                                      onsubmit="return confirm('Are you sure you want to close this batch? It will be removed from active dashboard but all history will remain safe.');">
+                                    {% csrf_token %}
+                                    <button type="submit" class="close-btn">
+                                        <i class="fa-solid fa-lock"></i>
+                                        Close
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="10" class="empty">
+                                <i class="fa-solid fa-circle-check"></i>
+                                No active batches found.
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="note">
+        <i class="fa-solid fa-circle-info"></i>
+        Closing a batch does not delete any records. It only removes the batch from active dashboard, daily log selection, and future sale entry.
+    </div>
+
+</div>
+
+</body>
+</html>

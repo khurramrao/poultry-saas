@@ -371,7 +371,7 @@ def daily_log(request):
             "date": feed.entry_date,
             "batch": feed.batch,
             "amount": shared_amount,
-            "details": f"{label}: Rs {shared_amount}",
+            "details": f"{label}: Rs {shared_amount:,.0f}",
             "notes": feed.notes,
         })
 
@@ -391,7 +391,7 @@ def daily_log(request):
             "date": med.entry_date,
             "batch": med.batch,
             "amount": shared_amount,
-            "details": f"{label}: Rs {shared_amount}",
+            "details": f"{label}: Rs {shared_amount:,.0f}",
             "notes": med.notes,
         })
 
@@ -411,7 +411,7 @@ def daily_log(request):
             "date": exp.expense_date,
             "batch": exp.batch,
             "amount": shared_amount,
-            "details": f"{label}: {exp.get_category_display()} - Rs {shared_amount}",
+            "details": f"{label}: {exp.get_category_display()} - Rs {shared_amount:,.0f}",
             "notes": exp.description,
         })
 

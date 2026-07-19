@@ -20,6 +20,10 @@
             padding:22px;
         }
 
+        .header h2{
+            margin:0;
+        }
+
         .container{
             max-width:1100px;
             margin:25px auto;
@@ -43,6 +47,10 @@
             padding:10px 16px;
             border-radius:8px;
             font-weight:bold;
+        }
+
+        .btn:hover{
+            background:#173b5c;
         }
 
         .hint{
@@ -186,6 +194,66 @@
             box-shadow:0 2px 10px rgba(0,0,0,0.08);
         }
 
+        .investor-report-list{
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+            margin-top:12px;
+        }
+
+        .investor-report-row{
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:12px;
+            background:#f8fafc;
+            border:1px solid #e5e7eb;
+            border-radius:12px;
+            padding:12px 14px;
+        }
+
+        .investor-name{
+            font-weight:bold;
+            color:#1f4e79;
+            font-size:15px;
+        }
+
+        .investor-meta{
+            color:#667085;
+            font-size:13px;
+            margin-top:4px;
+        }
+
+        .pdf-btn{
+            display:inline-flex;
+            align-items:center;
+            justify-content:center;
+            gap:7px;
+            background:#dc2626;
+            color:white;
+            text-decoration:none;
+            padding:9px 12px;
+            border-radius:8px;
+            font-weight:bold;
+            font-size:13px;
+            white-space:nowrap;
+        }
+
+        .pdf-btn:hover{
+            background:#b91c1c;
+        }
+
+        .admin-note{
+            margin-top:12px;
+            background:#eef6ff;
+            border:1px solid #d9eaff;
+            color:#174a7b;
+            padding:12px 14px;
+            border-radius:10px;
+            font-size:14px;
+            font-weight:bold;
+        }
+
         @media(max-width:768px){
             .container{
                 padding:10px;
@@ -224,6 +292,16 @@
             .grid{
                 grid-template-columns:1fr;
             }
+
+            .investor-report-row{
+                flex-direction:column;
+                align-items:flex-start;
+            }
+
+            .pdf-btn{
+                width:100%;
+                box-sizing:border-box;
+            }
         }
     </style>
 </head>
@@ -239,6 +317,9 @@
     <div class="top-row">
         <a href="{% url 'dashboard' %}" class="btn">← Dashboard</a>
 
+        <div class="hint">
+            Final batch reports are shown after a batch is closed.
+        </div>
     </div>
 
     {% for row in report_rows %}
@@ -248,7 +329,7 @@
             <summary>
                 <div class="summary-left">
                     <strong>
-                        {{ row.batch.shed.shed_type|title }} Batch #{{ row.batch.batch_number }}
+                        {{ row.batch.batch_type|title }} Batch #{{ row.batch.batch_number }}
                     </strong>
 
                     <span>
@@ -264,7 +345,7 @@
                     {% endif %}
 
                     <div class="summary-money {% if row.net_income < 0 %}negative{% else %}positive{% endif %}">
-                        Net: Rs {{ row.net_income|floatformat:2|intcomma }}
+                        Net: Rs {{ row.net_income|floatformat:0|intcomma }}
                     </div>
                 </div>
             </summary>
@@ -276,22 +357,22 @@
                 <div class="grid">
                     <div class="box">
                         <div class="label">Starting Birds</div>
-                        <div class="value">{{ row.starting_birds }}</div>
+                        <div class="value">{{ row.starting_birds|intcomma }}</div>
                     </div>
 
                     <div class="box">
                         <div class="label">Current Birds</div>
-                        <div class="value">{{ row.current_birds }}</div>
+                        <div class="value">{{ row.current_birds|intcomma }}</div>
                     </div>
 
                     <div class="box">
                         <div class="label">Mortality</div>
-                        <div class="value">{{ row.mortality }}</div>
+                        <div class="value">{{ row.mortality|intcomma }}</div>
                     </div>
 
                     <div class="box">
                         <div class="label">Sold</div>
-                        <div class="value">{{ row.sold }}</div>
+                        <div class="value">{{ row.sold|intcomma }}</div>
                     </div>
                 </div>
 
@@ -301,23 +382,23 @@
                     <div class="grid">
                         <div class="box">
                             <div class="label">Revenue</div>
-                            <div class="value">Rs {{ row.revenue|floatformat:2|intcomma }}</div>
+                            <div class="value">Rs {{ row.revenue|floatformat:0|intcomma }}</div>
                         </div>
 
                         <div class="box">
                             <div class="label">Sold Birds COGS</div>
-                            <div class="value">Rs {{ row.locked_cogs|floatformat:2|intcomma }}</div>
+                            <div class="value">Rs {{ row.locked_cogs|floatformat:0|intcomma }}</div>
                         </div>
 
                         <div class="box">
                             <div class="label">Expense Share</div>
-                            <div class="value">Rs {{ row.expenses|floatformat:2|intcomma }}</div>
+                            <div class="value">Rs {{ row.expenses|floatformat:0|intcomma }}</div>
                         </div>
 
                         <div class="box">
                             <div class="label">Net Income</div>
                             <div class="value {% if row.net_income < 0 %}negative{% else %}positive{% endif %}">
-                                Rs {{ row.net_income|floatformat:2|intcomma }}
+                                Rs {{ row.net_income|floatformat:0|intcomma }}
                             </div>
                         </div>
 
@@ -330,6 +411,41 @@
                     </div>
                 </div>
 
+                {% if is_admin and row.investor_reports %}
+                    <div class="section">
+                        <h3 class="title">👥 Investor Reports</h3>
+
+                        <div class="investor-report-list">
+                            {% for investor in row.investor_reports %}
+                                <div class="investor-report-row">
+                                    <div>
+                                        <div class="investor-name">
+                                            {{ investor.name }}
+                                        </div>
+
+                                        <div class="investor-meta">
+                                            Birds: {{ investor.birds_owned|intcomma }}
+                                            —
+                                            Share: {{ investor.share_percentage }}%
+                                        </div>
+                                    </div>
+
+                                    <a href="{% url 'batch_report_pdf_investor' row.batch.id investor.allocation_id %}"
+                                       class="pdf-btn"
+                                       target="_blank"
+                                       rel="noopener noreferrer">
+                                        📄 Download Investor PDF
+                                    </a>
+                                </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="admin-note">
+                            These PDF reports are investor-wise. Admin can download and send them by WhatsApp or email.
+                        </div>
+                    </div>
+                {% endif %}
+
                 {% if is_admin %}
                     <div class="section">
                         <h3 class="title">📦 Total Batch Report</h3>
@@ -337,43 +453,43 @@
                         <div class="grid">
                             <div class="box">
                                 <div class="label">Batch Start Birds</div>
-                                <div class="value">{{ row.total_batch_start }}</div>
+                                <div class="value">{{ row.total_batch_start|intcomma }}</div>
                             </div>
 
                             <div class="box">
                                 <div class="label">Batch Current Birds</div>
-                                <div class="value">{{ row.total_batch_current }}</div>
+                                <div class="value">{{ row.total_batch_current|intcomma }}</div>
                             </div>
 
                             <div class="box">
                                 <div class="label">Total Mortality</div>
-                                <div class="value">{{ row.total_batch_mortality }}</div>
+                                <div class="value">{{ row.total_batch_mortality|intcomma }}</div>
                             </div>
 
                             <div class="box">
                                 <div class="label">Total Sold</div>
-                                <div class="value">{{ row.total_batch_sold }}</div>
+                                <div class="value">{{ row.total_batch_sold|intcomma }}</div>
                             </div>
 
                             <div class="box">
                                 <div class="label">Total Revenue</div>
-                                <div class="value">Rs {{ row.total_batch_revenue|floatformat:2|intcomma }}</div>
+                                <div class="value">Rs {{ row.total_batch_revenue|floatformat:0|intcomma }}</div>
                             </div>
 
                             <div class="box">
                                 <div class="label">Sold Birds COGS</div>
-                                <div class="value">Rs {{ row.total_batch_cogs|floatformat:2|intcomma }}</div>
+                                <div class="value">Rs {{ row.total_batch_cogs|floatformat:0|intcomma }}</div>
                             </div>
 
                             <div class="box">
                                 <div class="label">Total Expenses</div>
-                                <div class="value">Rs {{ row.total_batch_expenses|floatformat:2|intcomma }}</div>
+                                <div class="value">Rs {{ row.total_batch_expenses|floatformat:0|intcomma }}</div>
                             </div>
 
                             <div class="box">
                                 <div class="label">Batch Net Income</div>
                                 <div class="value {% if row.total_batch_net_income < 0 %}negative{% else %}positive{% endif %}">
-                                    Rs {{ row.total_batch_net_income|floatformat:2|intcomma }}
+                                    Rs {{ row.total_batch_net_income|floatformat:0|intcomma }}
                                 </div>
                             </div>
 
@@ -392,14 +508,20 @@
         </details>
 
     {% empty %}
-      <h3>📊 No Final Batch Report Available</h3>
-<p>
-    Final batch reports are generated only after a batch is closed.
-    Your active batch performance is available in the Finance Tracker.
-</p>
-    <a href="{% url 'finance_tracker' %}" class="btn">
-    💰 View Finance Tracker
-</a>
+
+        <div class="empty-card">
+            <h3>📊 No Final Batch Report Available</h3>
+
+            <p>
+                Final batch reports are generated only after a batch is closed.
+                Your active batch performance is available in the Finance Tracker.
+            </p>
+
+            <a href="{% url 'finance_tracker' %}" class="btn">
+                💰 View Finance Tracker
+            </a>
+        </div>
+
     {% endfor %}
 
 </div>

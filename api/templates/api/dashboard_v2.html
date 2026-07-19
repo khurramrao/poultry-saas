@@ -1191,6 +1191,13 @@
                 <i class="fa-solid fa-user-clock"></i>
                 <span>User Activity</span>
             </a>
+
+            <a href="{% url 'active_batches' %}"
+               class="{% if request.resolver_match.url_name == 'active_batches' %}active{% endif %}">
+                <i class="fa-solid fa-list-check"></i>
+                <span>Active Batches</span>
+            </a>
+
              <a href="{% url 'ownership_shares' %}">
                 <i class="fa-solid fa-chart-pie"></i>
                 <span>Ownership Shares</span>
