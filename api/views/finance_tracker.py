@@ -43,12 +43,19 @@ from reportlab.platypus import Image
 
 @login_required
 def finance_tracker(request):
+
     is_admin = request.user.is_superuser or request.user.is_staff
+
+    # =========================================================
+    # GET BATCHES
+    # =========================================================
+
     if is_admin:
         batches = Batch.objects.filter().order_by(
-            '-is_active',
-            '-start_date'
+            "-is_active",
+            "-start_date"
         )
+
     else:
         if not hasattr(request.user, "investor_profile"):
             return redirect("dashboard")
@@ -60,37 +67,100 @@ def finance_tracker(request):
         batches = Batch.objects.filter(
             id__in=investor_batch_ids
         ).order_by(
-            '-is_active',
-            '-start_date'
+            "-is_active",
+            "-start_date"
         )
 
     finance_rows = []
 
+    # =========================================================
+    # PROCESS EACH BATCH
+    # =========================================================
+
     for batch in batches:
-        total_mortality = MortalityRecord.objects.filter(batch=batch).aggregate(
+
+        # -----------------------------------------------------
+        # MORTALITY
+        # -----------------------------------------------------
+
+        total_mortality = MortalityRecord.objects.filter(
+            batch=batch
+        ).aggregate(
             total=Sum("count")
         )["total"] or 0
 
-        sales_records = SaleRecord.objects.filter(batch=batch).order_by("-sale_date", "-id")
+        # -----------------------------------------------------
+        # SALES
+        # -----------------------------------------------------
+
+        sales_records = SaleRecord.objects.filter(
+            batch=batch
+        ).order_by(
+            "-sale_date",
+            "-id"
+        )
 
         total_sold = sales_records.aggregate(
             total=Sum("birds_sold")
         )["total"] or 0
 
-        total_sales_revenue = sum(float(sale.total_amount) for sale in sales_records)
-        total_discount = sum(float(sale.discount_amount) for sale in sales_records)
-        total_sale_weight = sum(float(sale.total_weight_kg) for sale in sales_records)
-        gross_sales_revenue = sum(float(sale.gross_amount) for sale in sales_records)
+        total_sales_revenue = sum(
+            float(sale.total_amount)
+            for sale in sales_records
+        )
 
-        average_sale_weight = round(total_sale_weight / total_sold, 3) if total_sold > 0 else 0
-        average_sale_rate = round(gross_sales_revenue / total_sale_weight, 2) if total_sale_weight > 0 else 0
+        total_discount = sum(
+            float(sale.discount_amount)
+            for sale in sales_records
+        )
 
-        current_birds = batch.bird_count_initial - total_mortality - total_sold
+        total_sale_weight = sum(
+            float(sale.total_weight_kg)
+            for sale in sales_records
+        )
+
+        gross_sales_revenue = sum(
+            float(sale.gross_amount)
+            for sale in sales_records
+        )
+
+        average_sale_weight = (
+            round(total_sale_weight / total_sold, 3)
+            if total_sold > 0
+            else 0
+        )
+
+        average_sale_rate = (
+            round(gross_sales_revenue / total_sale_weight, 2)
+            if total_sale_weight > 0
+            else 0
+        )
+
+        # -----------------------------------------------------
+        # CURRENT BIRDS
+        # -----------------------------------------------------
+
+        current_birds = (
+            batch.bird_count_initial
+            - total_mortality
+            - total_sold
+        )
+
+        # =====================================================
+        # EXPENSES
+        # =====================================================
 
         expenses = Expense.objects.filter(batch=batch)
 
-        electricity_expenses = expenses.filter(category="electricity")
-        other_expenses = expenses.exclude(category="electricity")
+        # Electricity is part of COGS
+        electricity_expenses = expenses.filter(
+            category="electricity"
+        )
+
+        # Other expenses remain operating expenses
+        other_expenses = expenses.exclude(
+            category="electricity"
+        )
 
         electricity_cost = electricity_expenses.aggregate(
             total=Sum("amount")
@@ -100,34 +170,69 @@ def finance_tracker(request):
             total=Sum("amount")
         )["total"] or 0
 
-        # NEW COGS LOGIC — BatchCost discontinued
-        chick_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+        # =====================================================
+        # COGS
+        # =====================================================
+
+        chick_cost = ChickCostEntry.objects.filter(
+            batch=batch
+        ).aggregate(
             total=Sum("chick_cost")
         )["total"] or 0
 
-        carriage_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+        carriage_cost = ChickCostEntry.objects.filter(
+            batch=batch
+        ).aggregate(
             total=Sum("carriage_cost")
         )["total"] or 0
 
-        feed_cost = FeedEntry.objects.filter(batch=batch).aggregate(
+        feed_cost = FeedEntry.objects.filter(
+            batch=batch
+        ).aggregate(
             total=Sum("amount")
         )["total"] or 0
 
-        medicine_cost = MedicineEntry.objects.filter(batch=batch).aggregate(
+        medicine_cost = MedicineEntry.objects.filter(
+            batch=batch
+        ).aggregate(
             total=Sum("amount")
         )["total"] or 0
 
-        total_cogs = chick_cost + carriage_cost + feed_cost + medicine_cost + electricity_cost
+        # Electricity is included here only once
+        total_cogs = (
+            chick_cost
+            + carriage_cost
+            + feed_cost
+            + medicine_cost
+            + electricity_cost
+        )
 
         current_chick_cost_per_bird = 0
+
         if current_birds > 0:
-            current_chick_cost_per_bird = round(float(chick_cost) / current_birds, 2)
+            current_chick_cost_per_bird = round(
+                float(chick_cost) / current_birds,
+                2
+            )
+
+        # =====================================================
+        # OWNERSHIP
+        # =====================================================
 
         allocated_investor_birds = InvestorAllocation.objects.filter(
             batch=batch
-        ).aggregate(total=Sum("birds_owned"))["total"] or 0
+        ).aggregate(
+            total=Sum("birds_owned")
+        )["total"] or 0
 
-        admin_birds = batch.bird_count_initial - allocated_investor_birds
+        admin_birds = (
+            batch.bird_count_initial
+            - allocated_investor_birds
+        )
+
+        # =====================================================
+        # DEFAULT INVESTOR VALUES
+        # =====================================================
 
         investor_percentage = 0
         investor_birds = 0
@@ -135,110 +240,319 @@ def finance_tracker(request):
         investor_mortality = 0
         investor_sold = 0
         investor_weight_sold = 0
+
         investor_chick_cost_share = 0
         investor_carriage_cost = 0
         investor_feed_cost = 0
         investor_medicine_cost = 0
         investor_electricity_cost = 0
         investor_cogs_share = 0
+
         investor_sales_revenue = 0
         investor_discount_share = 0
         investor_locked_cogs_total = 0
         investor_expense_share = 0
+        investor_realized_expenses = 0
+
+        # =====================================================
+        # DEFAULT ADMIN VALUES
+        # =====================================================
 
         admin_percentage = 0
         admin_current_birds = 0
         admin_mortality = 0
         admin_sold = 0
         admin_weight_sold = 0
+
         admin_chick_cost_share = 0
+        admin_carriage_cost_share = 0
         admin_feed_cost_share = 0
         admin_medicine_cost_share = 0
         admin_electricity_cost_share = 0
-        admin_carriage_cost_share = 0
         admin_cogs_share = 0
+
         admin_sales_revenue = 0
         admin_discount_share = 0
         admin_locked_cogs_total = 0
         admin_expense_share = 0
+        admin_realized_expenses = 0
 
         investor_share_ratio = 0
         admin_share_ratio = 0
 
-        if not is_admin and hasattr(request.user, "investor_profile"):
+        # =====================================================
+        # INVESTOR CALCULATION
+        # =====================================================
+
+        if (
+            not is_admin
+            and hasattr(request.user, "investor_profile")
+        ):
+
             allocation = InvestorAllocation.objects.filter(
                 batch=batch,
                 investor=request.user.investor_profile
             ).first()
 
             if allocation and batch.bird_count_initial > 0:
+
                 investor_birds = allocation.birds_owned
-                investor_share_ratio = investor_birds / batch.bird_count_initial
 
-                investor_percentage = round(investor_share_ratio * 100, 1)
-                investor_mortality = round(total_mortality * investor_share_ratio)
-                investor_sold = math.floor(total_sold * investor_share_ratio)
-                investor_current_birds = investor_birds - investor_mortality - investor_sold
-                investor_weight_sold = round(total_sale_weight * investor_share_ratio, 2)
+                investor_share_ratio = (
+                    investor_birds
+                    / batch.bird_count_initial
+                )
 
-                investor_chick_cost_share = round(float(chick_cost) * investor_share_ratio, 2)
-                investor_carriage_cost = round(float(carriage_cost) * investor_share_ratio, 2)
-                investor_feed_cost = round(float(feed_cost) * investor_share_ratio, 2)
-                investor_medicine_cost = round(float(medicine_cost) * investor_share_ratio, 2)
-                investor_electricity_cost = round(float(electricity_cost) * investor_share_ratio, 2)
-                investor_cogs_share = round(float(total_cogs) * investor_share_ratio, 2)
+                investor_percentage = round(
+                    investor_share_ratio * 100,
+                    1
+                )
 
-                investor_sales_revenue = round(total_sales_revenue * investor_share_ratio, 2)
-                investor_discount_share = round(total_discount * investor_share_ratio, 2)
-                investor_expense_share = round(float(total_expenses) * investor_share_ratio, 2)
+                investor_mortality = round(
+                    total_mortality * investor_share_ratio
+                )
 
-        if is_admin and batch.bird_count_initial > 0 and admin_birds > 0:
-            admin_share_ratio = admin_birds / batch.bird_count_initial
-            investor_share_for_admin = allocated_investor_birds / batch.bird_count_initial
+                investor_sold = math.floor(
+                    total_sold * investor_share_ratio
+                )
 
-            admin_percentage = round(admin_share_ratio * 100, 1)
+                investor_current_birds = (
+                    investor_birds
+                    - investor_mortality
+                    - investor_sold
+                )
 
-            investor_mortality_for_admin = round(total_mortality * investor_share_for_admin)
-            investor_sold_for_admin = math.floor(total_sold * investor_share_for_admin)
+                investor_weight_sold = round(
+                    total_sale_weight * investor_share_ratio,
+                    2
+                )
 
-            admin_mortality = total_mortality - investor_mortality_for_admin
-            admin_sold = total_sold - investor_sold_for_admin
-            admin_current_birds = admin_birds - admin_mortality - admin_sold
+                investor_chick_cost_share = round(
+                    float(chick_cost) * investor_share_ratio,
+                    2
+                )
 
-            investor_weight_for_admin = round(total_sale_weight * investor_share_for_admin, 2)
-            admin_weight_sold = round(total_sale_weight - investor_weight_for_admin, 2)
+                investor_carriage_cost = round(
+                    float(carriage_cost) * investor_share_ratio,
+                    2
+                )
 
-            admin_chick_cost_share = round(float(chick_cost) * admin_share_ratio, 2)
-            admin_carriage_cost_share = round(float(carriage_cost) * admin_share_ratio, 2)
-            admin_feed_cost_share = round(float(feed_cost) * admin_share_ratio, 2)
-            admin_medicine_cost_share = round(float(medicine_cost) * admin_share_ratio, 2)
-            admin_electricity_cost_share = round(float(electricity_cost) * admin_share_ratio, 2)
-            admin_cogs_share = round(float(total_cogs) * admin_share_ratio, 2)
+                investor_feed_cost = round(
+                    float(feed_cost) * investor_share_ratio,
+                    2
+                )
 
-            admin_sales_revenue = round(total_sales_revenue * admin_share_ratio, 2)
-            admin_discount_share = round(total_discount * admin_share_ratio, 2)
-            admin_expense_share = round(float(total_expenses) * admin_share_ratio, 2)
+                investor_medicine_cost = round(
+                    float(medicine_cost) * investor_share_ratio,
+                    2
+                )
+
+                investor_electricity_cost = round(
+                    float(electricity_cost) * investor_share_ratio,
+                    2
+                )
+
+                investor_cogs_share = round(
+                    float(total_cogs) * investor_share_ratio,
+                    2
+                )
+
+                investor_sales_revenue = round(
+                    total_sales_revenue * investor_share_ratio,
+                    2
+                )
+
+                investor_discount_share = round(
+                    total_discount * investor_share_ratio,
+                    2
+                )
+
+                investor_expense_share = round(
+                    float(total_expenses) * investor_share_ratio,
+                    2
+                )
+
+        # =====================================================
+        # ADMIN CALCULATION
+        # =====================================================
+
+        if (
+            is_admin
+            and batch.bird_count_initial > 0
+            and admin_birds > 0
+        ):
+
+            admin_share_ratio = (
+                admin_birds
+                / batch.bird_count_initial
+            )
+
+            investor_share_for_admin = (
+                allocated_investor_birds
+                / batch.bird_count_initial
+            )
+
+            admin_percentage = round(
+                admin_share_ratio * 100,
+                1
+            )
+
+            investor_mortality_for_admin = round(
+                total_mortality
+                * investor_share_for_admin
+            )
+
+            investor_sold_for_admin = math.floor(
+                total_sold
+                * investor_share_for_admin
+            )
+
+            admin_mortality = (
+                total_mortality
+                - investor_mortality_for_admin
+            )
+
+            admin_sold = (
+                total_sold
+                - investor_sold_for_admin
+            )
+
+            admin_current_birds = (
+                admin_birds
+                - admin_mortality
+                - admin_sold
+            )
+
+            investor_weight_for_admin = round(
+                total_sale_weight
+                * investor_share_for_admin,
+                2
+            )
+
+            admin_weight_sold = round(
+                total_sale_weight
+                - investor_weight_for_admin,
+                2
+            )
+
+            admin_chick_cost_share = round(
+                float(chick_cost) * admin_share_ratio,
+                2
+            )
+
+            admin_carriage_cost_share = round(
+                float(carriage_cost) * admin_share_ratio,
+                2
+            )
+
+            admin_feed_cost_share = round(
+                float(feed_cost) * admin_share_ratio,
+                2
+            )
+
+            admin_medicine_cost_share = round(
+                float(medicine_cost) * admin_share_ratio,
+                2
+            )
+
+            admin_electricity_cost_share = round(
+                float(electricity_cost) * admin_share_ratio,
+                2
+            )
+
+            admin_cogs_share = round(
+                float(total_cogs) * admin_share_ratio,
+                2
+            )
+
+            admin_sales_revenue = round(
+                total_sales_revenue * admin_share_ratio,
+                2
+            )
+
+            admin_discount_share = round(
+                total_discount * admin_share_ratio,
+                2
+            )
+
+            admin_expense_share = round(
+                float(total_expenses) * admin_share_ratio,
+                2
+            )
+
+        # =====================================================
+        # SALE HISTORY AND LOCKED COGS
+        # =====================================================
 
         sale_history = []
 
         for sale in sales_records:
-            investor_sale_cogs = round(float(sale.cogs_allocated) * investor_share_ratio, 2)
-            admin_sale_cogs = round(float(sale.cogs_allocated) * admin_share_ratio, 2)
+
+            investor_sale_cogs = round(
+                float(sale.cogs_allocated)
+                * investor_share_ratio,
+                2
+            )
+
+            admin_sale_cogs = round(
+                float(sale.cogs_allocated)
+                * admin_share_ratio,
+                2
+            )
 
             investor_locked_cogs_total += investor_sale_cogs
             admin_locked_cogs_total += admin_sale_cogs
 
-            investor_gross_revenue = round(float(sale.gross_amount) * investor_share_ratio, 2)
-            investor_discount = round(float(sale.discount_amount) * investor_share_ratio, 2)
-            investor_net_revenue = round(float(sale.total_amount) * investor_share_ratio, 2)
-            investor_profit = round(investor_net_revenue - investor_sale_cogs, 2)
+            investor_gross_revenue = round(
+                float(sale.gross_amount)
+                * investor_share_ratio,
+                2
+            )
 
-            admin_gross_revenue = round(float(sale.gross_amount) * admin_share_ratio, 2)
-            admin_discount = round(float(sale.discount_amount) * admin_share_ratio, 2)
-            admin_net_revenue = round(float(sale.total_amount) * admin_share_ratio, 2)
-            admin_profit = round(admin_net_revenue - admin_sale_cogs, 2)
+            investor_discount = round(
+                float(sale.discount_amount)
+                * investor_share_ratio,
+                2
+            )
+
+            investor_net_revenue = round(
+                float(sale.total_amount)
+                * investor_share_ratio,
+                2
+            )
+
+            investor_profit = round(
+                investor_net_revenue
+                - investor_sale_cogs,
+                2
+            )
+
+            admin_gross_revenue = round(
+                float(sale.gross_amount)
+                * admin_share_ratio,
+                2
+            )
+
+            admin_discount = round(
+                float(sale.discount_amount)
+                * admin_share_ratio,
+                2
+            )
+
+            admin_net_revenue = round(
+                float(sale.total_amount)
+                * admin_share_ratio,
+                2
+            )
+
+            admin_profit = round(
+                admin_net_revenue
+                - admin_sale_cogs,
+                2
+            )
 
             sale_history.append({
+
                 "sale_date": sale.sale_date,
                 "birds_sold": sale.birds_sold,
                 "total_weight_kg": sale.total_weight_kg,
@@ -246,10 +560,24 @@ def finance_tracker(request):
                 "discount_amount": sale.discount_amount,
                 "total_amount": sale.total_amount,
                 "cogs_allocated": sale.cogs_allocated,
-                "gross_profit": round(float(sale.total_amount) - float(sale.cogs_allocated), 2),
 
-                "investor_birds_sold": math.floor(sale.birds_sold * investor_share_ratio),
-                "investor_weight_sold": round(float(sale.total_weight_kg) * investor_share_ratio, 2),
+                "gross_profit": round(
+                    float(sale.total_amount)
+                    - float(sale.cogs_allocated),
+                    2
+                ),
+
+                "investor_birds_sold": math.floor(
+                    sale.birds_sold
+                    * investor_share_ratio
+                ),
+
+                "investor_weight_sold": round(
+                    float(sale.total_weight_kg)
+                    * investor_share_ratio,
+                    2
+                ),
+
                 "investor_gross_revenue": investor_gross_revenue,
                 "investor_discount": investor_discount,
                 "investor_net_revenue": investor_net_revenue,
@@ -258,9 +586,21 @@ def finance_tracker(request):
 
                 "admin_birds_sold": (
                     sale.birds_sold
-                    - math.floor(sale.birds_sold * (allocated_investor_birds / batch.bird_count_initial))
+                    - math.floor(
+                        sale.birds_sold
+                        * (
+                            allocated_investor_birds
+                            / batch.bird_count_initial
+                        )
+                    )
                 ) if batch.bird_count_initial > 0 else 0,
-                "admin_weight_sold": round(float(sale.total_weight_kg) * admin_share_ratio, 2),
+
+                "admin_weight_sold": round(
+                    float(sale.total_weight_kg)
+                    * admin_share_ratio,
+                    2
+                ),
+
                 "admin_gross_revenue": admin_gross_revenue,
                 "admin_discount": admin_discount,
                 "admin_net_revenue": admin_net_revenue,
@@ -269,130 +609,340 @@ def finance_tracker(request):
                 "admin_profit": admin_profit,
             })
 
-        investor_net_income = round(
-            investor_sales_revenue - investor_locked_cogs_total - investor_expense_share,
+        investor_locked_cogs_total = round(
+            investor_locked_cogs_total,
             2
         )
 
-        admin_net_income = round(
-            admin_sales_revenue - admin_locked_cogs_total - admin_expense_share,
+        admin_locked_cogs_total = round(
+            admin_locked_cogs_total,
             2
         )
 
-        batch_locked_cogs_total = sum(float(sale.cogs_allocated) for sale in sales_records)
+        batch_locked_cogs_total = round(
+            sum(
+                float(sale.cogs_allocated)
+                for sale in sales_records
+            ),
+            2
+        )
+
+        # =====================================================
+        # ALLOCATE OTHER EXPENSES TO SOLD BIRDS
+        #
+        # Electricity is not included here because electricity
+        # is already included in COGS.
+        #
+        # Mortality cost remains with surviving/sold birds.
+        # Therefore:
+        # allocation birds = current birds + sold birds
+        # =====================================================
+
+        expense_allocation_birds = (
+            current_birds
+            + total_sold
+        )
+
+        sold_expense_ratio = 0
+
+        if expense_allocation_birds > 0:
+            sold_expense_ratio = (
+                total_sold
+                / expense_allocation_birds
+            )
+
+        batch_realized_expenses = round(
+            float(total_expenses)
+            * sold_expense_ratio,
+            2
+        )
+
+        investor_realized_expenses = round(
+            batch_realized_expenses
+            * investor_share_ratio,
+            2
+        )
+
+        admin_realized_expenses = round(
+            batch_realized_expenses
+            * admin_share_ratio,
+            2
+        )
+
+        # =====================================================
+        # BATCH REALIZED ROI
+        # =====================================================
 
         batch_net_income = round(
-            total_sales_revenue - batch_locked_cogs_total - float(total_expenses),
+            total_sales_revenue
+            - batch_locked_cogs_total
+            - batch_realized_expenses,
             2
         )
 
-        investor_total_investment = investor_cogs_share + investor_expense_share
-        investor_roi = round(
-            (investor_net_income / investor_total_investment) * 100,
+        batch_total_investment = round(
+            batch_locked_cogs_total
+            + batch_realized_expenses,
             2
-        ) if investor_total_investment > 0 else 0
+        )
 
-        admin_total_investment = admin_cogs_share + admin_expense_share
-        admin_roi = round(
-            (admin_net_income / admin_total_investment) * 100,
-            2
-        ) if admin_total_investment > 0 else 0
+        batch_roi = 0
 
-        batch_total_investment = float(total_cogs) + float(total_expenses)
-        batch_roi = round(
-            (batch_net_income / batch_total_investment) * 100,
+        if batch_total_investment > 0:
+            batch_roi = round(
+                (
+                    batch_net_income
+                    / batch_total_investment
+                ) * 100,
+                2
+            )
+
+        # =====================================================
+        # INVESTOR REALIZED ROI
+        # =====================================================
+
+        investor_net_income = round(
+            investor_sales_revenue
+            - investor_locked_cogs_total
+            - investor_realized_expenses,
             2
-        ) if batch_total_investment > 0 else 0
+        )
+
+        investor_total_investment = round(
+            investor_locked_cogs_total
+            + investor_realized_expenses,
+            2
+        )
+
+        investor_roi = 0
+
+        if investor_total_investment > 0:
+            investor_roi = round(
+                (
+                    investor_net_income
+                    / investor_total_investment
+                ) * 100,
+                2
+            )
+
+        # =====================================================
+        # ADMIN REALIZED ROI
+        # =====================================================
+
+        admin_net_income = round(
+            admin_sales_revenue
+            - admin_locked_cogs_total
+            - admin_realized_expenses,
+            2
+        )
+
+        admin_total_investment = round(
+            admin_locked_cogs_total
+            + admin_realized_expenses,
+            2
+        )
+
+        admin_roi = 0
+
+        if admin_total_investment > 0:
+            admin_roi = round(
+                (
+                    admin_net_income
+                    / admin_total_investment
+                ) * 100,
+                2
+            )
+
+        # =====================================================
+        # EXPENSE HISTORY
+        # Electricity will not appear here because it is COGS
+        # =====================================================
 
         expense_history = []
 
-        for expense in other_expenses.order_by("-expense_date", "-id"):
+        for expense in other_expenses.order_by(
+            "-expense_date",
+            "-id"
+        ):
+
             full_amount = float(expense.amount)
 
             expense_history.append({
+
                 "expense_date": expense.expense_date,
                 "category": expense.get_category_display(),
                 "description": expense.description,
                 "amount": full_amount,
-                "investor_share_amount": round(full_amount * investor_share_ratio, 2),
-                "admin_share_amount": round(full_amount * admin_share_ratio, 2),
+
+                "investor_share_amount": round(
+                    full_amount
+                    * investor_share_ratio,
+                    2
+                ),
+
+                "admin_share_amount": round(
+                    full_amount
+                    * admin_share_ratio,
+                    2
+                ),
             })
 
+        # =====================================================
+        # SEND DATA TO TEMPLATE
+        # =====================================================
+
         finance_rows.append({
+
             "batch": batch,
+
+            # Birds
             "current_birds": current_birds,
             "total_mortality": total_mortality,
             "total_sold": total_sold,
+
+            # Sales
             "total_discount": round(total_discount, 2),
-            "gross_sales_revenue": round(gross_sales_revenue, 2),
-            "total_sales_revenue": round(total_sales_revenue, 2),
-            "total_sale_weight": round(total_sale_weight, 2),
+            "gross_sales_revenue": round(
+                gross_sales_revenue,
+                2
+            ),
+            "total_sales_revenue": round(
+                total_sales_revenue,
+                2
+            ),
+            "total_sale_weight": round(
+                total_sale_weight,
+                2
+            ),
             "average_sale_weight": average_sale_weight,
             "average_sale_rate": average_sale_rate,
 
+            # COGS
             "chick_cost": chick_cost,
             "carriage_cost": carriage_cost,
             "feed_cost": feed_cost,
             "medicine_cost": medicine_cost,
             "electricity_cost": electricity_cost,
             "total_cogs": total_cogs,
-            "current_chick_cost_per_bird": current_chick_cost_per_bird,
+            "current_chick_cost_per_bird": (
+                current_chick_cost_per_bird
+            ),
 
+            # Investor
             "investor_percentage": investor_percentage,
             "investor_birds": investor_birds,
             "investor_current_birds": investor_current_birds,
             "investor_mortality": investor_mortality,
             "investor_sold": investor_sold,
             "investor_weight_sold": investor_weight_sold,
-            "investor_chick_cost_share": investor_chick_cost_share,
-            "investor_carriage_cost": investor_carriage_cost,
-            "investor_feed_cost": investor_feed_cost,
-            "investor_medicine_cost": investor_medicine_cost,
-            "investor_electricity_cost": investor_electricity_cost,
-            "investor_cogs_share": investor_cogs_share,
-            "investor_sales_revenue": investor_sales_revenue,
-            "investor_discount_share": investor_discount_share,
-            "investor_locked_cogs_total": round(investor_locked_cogs_total, 2),
-            "investor_expense_share": investor_expense_share,
 
+            "investor_chick_cost_share": (
+                investor_chick_cost_share
+            ),
+            "investor_carriage_cost": (
+                investor_carriage_cost
+            ),
+            "investor_feed_cost": investor_feed_cost,
+            "investor_medicine_cost": (
+                investor_medicine_cost
+            ),
+            "investor_electricity_cost": (
+                investor_electricity_cost
+            ),
+            "investor_cogs_share": investor_cogs_share,
+
+            "investor_sales_revenue": (
+                investor_sales_revenue
+            ),
+            "investor_discount_share": (
+                investor_discount_share
+            ),
+            "investor_locked_cogs_total": (
+                investor_locked_cogs_total
+            ),
+            "investor_expense_share": (
+                investor_expense_share
+            ),
+            "investor_realized_expenses": (
+                investor_realized_expenses
+            ),
+            "investor_net_income": investor_net_income,
+            "investor_total_investment": (
+                investor_total_investment
+            ),
+            "investor_roi": investor_roi,
+
+            # Admin
             "admin_birds": admin_birds,
             "admin_percentage": admin_percentage,
             "admin_current_birds": admin_current_birds,
             "admin_mortality": admin_mortality,
             "admin_sold": admin_sold,
             "admin_weight_sold": admin_weight_sold,
-            "admin_chick_cost_share": admin_chick_cost_share,
-            "admin_feed_cost_share": admin_feed_cost_share,
-            "admin_medicine_cost_share": admin_medicine_cost_share,
-            "admin_electricity_cost_share": admin_electricity_cost_share,
-            "admin_carriage_cost_share": admin_carriage_cost_share,
+
+            "admin_chick_cost_share": (
+                admin_chick_cost_share
+            ),
+            "admin_carriage_cost_share": (
+                admin_carriage_cost_share
+            ),
+            "admin_feed_cost_share": (
+                admin_feed_cost_share
+            ),
+            "admin_medicine_cost_share": (
+                admin_medicine_cost_share
+            ),
+            "admin_electricity_cost_share": (
+                admin_electricity_cost_share
+            ),
             "admin_cogs_share": admin_cogs_share,
+
             "admin_sales_revenue": admin_sales_revenue,
             "admin_discount_share": admin_discount_share,
-            "admin_locked_cogs_total": round(admin_locked_cogs_total, 2),
+            "admin_locked_cogs_total": (
+                admin_locked_cogs_total
+            ),
             "admin_expense_share": admin_expense_share,
+            "admin_realized_expenses": (
+                admin_realized_expenses
+            ),
+            "admin_net_income": admin_net_income,
+            "admin_total_investment": (
+                admin_total_investment
+            ),
+            "admin_roi": admin_roi,
 
+            # Batch ROI
+            "batch_locked_cogs_total": (
+                batch_locked_cogs_total
+            ),
+            "batch_realized_expenses": (
+                batch_realized_expenses
+            ),
+            "batch_net_income": batch_net_income,
+            "batch_total_investment": (
+                batch_total_investment
+            ),
+            "batch_roi": batch_roi,
+
+            # Histories
             "sale_history": sale_history,
             "total_expenses": total_expenses,
             "expense_history": expense_history,
-
-            "investor_net_income": investor_net_income,
-            "admin_net_income": admin_net_income,
-            "batch_locked_cogs_total": round(batch_locked_cogs_total, 2),
-            "batch_net_income": batch_net_income,
-
-            "investor_roi": investor_roi,
-            "admin_roi": admin_roi,
-            "batch_roi": batch_roi,
-
-            "investor_total_investment": investor_total_investment,
-            "admin_total_investment": admin_total_investment,
         })
 
-    return render(request, "api/finance_tracker.html", {
-        "finance_rows": finance_rows,
-        "is_admin": is_admin,
-    })
+    # =========================================================
+    # RENDER PAGE
+    # =========================================================
+
+    return render(
+        request,
+        "api/finance_tracker.html",
+        {
+            "finance_rows": finance_rows,
+            "is_admin": is_admin,
+        }
+    )
 
 
 def attach_current_birds(batches):
@@ -1040,24 +1590,41 @@ def batch_report(request):
 
         investment_base = share_locked_cogs + share_expenses
 
+        # =====================================================
+        # ADMIN REALIZED ROI — SOLD BIRDS ONLY
+        # =====================================================
+
         roi = 0
+
         if investment_base > 0:
-            roi = round((net_income / investment_base) * 100, 2)
-
-        total_batch_net_income = round(
-            total_revenue - locked_cogs - money(total_expenses),
-            2
-        )
-
-        total_batch_investment_base = locked_cogs + money(total_expenses)
-
-        total_batch_roi = 0
-        if total_batch_investment_base > 0:
-            total_batch_roi = round(
-                (total_batch_net_income / total_batch_investment_base) * 100,
+            roi = round(
+                (net_income / investment_base) * 100,
                 2
             )
 
+        # =====================================================
+        # TOTAL BATCH REALIZED ROI — SOLD BIRDS ONLY
+        # =====================================================
+
+        # Profit from birds already sold
+        total_batch_net_income = round(
+            total_revenue - locked_cogs,
+            2
+        )
+
+        # Investment/cost of birds already sold
+        total_batch_investment_base = locked_cogs
+
+        total_batch_roi = 0
+
+        if total_batch_investment_base > 0:
+            total_batch_roi = round(
+                (
+                        total_batch_net_income
+                        / total_batch_investment_base
+                ) * 100,
+                2
+            )
         investor_reports = []
         if is_admin:
             investor_reports = get_batch_investor_reports(batch)
