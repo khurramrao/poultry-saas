@@ -1,139 +1,2756 @@
+{% load static %}
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>RN Organic Farm</title>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>RayNoor Organic Farms | Smart Farm Management</title>
+
+    <meta
+        name="description"
+        content="RayNoor Organic Farms combines responsible farming, digital record keeping, remote sensor monitoring and AI-assisted insights."
+    >
+
+    <!-- Font Awesome -->
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
 
     <style>
+        /* =====================================================
+           GLOBAL
+        ===================================================== */
+
+        :root {
+            --green-950: #102a22;
+            --green-900: #173f32;
+            --green-800: #205541;
+            --green-700: #287055;
+            --green-600: #329064;
+            --green-500: #3fa773;
+
+            --gold-700: #9c711e;
+            --gold-600: #b9892c;
+            --gold-500: #cfa548;
+
+            --cream-100: #faf8f1;
+            --cream-200: #f2eee2;
+
+            --blue-100: #eef6fb;
+            --blue-700: #185b83;
+
+            --text-dark: #17211c;
+            --text-medium: #53615a;
+            --text-light: #75827b;
+
+            --white: #ffffff;
+            --border: #dce5df;
+
+            --shadow-sm: 0 8px 24px rgba(17, 54, 40, 0.07);
+            --shadow-md: 0 18px 45px rgba(17, 54, 40, 0.11);
+            --shadow-lg: 0 28px 70px rgba(10, 42, 31, 0.18);
+
+            --radius-sm: 10px;
+            --radius-md: 18px;
+            --radius-lg: 28px;
+
+            --container: 1180px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #f4f6f9;
+            font-family:
+                Inter,
+                "Segoe UI",
+                Arial,
+                sans-serif;
+
+            background: var(--white);
+            color: var(--text-dark);
+            line-height: 1.6;
         }
 
-        .header {
-            background: #2c3e50;
-            color: white;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        img {
+            max-width: 100%;
         }
 
-        .header h2 {
-            margin: 0;
-        }
-
-        .header a {
-            color: white;
+        a {
+            color: inherit;
             text-decoration: none;
-            margin-left: 15px;
-            font-weight: bold;
         }
 
-        .hero {
+        .container {
+            width: min(calc(100% - 40px), var(--container));
+            margin: 0 auto;
+        }
+
+        .section {
+            padding: 92px 0;
+        }
+
+        .section-light {
+            background: #f7faf8;
+        }
+
+        .section-cream {
+            background: var(--cream-100);
+        }
+
+        .section-dark {
+            background:
+                radial-gradient(
+                    circle at top right,
+                    rgba(63, 167, 115, 0.15),
+                    transparent 30%
+                ),
+                var(--green-950);
+
+            color: var(--white);
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+
+            margin-bottom: 14px;
+            padding: 7px 13px;
+
+            border: 1px solid rgba(50, 144, 100, 0.25);
+            border-radius: 100px;
+
+            background: rgba(50, 144, 100, 0.08);
+
+            color: var(--green-700);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+        }
+
+        .section-title {
+            max-width: 760px;
+            margin-bottom: 18px;
+
+            font-family:
+                Georgia,
+                "Times New Roman",
+                serif;
+
+            font-size: clamp(34px, 4vw, 52px);
+            line-height: 1.12;
+            color: var(--green-950);
+        }
+
+        .section-description {
+            max-width: 720px;
+            color: var(--text-medium);
+            font-size: 17px;
+        }
+
+        .section-heading-center {
+            margin: 0 auto 52px;
             text-align: center;
-            padding: 80px 20px;
         }
 
-        .hero h1 {
-            font-size: 36px;
-            color: #2c3e50;
-        }
-
-        .hero p {
-            font-size: 18px;
-            color: #555;
-            margin-top: 10px;
+        .section-heading-center .section-title,
+        .section-heading-center .section-description {
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .btn {
-            display: inline-block;
-            margin-top: 25px;
-            padding: 12px 25px;
-            background: #27ae60;
-            color: white;
-            text-decoration: none;
-            border-radius: 6px;
-            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+
+            min-height: 50px;
+            padding: 0 22px;
+
+            border: 1px solid transparent;
+            border-radius: 11px;
+
+            font-size: 15px;
+            font-weight: 750;
+
+            cursor: pointer;
+            transition:
+                transform 0.2s ease,
+                box-shadow 0.2s ease,
+                background 0.2s ease;
         }
 
         .btn:hover {
-            background: #219150;
+            transform: translateY(-2px);
         }
 
-        .features {
+        .btn-primary {
+            background: var(--green-600);
+            color: var(--white);
+            box-shadow: 0 10px 24px rgba(50, 144, 100, 0.26);
+        }
+
+        .btn-primary:hover {
+            background: var(--green-700);
+            box-shadow: 0 14px 30px rgba(50, 144, 100, 0.32);
+        }
+
+        .btn-secondary {
+            border-color: rgba(255, 255, 255, 0.36);
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--white);
+        }
+
+        .btn-light {
+            border-color: var(--border);
+            background: var(--white);
+            color: var(--green-900);
+        }
+
+        /* =====================================================
+           HEADER
+        ===================================================== */
+
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+
+            border-bottom: 1px solid rgba(220, 229, 223, 0.82);
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(14px);
+        }
+
+        .navbar {
+            min-height: 76px;
+
             display: flex;
-            justify-content: center;
+            align-items: center;
+            justify-content: space-between;
             gap: 30px;
-            margin: 50px auto;
-            max-width: 900px;
         }
 
-        .card {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            width: 250px;
-            text-align: center;
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        .card h3 {
-            color: #2c3e50;
+        .brand-logo {
+            width: 56px;
+            height: 56px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            overflow: hidden;
+            border-radius: 50%;
+            background: var(--cream-100);
         }
 
-        .card p {
-            color: #666;
+        .brand-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .brand-name {
+            display: block;
+            color: var(--green-950);
+            font-family: Georgia, serif;
+            font-size: 21px;
+            font-weight: 750;
+            line-height: 1.05;
+        }
+
+        .brand-subtitle {
+            display: block;
+            margin-top: 4px;
+            color: var(--gold-700);
+            font-size: 10px;
+            font-weight: 850;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .nav-links a {
+            color: var(--text-medium);
             font-size: 14px;
+            font-weight: 650;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--green-700);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* =====================================================
+           HERO
+        ===================================================== */
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+
+            padding: 92px 0 82px;
+
+            background:
+                radial-gradient(
+                    circle at 85% 15%,
+                    rgba(207, 165, 72, 0.18),
+                    transparent 28%
+                ),
+                radial-gradient(
+                    circle at 15% 90%,
+                    rgba(63, 167, 115, 0.14),
+                    transparent 30%
+                ),
+                linear-gradient(
+                    135deg,
+                    #f9fbf8 0%,
+                    #f4f8f3 50%,
+                    #fcfaf3 100%
+                );
+        }
+
+        .hero-grid {
+            display: grid;
+            grid-template-columns: 1.04fr 0.96fr;
+            gap: 68px;
+            align-items: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+
+            margin-bottom: 22px;
+            padding: 8px 14px;
+
+            border: 1px solid rgba(50, 144, 100, 0.25);
+            border-radius: 100px;
+
+            background: rgba(255, 255, 255, 0.74);
+            color: var(--green-700);
+
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+        }
+
+        .hero-badge-dot {
+            width: 8px;
+            height: 8px;
+
+            border-radius: 50%;
+            background: var(--green-500);
+            box-shadow: 0 0 0 5px rgba(63, 167, 115, 0.13);
+        }
+
+        .hero-title {
+            max-width: 690px;
+
+            font-family:
+                Georgia,
+                "Times New Roman",
+                serif;
+
+            font-size: clamp(45px, 6vw, 72px);
+            line-height: 1.03;
+            letter-spacing: -1.8px;
+            color: var(--green-950);
+        }
+
+        .hero-title span {
+            color: var(--green-600);
+        }
+
+        .hero-description {
+            max-width: 650px;
+            margin-top: 24px;
+
+            color: var(--text-medium);
+            font-size: 18px;
+            line-height: 1.8;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 32px;
+        }
+
+        .hero-trust {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            margin-top: 34px;
+        }
+
+        .trust-item {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+
+            color: var(--text-medium);
+            font-size: 13px;
+            font-weight: 650;
+        }
+
+        .trust-item i {
+            color: var(--green-600);
+        }
+
+        /* =====================================================
+           HERO DASHBOARD MOCKUP
+        ===================================================== */
+
+        .technology-preview {
+            position: relative;
+        }
+
+        .dashboard-shell {
+            position: relative;
+
+            padding: 18px;
+
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            border-radius: var(--radius-lg);
+
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .dashboard-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+
+            margin-bottom: 16px;
+            padding: 5px 3px;
+        }
+
+        .dashboard-title {
+            color: var(--green-950);
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .live-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+
+            padding: 6px 10px;
+            border-radius: 100px;
+
+            background: #e7f8ef;
+            color: #16834d;
+
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .live-status::before {
+            content: "";
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #1eaa63;
+            animation: pulse 1.8s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(30, 170, 99, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 8px rgba(30, 170, 99, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(30, 170, 99, 0);
+            }
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+        }
+
+        .sensor-card {
+            padding: 16px;
+            border: 1px solid #e8eeea;
+            border-radius: 15px;
+            background: #fbfdfb;
+        }
+
+        .sensor-card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .sensor-icon {
+            width: 36px;
+            height: 36px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 10px;
+            background: #eaf6ef;
+            color: var(--green-700);
+        }
+
+        .sensor-status {
+            color: #1e985a;
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .sensor-label {
+            color: var(--text-light);
+            font-size: 11px;
+            font-weight: 650;
+        }
+
+        .sensor-value {
+            margin-top: 3px;
+            color: var(--green-950);
+            font-size: 24px;
+            font-weight: 850;
+        }
+
+        .sensor-value small {
+            color: var(--text-medium);
+            font-size: 12px;
+        }
+
+        .dashboard-alert {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+
+            margin-top: 13px;
+            padding: 14px;
+
+            border: 1px solid #f0e2b9;
+            border-radius: 14px;
+
+            background: #fffaf0;
+        }
+
+        .alert-icon {
+            width: 35px;
+            height: 35px;
+            flex: 0 0 35px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 10px;
+            background: #f8e9bd;
+            color: var(--gold-700);
+        }
+
+        .dashboard-alert strong {
+            display: block;
+            margin-bottom: 2px;
+            color: #5d471d;
+            font-size: 12px;
+        }
+
+        .dashboard-alert p {
+            color: #826f46;
+            font-size: 11px;
+            line-height: 1.45;
+        }
+
+        .floating-card {
+            position: absolute;
+
+            min-width: 188px;
+            padding: 15px;
+
+            border: 1px solid rgba(220, 229, 223, 0.8);
+            border-radius: 15px;
+
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: var(--shadow-md);
+        }
+
+        .floating-card-one {
+            top: 55px;
+            right: -42px;
+        }
+
+        .floating-card-two {
+            bottom: 46px;
+            left: -44px;
+        }
+
+        .floating-card-title {
+            color: var(--text-light);
+            font-size: 10px;
+            font-weight: 750;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .floating-card-value {
+            margin-top: 4px;
+            color: var(--green-950);
+            font-size: 20px;
+            font-weight: 850;
+        }
+
+        .floating-card-note {
+            margin-top: 4px;
+            color: var(--green-600);
+            font-size: 10px;
+            font-weight: 750;
+        }
+
+        /* =====================================================
+           IMPACT BAR
+        ===================================================== */
+
+        .impact-bar {
+            position: relative;
+            z-index: 3;
+
+            margin-top: -34px;
+        }
+
+        .impact-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+
+            background: var(--white);
+            box-shadow: var(--shadow-md);
+        }
+
+        .impact-item {
+            padding: 25px 26px;
+            border-right: 1px solid var(--border);
+        }
+
+        .impact-item:last-child {
+            border-right: 0;
+        }
+
+        .impact-number {
+            color: var(--green-800);
+            font-size: 27px;
+            font-weight: 850;
+        }
+
+        .impact-label {
+            margin-top: 2px;
+            color: var(--text-medium);
+            font-size: 12px;
+            font-weight: 650;
+        }
+
+        /* =====================================================
+           FEATURE CARDS
+        ===================================================== */
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 22px;
+            margin-top: 46px;
+        }
+
+        .feature-card {
+            position: relative;
+            overflow: hidden;
+
+            padding: 29px;
+
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+
+            background: var(--white);
+            box-shadow: var(--shadow-sm);
+
+            transition:
+                transform 0.25s ease,
+                box-shadow 0.25s ease,
+                border-color 0.25s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(50, 144, 100, 0.28);
+            box-shadow: var(--shadow-md);
+        }
+
+        .feature-card::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+
+            width: 100%;
+            height: 3px;
+
+            background: linear-gradient(
+                90deg,
+                var(--green-600),
+                var(--gold-500)
+            );
+
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .feature-card:hover::after {
+            opacity: 1;
+        }
+
+        .feature-icon {
+            width: 52px;
+            height: 52px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            margin-bottom: 21px;
+
+            border-radius: 14px;
+            background: #eaf6ef;
+            color: var(--green-700);
+
+            font-size: 21px;
+        }
+
+        .feature-card h3 {
+            margin-bottom: 10px;
+            color: var(--green-950);
+            font-size: 19px;
+        }
+
+        .feature-card p {
+            color: var(--text-medium);
+            font-size: 14px;
+            line-height: 1.75;
+        }
+
+        .feature-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+
+            margin-top: 18px;
+
+            color: var(--green-700);
+            font-size: 13px;
+            font-weight: 800;
+        }
+
+        /* =====================================================
+           TECHNOLOGY
+        ===================================================== */
+
+        .technology-grid {
+            display: grid;
+            grid-template-columns: 0.9fr 1.1fr;
+            gap: 70px;
+            align-items: center;
+        }
+
+        .tech-visual {
+            position: relative;
+
+            min-height: 520px;
+            padding: 32px;
+
+            border-radius: var(--radius-lg);
+
+            background:
+                radial-gradient(
+                    circle at top right,
+                    rgba(207, 165, 72, 0.18),
+                    transparent 34%
+                ),
+                var(--green-950);
+
+            box-shadow: var(--shadow-lg);
+        }
+
+        .tech-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+
+            width: 158px;
+            height: 158px;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+
+            transform: translate(-50%, -50%);
+
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--white);
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .tech-center i {
+            margin-bottom: 9px;
+            color: var(--gold-500);
+            font-size: 32px;
+        }
+
+        .tech-center strong {
+            font-size: 15px;
+        }
+
+        .tech-center small {
+            margin-top: 2px;
+            color: rgba(255, 255, 255, 0.66);
+            font-size: 10px;
+        }
+
+        .tech-node {
+            position: absolute;
+
+            width: 145px;
+            padding: 15px;
+
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 15px;
+
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--white);
+            backdrop-filter: blur(9px);
+        }
+
+        .tech-node i {
+            margin-bottom: 9px;
+            color: var(--gold-500);
+            font-size: 18px;
+        }
+
+        .tech-node strong {
+            display: block;
+            font-size: 12px;
+        }
+
+        .tech-node small {
+            display: block;
+            margin-top: 4px;
+            color: rgba(255, 255, 255, 0.63);
+            font-size: 9px;
+            line-height: 1.45;
+        }
+
+        .node-one {
+            top: 40px;
+            left: 40px;
+        }
+
+        .node-two {
+            top: 40px;
+            right: 40px;
+        }
+
+        .node-three {
+            bottom: 40px;
+            left: 40px;
+        }
+
+        .node-four {
+            right: 40px;
+            bottom: 40px;
+        }
+
+        .tech-list {
+            display: grid;
+            gap: 22px;
+            margin-top: 34px;
+        }
+
+        .tech-list-item {
+            display: grid;
+            grid-template-columns: 44px 1fr;
+            gap: 16px;
+        }
+
+        .tech-list-number {
+            width: 44px;
+            height: 44px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 12px;
+            background: #eaf6ef;
+            color: var(--green-700);
+
+            font-size: 13px;
+            font-weight: 850;
+        }
+
+        .tech-list-item h4 {
+            margin-bottom: 5px;
+            color: var(--green-950);
+            font-size: 16px;
+        }
+
+        .tech-list-item p {
+            color: var(--text-medium);
+            font-size: 14px;
+        }
+
+        /* =====================================================
+           HOW IT WORKS
+        ===================================================== */
+
+        .process-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+            margin-top: 48px;
+        }
+
+        .process-card {
+            position: relative;
+            padding: 26px;
+
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: var(--radius-md);
+
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .process-number {
+            width: 34px;
+            height: 34px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            margin-bottom: 24px;
+
+            border-radius: 50%;
+            background: var(--gold-500);
+            color: var(--green-950);
+
+            font-size: 12px;
+            font-weight: 900;
+        }
+
+        .process-card h3 {
+            margin-bottom: 10px;
+            font-size: 17px;
+        }
+
+        .process-card p {
+            color: rgba(255, 255, 255, 0.68);
+            font-size: 13px;
+            line-height: 1.75;
+        }
+
+        /* =====================================================
+           MANAGEMENT PLATFORM
+        ===================================================== */
+
+        .platform-grid {
+            display: grid;
+            grid-template-columns: 1.05fr 0.95fr;
+            gap: 70px;
+            align-items: center;
+        }
+
+        .platform-card {
+            padding: 28px;
+
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+
+            background: var(--white);
+            box-shadow: var(--shadow-md);
+        }
+
+        .platform-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 15px;
+
+            padding: 17px 0;
+            border-bottom: 1px solid #edf1ee;
+        }
+
+        .platform-row:last-child {
+            border-bottom: 0;
+        }
+
+        .platform-row-left {
+            display: flex;
+            align-items: center;
+            gap: 13px;
+        }
+
+        .platform-row-icon {
+            width: 42px;
+            height: 42px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            border-radius: 11px;
+            background: #eef6f1;
+            color: var(--green-700);
+        }
+
+        .platform-row h4 {
+            color: var(--green-950);
+            font-size: 14px;
+        }
+
+        .platform-row p {
+            color: var(--text-light);
+            font-size: 11px;
+        }
+
+        .status-tag {
+            padding: 5px 9px;
+            border-radius: 100px;
+
+            background: #e8f7ef;
+            color: #18834d;
+
+            font-size: 9px;
+            font-weight: 850;
+            text-transform: uppercase;
+        }
+
+        .check-list {
+            display: grid;
+            gap: 16px;
+            margin-top: 30px;
+        }
+
+        .check-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 13px;
+        }
+
+        .check-icon {
+            width: 25px;
+            height: 25px;
+            flex: 0 0 25px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            margin-top: 1px;
+
+            border-radius: 50%;
+            background: #e8f7ef;
+            color: var(--green-700);
+
+            font-size: 10px;
+        }
+
+        .check-item p {
+            color: var(--text-medium);
+            font-size: 14px;
+        }
+
+        .check-item strong {
+            color: var(--green-950);
+        }
+
+        /* =====================================================
+           ABOUT
+        ===================================================== */
+
+        .about-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
+        }
+
+        .about-visual {
+            position: relative;
+
+            min-height: 480px;
+            overflow: hidden;
+
+            border-radius: var(--radius-lg);
+
+            background:
+                linear-gradient(
+                    180deg,
+                    rgba(16, 42, 34, 0.08),
+                    rgba(16, 42, 34, 0.7)
+                ),
+                url("{% static 'images/RAYNOOR-2-LOGO.png' %}")
+                center / contain no-repeat,
+                var(--cream-200);
+
+            box-shadow: var(--shadow-lg);
+        }
+
+        .about-badge {
+            position: absolute;
+            right: 24px;
+            bottom: 24px;
+            left: 24px;
+
+            padding: 22px;
+
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 16px;
+
+            background: rgba(16, 42, 34, 0.83);
+            color: var(--white);
+            backdrop-filter: blur(10px);
+        }
+
+        .about-badge strong {
+            display: block;
+            font-family: Georgia, serif;
+            font-size: 23px;
+        }
+
+        .about-badge span {
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 12px;
+        }
+
+        .about-copy p {
+            margin-top: 18px;
+            color: var(--text-medium);
+            font-size: 15px;
+            line-height: 1.85;
+        }
+
+        .about-values {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-top: 28px;
+        }
+
+        .value-card {
+            padding: 17px;
+
+            border: 1px solid var(--border);
+            border-radius: 14px;
+
+            background: var(--white);
+        }
+
+        .value-card i {
+            margin-bottom: 10px;
+            color: var(--green-600);
+        }
+
+        .value-card strong {
+            display: block;
+            color: var(--green-950);
+            font-size: 13px;
+        }
+
+        .value-card span {
+            color: var(--text-light);
+            font-size: 11px;
+        }
+
+        /* =====================================================
+           CTA
+        ===================================================== */
+
+        .cta-box {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 35px;
+            align-items: center;
+
+            padding: 48px;
+
+            border-radius: var(--radius-lg);
+
+            background:
+                radial-gradient(
+                    circle at right,
+                    rgba(207, 165, 72, 0.24),
+                    transparent 31%
+                ),
+                var(--green-900);
+
+            color: var(--white);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .cta-box h2 {
+            max-width: 720px;
+            font-family: Georgia, serif;
+            font-size: clamp(30px, 4vw, 45px);
+            line-height: 1.18;
+        }
+
+        .cta-box p {
+            max-width: 690px;
+            margin-top: 12px;
+            color: rgba(255, 255, 255, 0.71);
+            font-size: 15px;
+        }
+
+        /* =====================================================
+           FOOTER
+        ===================================================== */
+
+        .site-footer {
+            padding: 62px 0 24px;
+            background: #0c221b;
+            color: var(--white);
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 1.35fr 0.75fr 0.75fr 1fr;
+            gap: 46px;
+        }
+
+        .footer-brand p {
+            max-width: 360px;
+            margin-top: 17px;
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .footer-title {
+            margin-bottom: 17px;
+            color: var(--white);
+            font-size: 13px;
+            font-weight: 850;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .footer-links {
+            display: grid;
+            gap: 10px;
+        }
+
+        .footer-links a,
+        .footer-links span {
+            color: rgba(255, 255, 255, 0.62);
+            font-size: 13px;
+        }
+
+        .footer-links a:hover {
+            color: var(--gold-500);
+        }
+
+        .footer-bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+
+            margin-top: 46px;
+            padding-top: 22px;
+
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+            color: rgba(255, 255, 255, 0.48);
+            font-size: 11px;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+        ===================================================== */
+
+        @media (max-width: 1080px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero-grid,
+            .technology-grid,
+            .platform-grid,
+            .about-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-grid {
+                gap: 55px;
+            }
+
+            .technology-preview {
+                max-width: 670px;
+                margin: 0 auto;
+            }
+
+            .technology-grid,
+            .platform-grid,
+            .about-grid {
+                gap: 48px;
+            }
+
+            .feature-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .process-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .footer-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 760px) {
+            .container {
+                width: min(calc(100% - 26px), var(--container));
+            }
+
+            .section {
+                padding: 68px 0;
+            }
+
+            .navbar {
+                min-height: 68px;
+            }
+
+            .brand-logo {
+                width: 48px;
+                height: 48px;
+            }
+
+            .brand-name {
+                font-size: 17px;
+            }
+
+            .brand-subtitle {
+                font-size: 8px;
+            }
+
+            .nav-actions .btn-light {
+                display: none;
+            }
+
+            .nav-actions .btn {
+                min-height: 43px;
+                padding: 0 15px;
+                font-size: 12px;
+            }
+
+            .hero {
+                padding: 68px 0 74px;
+            }
+
+            .hero-title {
+                font-size: 46px;
+            }
+
+            .hero-description {
+                font-size: 16px;
+            }
+
+            .hero-actions {
+                display: grid;
+            }
+
+            .hero-actions .btn {
+                width: 100%;
+            }
+
+            .floating-card {
+                display: none;
+            }
+
+            .impact-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .impact-item {
+                border-bottom: 1px solid var(--border);
+            }
+
+            .impact-item:nth-child(2) {
+                border-right: 0;
+            }
+
+            .impact-item:nth-child(3),
+            .impact-item:nth-child(4) {
+                border-bottom: 0;
+            }
+
+            .feature-grid,
+            .process-grid,
+            .about-values {
+                grid-template-columns: 1fr;
+            }
+
+            .tech-visual {
+                min-height: 560px;
+            }
+
+            .tech-node {
+                width: 125px;
+            }
+
+            .node-one {
+                top: 32px;
+                left: 20px;
+            }
+
+            .node-two {
+                top: 32px;
+                right: 20px;
+            }
+
+            .node-three {
+                bottom: 32px;
+                left: 20px;
+            }
+
+            .node-four {
+                right: 20px;
+                bottom: 32px;
+            }
+
+            .cta-box {
+                grid-template-columns: 1fr;
+                padding: 34px 25px;
+            }
+
+            .cta-box .btn {
+                width: 100%;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .brand-subtitle {
+                display: none;
+            }
+
+            .sensor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .impact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .impact-item,
+            .impact-item:nth-child(2),
+            .impact-item:nth-child(3) {
+                border-right: 0;
+                border-bottom: 1px solid var(--border);
+            }
+
+            .impact-item:last-child {
+                border-bottom: 0;
+            }
+
+            .tech-visual {
+                min-height: 625px;
+            }
+
+            .tech-center {
+                width: 135px;
+                height: 135px;
+            }
         }
     </style>
 </head>
 
 <body>
 
-    <!-- Header -->
-    <div class="header">
-        <h2>RN Organic Farm</h2>
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
 
-        <div>
-            {% if user.is_authenticated %}
-                <a href="{% url 'dashboard' %}">Dashboard</a>
-                <a href="{% url 'logout' %}">Logout</a>
-            {% else %}
-                <a href="{% url 'login' %}">Login</a>
-            {% endif %}
+    <header class="site-header">
+        <div class="container navbar">
+
+            <a href="/" class="brand">
+
+                <div class="brand-logo">
+                    <img
+                        src="{% static 'images/RAYNOOR-2-LOGO.png' %}"
+                        alt="RayNoor Organic Farms"
+                    >
+                </div>
+
+                <div>
+                    <span class="brand-name">
+                        RayNoor Organic Farms
+                    </span>
+
+                    <span class="brand-subtitle">
+                        Committed to Organic Excellence
+                    </span>
+                </div>
+
+            </a>
+
+            <nav class="nav-links">
+                <a href="#technology">Technology</a>
+                <a href="#platform">Farm Management</a>
+                <a href="#ai">AI Intelligence</a>
+                <a href="#about">About Us</a>
+            </nav>
+
+            <div class="nav-actions">
+
+                {% if user.is_authenticated %}
+
+                    <a
+                        href="{% url 'dashboard' %}"
+                        class="btn btn-primary"
+                    >
+                        <i class="fa-solid fa-chart-line"></i>
+                        Dashboard
+                    </a>
+
+                {% else %}
+
+                    <a
+                        href="#about"
+                        class="btn btn-light"
+                    >
+                        About RayNoor
+                    </a>
+
+                    <a
+                        href="{% url 'login' %}"
+                        class="btn btn-primary"
+                    >
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        Login
+                    </a>
+
+                {% endif %}
+
+            </div>
+
         </div>
-    </div>
+    </header>
 
-    <!-- Hero Section -->
-    <div class="hero">
-        <h1>Poultry Farm Monitoring System</h1>
-        <p>Monitor temperature, humidity, ammonia, and farm performance remotely.</p>
+    <main>
 
-        {% if user.is_authenticated %}
-            <a href="{% url 'dashboard' %}" class="btn">Go to Dashboard</a>
-        {% else %}
-            <a href="{% url 'login' %}" class="btn">Login to Continue</a>
-        {% endif %}
-    </div>
+        <!-- =====================================================
+             HERO
+        ====================================================== -->
 
-    <!-- Features -->
-    <div class="features">
-        <div class="card">
-            <h3>📡 Live Monitoring</h3>
-            <p>Track temperature, humidity, and environment in real time.</p>
+        <section class="hero">
+            <div class="container hero-grid">
+
+                <div class="hero-content">
+
+                    <div class="hero-badge">
+                        <span class="hero-badge-dot"></span>
+                        Technology-enabled responsible farming
+                    </div>
+
+                    <h1 class="hero-title">
+                        Smarter farming through
+                        <span>data, sensors and intelligence.</span>
+                    </h1>
+
+                    <p class="hero-description">
+                        RayNoor Organic Farms combines responsible animal
+                        care with digital record management, remote sensor
+                        monitoring and AI-assisted insights. Our goal is to
+                        make every farm decision more informed, transparent
+                        and efficient.
+                    </p>
+
+                    <div class="hero-actions">
+
+                        {% if user.is_authenticated %}
+
+                            <a
+                                href="{% url 'dashboard' %}"
+                                class="btn btn-primary"
+                            >
+                                <i class="fa-solid fa-chart-pie"></i>
+                                Open Farm Dashboard
+                            </a>
+
+                        {% else %}
+
+                            <a
+                                href="{% url 'login' %}"
+                                class="btn btn-primary"
+                            >
+                                <i class="fa-solid fa-lock"></i>
+                                Access Management System
+                            </a>
+
+                        {% endif %}
+
+                        <a
+                            href="#technology"
+                            class="btn btn-light"
+                        >
+                            <i class="fa-solid fa-microchip"></i>
+                            Explore Our Technology
+                        </a>
+
+                    </div>
+
+                    <div class="hero-trust">
+
+                        <div class="trust-item">
+                            <i class="fa-solid fa-circle-check"></i>
+                            24/7 farm visibility
+                        </div>
+
+                        <div class="trust-item">
+                            <i class="fa-solid fa-circle-check"></i>
+                            Secure digital records
+                        </div>
+
+                        <div class="trust-item">
+                            <i class="fa-solid fa-circle-check"></i>
+                            AI-ready intelligence
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <!-- Dashboard-style visual -->
+
+                <div class="technology-preview">
+
+                    <div class="dashboard-shell">
+
+                        <div class="dashboard-topbar">
+
+                            <div class="dashboard-title">
+                                Environmental Monitoring
+                            </div>
+
+                            <div class="live-status">
+                                Live
+                            </div>
+
+                        </div>
+
+                        <div class="sensor-grid">
+
+                            <div class="sensor-card">
+
+                                <div class="sensor-card-head">
+
+                                    <div class="sensor-icon">
+                                        <i class="fa-solid fa-temperature-half"></i>
+                                    </div>
+
+                                    <span class="sensor-status">
+                                        Normal
+                                    </span>
+
+                                </div>
+
+                                <div class="sensor-label">
+                                    Shed Temperature
+                                </div>
+
+                                <div class="sensor-value">
+                                    28.4
+                                    <small>°C</small>
+                                </div>
+
+                            </div>
+
+                            <div class="sensor-card">
+
+                                <div class="sensor-card-head">
+
+                                    <div class="sensor-icon">
+                                        <i class="fa-solid fa-droplet"></i>
+                                    </div>
+
+                                    <span class="sensor-status">
+                                        Stable
+                                    </span>
+
+                                </div>
+
+                                <div class="sensor-label">
+                                    Relative Humidity
+                                </div>
+
+                                <div class="sensor-value">
+                                    61
+                                    <small>%</small>
+                                </div>
+
+                            </div>
+
+                            <div class="sensor-card">
+
+                                <div class="sensor-card-head">
+
+                                    <div class="sensor-icon">
+                                        <i class="fa-solid fa-wind"></i>
+                                    </div>
+
+                                    <span class="sensor-status">
+                                        Safe
+                                    </span>
+
+                                </div>
+
+                                <div class="sensor-label">
+                                    Air Quality
+                                </div>
+
+                                <div class="sensor-value">
+                                    12
+                                    <small>ppm</small>
+                                </div>
+
+                            </div>
+
+                            <div class="sensor-card">
+
+                                <div class="sensor-card-head">
+
+                                    <div class="sensor-icon">
+                                        <i class="fa-solid fa-fan"></i>
+                                    </div>
+
+                                    <span class="sensor-status">
+                                        Running
+                                    </span>
+
+                                </div>
+
+                                <div class="sensor-label">
+                                    Ventilation System
+                                </div>
+
+                                <div class="sensor-value">
+                                    4
+                                    <small>fans</small>
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                        <div class="dashboard-alert">
+
+                            <div class="alert-icon">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </div>
+
+                            <div>
+                                <strong>AI-assisted observation</strong>
+
+                                <p>
+                                    Environment is stable. Continue the
+                                    current ventilation schedule.
+                                </p>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                    <div class="floating-card floating-card-one">
+                        <div class="floating-card-title">
+                            Data availability
+                        </div>
+
+                        <div class="floating-card-value">
+                            24/7
+                        </div>
+
+                        <div class="floating-card-note">
+                            Remote farm access
+                        </div>
+                    </div>
+
+                    <div class="floating-card floating-card-two">
+                        <div class="floating-card-title">
+                            Record status
+                        </div>
+
+                        <div class="floating-card-value">
+                            Updated
+                        </div>
+
+                        <div class="floating-card-note">
+                            Centralized and secure
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =====================================================
+             IMPACT BAR
+        ====================================================== -->
+
+        <div class="container impact-bar">
+
+            <div class="impact-grid">
+
+                <div class="impact-item">
+                    <div class="impact-number">24/7</div>
+                    <div class="impact-label">
+                        Remote monitoring capability
+                    </div>
+                </div>
+
+                <div class="impact-item">
+                    <div class="impact-number">One</div>
+                    <div class="impact-label">
+                        Central farm management platform
+                    </div>
+                </div>
+
+                <div class="impact-item">
+                    <div class="impact-number">Live</div>
+                    <div class="impact-label">
+                        Batch and financial visibility
+                    </div>
+                </div>
+
+                <div class="impact-item">
+                    <div class="impact-number">AI</div>
+                    <div class="impact-label">
+                        Assisted analysis and alerts
+                    </div>
+                </div>
+
+            </div>
+
         </div>
 
-        <div class="card">
-            <h3>🚨 Smart Alerts</h3>
-            <p>Get alerts when conditions go out of range.</p>
-        </div>
+        <!-- =====================================================
+             CORE FEATURES
+        ====================================================== -->
 
-        <div class="card">
-            <h3>📊 Batch Tracking</h3>
-            <p>Manage batches, mortality, and production easily.</p>
+        <section class="section section-light" id="technology">
+            <div class="container">
+
+                <div class="section-heading-center">
+
+                    <div class="eyebrow">
+                        <i class="fa-solid fa-leaf"></i>
+                        Connected farm intelligence
+                    </div>
+
+                    <h2 class="section-title">
+                        One system for farm operations, records and
+                        environmental oversight
+                    </h2>
+
+                    <p class="section-description">
+                        Our digital platform connects everyday farm
+                        activities with clear records, performance reporting
+                        and remote environmental monitoring.
+                    </p>
+
+                </div>
+
+                <div class="feature-grid">
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            <i class="fa-solid fa-temperature-three-quarters"></i>
+                        </div>
+
+                        <h3>Remote Sensor Monitoring</h3>
+
+                        <p>
+                            Track shed temperature, humidity, ammonia,
+                            ventilation and other environmental conditions
+                            remotely from a connected dashboard.
+                        </p>
+
+                        <span class="feature-link">
+                            24/7 environmental visibility
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </span>
+
+                    </article>
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            <i class="fa-solid fa-layer-group"></i>
+                        </div>
+
+                        <h3>Batch Management</h3>
+
+                        <p>
+                            Maintain records for starting birds, mortality,
+                            birds sold, current stock, average weight and
+                            complete batch history.
+                        </p>
+
+                        <span class="feature-link">
+                            Complete production tracking
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </span>
+
+                    </article>
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            <i class="fa-solid fa-bowl-food"></i>
+                        </div>
+
+                        <h3>Feed and Medicine Records</h3>
+
+                        <p>
+                            Record feed consumption, feed cost, medicine
+                            purchases and treatment information for improved
+                            cost and flock management.
+                        </p>
+
+                        <span class="feature-link">
+                            Better cost control
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </span>
+
+                    </article>
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            <i class="fa-solid fa-chart-column"></i>
+                        </div>
+
+                        <h3>Financial Performance</h3>
+
+                        <p>
+                            Review COGS, locked sale cost, gross profit,
+                            expenses, realized income and ROI through
+                            structured finance reports.
+                        </p>
+
+                        <span class="feature-link">
+                            Clear profitability analysis
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </span>
+
+                    </article>
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            <i class="fa-solid fa-robot"></i>
+                        </div>
+
+                        <h3>AI-Assisted Insights</h3>
+
+                        <p>
+                            Use historical and sensor data to identify
+                            unusual patterns, support early warnings and
+                            improve operational decisions.
+                        </p>
+
+                        <span class="feature-link">
+                            Data-driven recommendations
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </span>
+
+                    </article>
+
+                    <article class="feature-card">
+
+                        <div class="feature-icon">
+                            <i class="fa-solid fa-user-shield"></i>
+                        </div>
+
+                        <h3>Secure Investor Access</h3>
+
+                        <p>
+                            Give authorized investors visibility into their
+                            bird share, allocated costs, sales, mortality,
+                            revenue and investment performance.
+                        </p>
+
+                        <span class="feature-link">
+                            Transparent reporting
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </span>
+
+                    </article>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =====================================================
+             TECHNOLOGY EXPLANATION
+        ====================================================== -->
+
+        <section class="section section-cream" id="ai">
+            <div class="container technology-grid">
+
+                <div class="tech-visual">
+
+                    <div class="tech-node node-one">
+                        <i class="fa-solid fa-tower-broadcast"></i>
+                        <strong>Connected Sensors</strong>
+                        <small>
+                            Environment data collected inside the farm
+                        </small>
+                    </div>
+
+                    <div class="tech-node node-two">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <strong>Secure Data</strong>
+                        <small>
+                            Records transmitted to the management platform
+                        </small>
+                    </div>
+
+                    <div class="tech-center">
+                        <i class="fa-solid fa-brain"></i>
+                        <strong>RayNoor Intelligence</strong>
+                        <small>Records + sensors + AI</small>
+                    </div>
+
+                    <div class="tech-node node-three">
+                        <i class="fa-solid fa-bell"></i>
+                        <strong>Smart Alerts</strong>
+                        <small>
+                            Notifications when conditions need attention
+                        </small>
+                    </div>
+
+                    <div class="tech-node node-four">
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                        <strong>Remote Access</strong>
+                        <small>
+                            Review farm conditions from phone or computer
+                        </small>
+                    </div>
+
+                </div>
+
+                <div>
+
+                    <div class="eyebrow">
+                        <i class="fa-solid fa-microchip"></i>
+                        Farm technology
+                    </div>
+
+                    <h2 class="section-title">
+                        From the poultry shed to your screen
+                    </h2>
+
+                    <p class="section-description">
+                        The system is designed to convert farm activity into
+                        useful information. Sensor readings and operational
+                        records are organized into one dashboard so
+                        management can respond faster and maintain a reliable
+                        history.
+                    </p>
+
+                    <div class="tech-list">
+
+                        <div class="tech-list-item">
+
+                            <div class="tech-list-number">
+                                01
+                            </div>
+
+                            <div>
+                                <h4>Collect accurate information</h4>
+
+                                <p>
+                                    Sensors and daily entries capture
+                                    environmental, mortality, feed, medicine,
+                                    sales and expense data.
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <div class="tech-list-item">
+
+                            <div class="tech-list-number">
+                                02
+                            </div>
+
+                            <div>
+                                <h4>Organize records automatically</h4>
+
+                                <p>
+                                    Information is linked to the correct batch,
+                                    date, investor allocation and financial
+                                    report.
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <div class="tech-list-item">
+
+                            <div class="tech-list-number">
+                                03
+                            </div>
+
+                            <div>
+                                <h4>Identify risks earlier</h4>
+
+                                <p>
+                                    AI-assisted rules can highlight temperature,
+                                    humidity, mortality or cost patterns that
+                                    require attention.
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <div class="tech-list-item">
+
+                            <div class="tech-list-number">
+                                04
+                            </div>
+
+                            <div>
+                                <h4>Support better decisions</h4>
+
+                                <p>
+                                    Management receives clearer information for
+                                    ventilation, feeding, sales timing and
+                                    profitability planning.
+                                </p>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =====================================================
+             HOW IT WORKS
+        ====================================================== -->
+
+        <section class="section section-dark">
+
+            <div class="container">
+
+                <div class="section-heading-center">
+
+                    <div
+                        class="eyebrow"
+                        style="
+                            color:#d9b85d;
+                            border-color:rgba(217,184,93,.25);
+                            background:rgba(217,184,93,.08);
+                        "
+                    >
+                        <i class="fa-solid fa-diagram-project"></i>
+                        How the system works
+                    </div>
+
+                    <h2
+                        class="section-title"
+                        style="color:#ffffff;"
+                    >
+                        A complete information flow from farm to management
+                    </h2>
+
+                    <p
+                        class="section-description"
+                        style="color:rgba(255,255,255,.66);"
+                    >
+                        Every record becomes part of a connected process that
+                        improves visibility, control and accountability.
+                    </p>
+
+                </div>
+
+                <div class="process-grid">
+
+                    <article class="process-card">
+                        <div class="process-number">1</div>
+
+                        <h3>Farm Activity</h3>
+
+                        <p>
+                            Birds are received, feed is issued, medicine is
+                            used, mortality is recorded and sales take place.
+                        </p>
+                    </article>
+
+                    <article class="process-card">
+                        <div class="process-number">2</div>
+
+                        <h3>Digital Recording</h3>
+
+                        <p>
+                            Each activity is entered against the correct batch
+                            to build an accurate operational history.
+                        </p>
+                    </article>
+
+                    <article class="process-card">
+                        <div class="process-number">3</div>
+
+                        <h3>Monitoring and Analysis</h3>
+
+                        <p>
+                            The platform combines records with sensor readings
+                            to show trends, exceptions and financial results.
+                        </p>
+                    </article>
+
+                    <article class="process-card">
+                        <div class="process-number">4</div>
+
+                        <h3>Management Action</h3>
+
+                        <p>
+                            Authorized users review dashboards and take
+                            informed action based on current farm conditions.
+                        </p>
+                    </article>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =====================================================
+             MANAGEMENT PLATFORM
+        ====================================================== -->
+
+        <section class="section section-light" id="platform">
+            <div class="container platform-grid">
+
+                <div>
+
+                    <div class="eyebrow">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        Management platform
+                    </div>
+
+                    <h2 class="section-title">
+                        Operational control with financial transparency
+                    </h2>
+
+                    <p class="section-description">
+                        RayNoor’s management system is built to connect flock
+                        performance with cost and revenue. This provides a
+                        clearer understanding of what is happening inside each
+                        batch.
+                    </p>
+
+                    <div class="check-list">
+
+                        <div class="check-item">
+
+                            <div class="check-icon">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+
+                            <p>
+                                <strong>Production control:</strong>
+                                starting birds, mortality, current birds,
+                                weights and sales.
+                            </p>
+
+                        </div>
+
+                        <div class="check-item">
+
+                            <div class="check-icon">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+
+                            <p>
+                                <strong>Cost control:</strong>
+                                chick cost, carriage, feed, medicine,
+                                electricity and operating expenses.
+                            </p>
+
+                        </div>
+
+                        <div class="check-item">
+
+                            <div class="check-icon">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+
+                            <p>
+                                <strong>Historical accuracy:</strong>
+                                locked COGS keeps previous sale results from
+                                changing when new costs are entered.
+                            </p>
+
+                        </div>
+
+                        <div class="check-item">
+
+                            <div class="check-icon">
+                                <i class="fa-solid fa-check"></i>
+                            </div>
+
+                            <p>
+                                <strong>Stakeholder visibility:</strong>
+                                separate admin and investor performance
+                                reporting.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="platform-card">
+
+                    <div class="platform-row">
+
+                        <div class="platform-row-left">
+
+                            <div class="platform-row-icon">
+                                <i class="fa-solid fa-dove"></i>
+                            </div>
+
+                            <div>
+                                <h4>Bird Position</h4>
+                                <p>
+                                    Starting, current, mortality and sold
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <span class="status-tag">
+                            Updated
+                        </span>
+
+                    </div>
+
+                    <div class="platform-row">
+
+                        <div class="platform-row-left">
+
+                            <div class="platform-row-icon">
+                                <i class="fa-solid fa-sack-dollar"></i>
+                            </div>
+
+                            <div>
+                                <h4>COGS Tracking</h4>
+                                <p>
+                                    Live and locked production cost
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <span class="status-tag">
+                            Controlled
+                        </span>
+
+                    </div>
+
+                    <div class="platform-row">
+
+                        <div class="platform-row-left">
+
+                            <div class="platform-row-icon">
+                                <i class="fa-solid fa-cart-shopping"></i>
+                            </div>
+
+                            <div>
+                                <h4>Sales History</h4>
+                                <p>
+                                    Weight, rate, discount and profit
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <span class="status-tag">
+                            Recorded
+                        </span>
+
+                    </div>
+
+                    <div class="platform-row">
+
+                        <div class="platform-row-left">
+
+                            <div class="platform-row-icon">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+
+                            <div>
+                                <h4>ROI Reporting</h4>
+                                <p>
+                                    Realized return on sold bird investment
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <span class="status-tag">
+                            Analysed
+                        </span>
+
+                    </div>
+
+                    <div class="platform-row">
+
+                        <div class="platform-row-left">
+
+                            <div class="platform-row-icon">
+                                <i class="fa-solid fa-people-group"></i>
+                            </div>
+
+                            <div>
+                                <h4>Investor Finance</h4>
+                                <p>
+                                    Ownership-based cost and revenue share
+                                </p>
+                            </div>
+
+                        </div>
+
+                        <span class="status-tag">
+                            Transparent
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =====================================================
+             ABOUT US
+        ====================================================== -->
+
+        <section class="section section-cream" id="about">
+            <div class="container about-grid">
+
+                <div class="about-visual">
+
+                    <div class="about-badge">
+                        <strong>RayNoor Organic Farms</strong>
+
+                        <span>
+                            Responsible farming supported by modern
+                            management technology
+                        </span>
+                    </div>
+
+                </div>
+
+                <div class="about-copy">
+
+                    <div class="eyebrow">
+                        <i class="fa-solid fa-seedling"></i>
+                        About RayNoor
+                    </div>
+
+                    <h2 class="section-title">
+                        Respect for nature. Discipline in management.
+                    </h2>
+
+                    <p>
+                        RayNoor Organic Farms was established with a vision
+                        to combine responsible animal care, transparent farm
+                        management and modern technology.
+                    </p>
+
+                    <p>
+                        We believe sustainable growth requires more than
+                        traditional experience. It also requires reliable
+                        records, measurable performance, responsible resource
+                        use and timely access to information.
+                    </p>
+
+                    <p>
+                        Our management platform supports this vision by
+                        creating a structured digital history of farm
+                        operations while preparing RayNoor for connected
+                        sensors and AI-assisted farm intelligence.
+                    </p>
+
+                    <div class="about-values">
+
+                        <div class="value-card">
+                            <i class="fa-solid fa-leaf"></i>
+                            <strong>Responsible Farming</strong>
+                            <span>Care, welfare and natural quality</span>
+                        </div>
+
+                        <div class="value-card">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <strong>Transparent Records</strong>
+                            <span>Clear and accountable reporting</span>
+                        </div>
+
+                        <div class="value-card">
+                            <i class="fa-solid fa-lightbulb"></i>
+                            <strong>Practical Innovation</strong>
+                            <span>Technology with real farm value</span>
+                        </div>
+
+                        <div class="value-card">
+                            <i class="fa-solid fa-chart-simple"></i>
+                            <strong>Measured Growth</strong>
+                            <span>Decisions supported by data</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =====================================================
+             CTA
+        ====================================================== -->
+
+        <section class="section">
+            <div class="container">
+
+                <div class="cta-box">
+
+                    <div>
+                        <h2>
+                            A smarter way to manage every bird, batch and
+                            farm decision.
+                        </h2>
+
+                        <p>
+                            Access the RayNoor management system to review
+                            operational records, financial performance and
+                            connected farm information.
+                        </p>
+                    </div>
+
+                    {% if user.is_authenticated %}
+
+                        <a
+                            href="{% url 'dashboard' %}"
+                            class="btn btn-primary"
+                        >
+                            Open Dashboard
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+
+                    {% else %}
+
+                        <a
+                            href="{% url 'login' %}"
+                            class="btn btn-primary"
+                        >
+                            Login to Continue
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+
+                    {% endif %}
+
+                </div>
+
+            </div>
+        </section>
+
+    </main>
+
+    <!-- =====================================================
+         FOOTER
+    ====================================================== -->
+
+    <footer class="site-footer">
+        <div class="container">
+
+            <div class="footer-grid">
+
+                <div class="footer-brand">
+
+                    <div class="brand">
+
+                        <div class="brand-logo">
+                            <img
+                                src="{% static 'images/RAYNOOR-2-LOGO.png' %}"
+                                alt="RayNoor Organic Farms"
+                            >
+                        </div>
+
+                        <div>
+                            <span
+                                class="brand-name"
+                                style="color:#ffffff;"
+                            >
+                                RayNoor Organic Farms
+                            </span>
+
+                            <span class="brand-subtitle">
+                                Committed to Organic Excellence
+                            </span>
+                        </div>
+
+                    </div>
+
+                    <p>
+                        Combining responsible farming, digital record
+                        management, remote monitoring and AI-ready
+                        intelligence.
+                    </p>
+
+                </div>
+
+                <div>
+
+                    <h4 class="footer-title">
+                        Platform
+                    </h4>
+
+                    <div class="footer-links">
+                        <a href="#technology">Technology</a>
+                        <a href="#platform">Farm Management</a>
+                        <a href="#ai">AI Intelligence</a>
+                        <a href="{% url 'login' %}">System Login</a>
+                    </div>
+
+                </div>
+
+                <div>
+
+                    <h4 class="footer-title">
+                        Farm Records
+                    </h4>
+
+                    <div class="footer-links">
+                        <span>Batch Tracking</span>
+                        <span>Feed and Medicine</span>
+                        <span>Sales and COGS</span>
+                        <span>Investor Reporting</span>
+                    </div>
+
+                </div>
+
+                <div>
+
+                    <h4 class="footer-title">
+                        Our Commitment
+                    </h4>
+
+                    <div class="footer-links">
+                        <span>Responsible animal care</span>
+                        <span>Reliable farm records</span>
+                        <span>Transparent management</span>
+                        <span>Technology-led improvement</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="footer-bottom">
+
+                <span>
+                    © 2026 RayNoor Organic Farms. All rights reserved.
+                </span>
+
+                <span>
+                    Organic by nature. Managed with intelligence.
+                </span>
+
+            </div>
+
         </div>
-    </div>
+    </footer>
 
 </body>
 </html>
