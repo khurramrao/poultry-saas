@@ -1,0 +1,604 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        {% block title %}
+            RayNoor Organic Farms
+        {% endblock %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f5f7fb;
+            color: #10233f;
+        }
+
+        .app-layout {
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* ================= SIDEBAR ================= */
+
+        .sidebar {
+            width: 230px;
+            min-height: 100vh;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            flex-shrink: 0;
+
+            display: flex;
+            flex-direction: column;
+
+            padding: 16px 14px;
+            background: linear-gradient(
+                180deg,
+                #042b4f,
+                #00325c
+            );
+
+            color: white;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            padding: 0 7px 16px;
+            text-align: center;
+        }
+
+        .sidebar-logo img {
+            width: 190px;
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+
+            padding: 12px 13px;
+            border-radius: 9px;
+
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 700;
+
+            transition: background 0.2s;
+        }
+
+        .sidebar-nav a i {
+            width: 20px;
+            text-align: center;
+            font-size: 17px;
+        }
+
+        .sidebar-nav a:hover,
+        .sidebar-nav a.active {
+            background: linear-gradient(
+                90deg,
+                #2570d7,
+                #1661bd
+            );
+        }
+
+        .nav-badge {
+            margin-left: auto;
+            min-width: 22px;
+            height: 22px;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 0 6px;
+            border-radius: 999px;
+
+            background: #ff4d54;
+            color: white;
+            font-size: 11px;
+        }
+
+        .sidebar-divider {
+            height: 1px;
+            margin: 10px 4px;
+            background: rgba(255, 255, 255, 0.16);
+        }
+
+        /* ================= MAIN ================= */
+
+        .main-content {
+            min-width: 0;
+            flex: 1;
+        }
+
+        .topbar {
+            height: 64px;
+
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 24px;
+
+            padding: 0 28px;
+
+            background: white;
+            border-bottom: 1px solid #e6ebf2;
+        }
+
+        .notification-link {
+            position: relative;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            color: #122f4c;
+            text-decoration: none;
+            font-size: 22px;
+        }
+
+        .notification-link:hover {
+            color: #155fc3;
+        }
+
+        .bell-badge {
+            position: absolute;
+            top: -10px;
+            right: -11px;
+
+            min-width: 19px;
+            height: 19px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 0 5px;
+            border-radius: 999px;
+
+            background: #f0444b;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .top-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            padding: 9px 10px 9px 22px;
+            border-left: 1px solid #e6ebf2;
+            border-radius: 8px;
+
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .top-user:hover {
+            background: #f5f8fc;
+        }
+
+        .user-dropdown {
+            position: absolute;
+            top: calc(100% + 10px);
+            right: 0;
+            z-index: 3000;
+
+            width: 185px;
+            display: none;
+
+            padding: 6px;
+
+            background: white;
+            border: 1px solid #e4eaf2;
+            border-radius: 10px;
+            box-shadow: 0 10px 24px rgba(20, 45, 75, 0.14);
+        }
+
+        .user-dropdown.show {
+            display: block;
+        }
+
+        .user-dropdown a,
+        .user-dropdown button {
+            width: 100%;
+
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            padding: 11px 12px;
+            border: 0;
+            border-radius: 7px;
+
+            background: transparent;
+            color: #183550;
+
+            text-align: left;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .user-dropdown a:hover {
+            background: #f2f7fd;
+            color: #155fc3;
+        }
+
+        .user-dropdown button {
+            color: #c92e35;
+        }
+
+        .user-dropdown button:hover {
+            background: #fff0f0;
+        }
+
+        .page-content {
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* ================= MESSAGES ================= */
+
+        .django-message {
+            margin-bottom: 16px;
+            padding: 13px 16px;
+
+            border: 1px solid #b8e1c4;
+            border-radius: 10px;
+
+            background: #e8f7ed;
+            color: #176d31;
+        }
+
+        .django-message.error {
+            border-color: #f1b9b9;
+            background: #fff0f0;
+            color: #ba2929;
+        }
+
+        /* ================= MOBILE ================= */
+
+        @media (max-width: 850px) {
+            .app-layout {
+                display: block;
+            }
+
+            .sidebar {
+                position: relative;
+                width: 100%;
+                min-height: auto;
+                height: auto;
+            }
+
+            .sidebar-logo img {
+                width: 160px;
+            }
+
+            .sidebar-nav {
+                display: grid;
+                grid-template-columns:
+                    repeat(auto-fit, minmax(175px, 1fr));
+            }
+
+            .topbar {
+                padding: 0 16px;
+            }
+
+            .page-content {
+                padding: 16px;
+            }
+        }
+    </style>
+
+    {% block extra_css %}
+    {% endblock %}
+</head>
+
+<body>
+
+<div class="app-layout">
+
+    <aside class="sidebar">
+
+        <div class="sidebar-logo">
+            <img
+                src="{% static 'images/RAYNOOR-2-LOGO.png' %}"
+                alt="RayNoor Organic Farms"
+            >
+        </div>
+
+        <nav class="sidebar-nav">
+
+            <a
+                href="{% url 'dashboard' %}"
+                class="
+                    {% if request.resolver_match.url_name == 'dashboard' %}
+                        active
+                    {% endif %}
+                "
+            >
+                <i class="fa-solid fa-house"></i>
+                <span>Dashboard</span>
+            </a>
+
+            {% if request.user.is_superuser or request.user.is_staff %}
+                <a
+                    href="{% url 'relay_control' %}"
+                    class="
+                        {% if request.resolver_match.url_name == 'relay_control' or request.resolver_match.url_name == 'set_relay_state' %}
+                            active
+                        {% endif %}
+                    "
+                >
+                    <i class="fa-solid fa-toggle-on"></i>
+                    <span>Electrical Controls</span>
+                </a>
+            {% endif %}
+
+            <a
+                href="{% url 'daily_log' %}"
+                class="
+                    {% if request.resolver_match.url_name == 'daily_log' %}
+                        active
+                    {% endif %}
+                "
+            >
+                <i class="fa-regular fa-calendar-check"></i>
+                <span>Daily Log</span>
+
+                {% if new_log_count > 0 %}
+                    <span class="nav-badge">
+                        {{ new_log_count }}
+                    </span>
+                {% endif %}
+            </a>
+
+            {% if request.user.is_superuser or request.user.is_staff %}
+
+                <a
+                    href="{% url 'user_activity' %}"
+                    class="
+                        {% if request.resolver_match.url_name == 'user_activity' %}
+                            active
+                        {% endif %}
+                    "
+                >
+                    <i class="fa-solid fa-user-clock"></i>
+                    <span>User Activity</span>
+                </a>
+
+                <a
+                    href="{% url 'active_batches' %}"
+                    class="
+                        {% if request.resolver_match.url_name == 'active_batches' %}
+                            active
+                        {% endif %}
+                    "
+                >
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Active Batches</span>
+                </a>
+
+                <a
+                    href="{% url 'ownership_shares' %}"
+                    class="
+                        {% if request.resolver_match.url_name == 'ownership_shares' %}
+                            active
+                        {% endif %}
+                    "
+                >
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Ownership Shares</span>
+                </a>
+
+                <a
+                    href="{% url 'add_sale_record' %}"
+                >
+                    <i class="fa-solid fa-circle-down"></i>
+                    <span>Sales</span>
+                </a>
+
+                <a href="#">
+                    <i class="fa-solid fa-syringe"></i>
+                    <span>Vaccine Records</span>
+                </a>
+
+                <a href="#">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Settings</span>
+                </a>
+
+            {% endif %}
+
+            <div class="sidebar-divider"></div>
+
+            <a href="{% url 'finance_tracker' %}">
+                <i class="fa-regular fa-money-bill-1"></i>
+                <span>Finance Tracker</span>
+            </a>
+
+            <a href="{% url 'feed_list' %}">
+                <i class="fa-solid fa-bucket"></i>
+                <span>Feed Management</span>
+            </a>
+
+            <a href="{% url 'medicine_list' %}">
+                <i class="fa-solid fa-suitcase-medical"></i>
+                <span>Medicine</span>
+            </a>
+
+            <a href="{% url 'expense_list' %}">
+                <i class="fa-regular fa-clipboard"></i>
+                <span>Expenses</span>
+            </a>
+
+            <a href="{% url 'batch_report' %}">
+                <i class="fa-regular fa-chart-bar"></i>
+                <span>Reports</span>
+            </a>
+
+        </nav>
+
+    </aside>
+
+    <main class="main-content">
+
+        <div class="topbar">
+
+            <a
+                href="{% url 'daily_log' %}"
+                class="notification-link"
+                title="View activity"
+            >
+                <i class="fa-regular fa-bell"></i>
+
+                {% if new_log_count > 0 %}
+                    <span class="bell-badge">
+                        {{ new_log_count }}
+                    </span>
+                {% endif %}
+            </a>
+
+            <div class="user-menu">
+
+                <div
+                    class="top-user"
+                    id="topUserButton"
+                    role="button"
+                >
+                    <span>
+                        {% if request.user.first_name %}
+                            {{ request.user.first_name|title }}
+                            {{ request.user.last_name|title }}
+                        {% else %}
+                            {{ request.user.username|title }}
+                        {% endif %}
+                    </span>
+
+                    <i class="fa-solid fa-angle-down"></i>
+                </div>
+
+                <div
+                    class="user-dropdown"
+                    id="userDropdown"
+                >
+                    <a href="{% url 'user_profile' %}">
+                        <i class="fa-regular fa-user"></i>
+                        My Profile
+                    </a>
+
+                    <form
+                        method="post"
+                        action="{% url 'logout' %}"
+                    >
+                        {% csrf_token %}
+
+                        <button type="submit">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                            Logout
+                        </button>
+                    </form>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="page-content">
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div
+                        class="django-message
+                        {% if message.tags %}{{ message.tags }}{% endif %}"
+                    >
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            {% block content %}
+            {% endblock %}
+
+        </div>
+
+    </main>
+
+</div>
+
+<script>
+    const topUserButton = document.getElementById(
+        "topUserButton"
+    );
+
+    const userDropdown = document.getElementById(
+        "userDropdown"
+    );
+
+    if (topUserButton && userDropdown) {
+        topUserButton.addEventListener(
+            "click",
+            function (event) {
+                event.stopPropagation();
+                userDropdown.classList.toggle("show");
+            }
+        );
+
+        document.addEventListener(
+            "click",
+            function (event) {
+                if (
+                    !topUserButton.contains(event.target) &&
+                    !userDropdown.contains(event.target)
+                ) {
+                    userDropdown.classList.remove("show");
+                }
+            }
+        );
+    }
+</script>
+
+{% block extra_js %}
+{% endblock %}
+
+</body>
+</html>

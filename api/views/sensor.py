@@ -35,6 +35,7 @@ from api.models.sensor import (
     Shed,
     VaccineRecord,
     VaccineSchedule,
+    RelayChannel
 )
 from api.models.temperature import TemperatureRule
 
@@ -56,7 +57,7 @@ from django.utils import timezone
 
 from django.utils.timesince import timesince
 from django.contrib.auth import logout
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_GET, require_POST
 
 
 @csrf_exempt
@@ -97,6 +98,215 @@ def receive_sensor_data(request):
 
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)})
+
+@csrf_exempt
+@require_POST
+def get_relay_commands(request):
+    try:
+        data = json.loads(request.body)
+
+        api_key = data.get("api_key")
+        device_id = data.get("device_id")
+
+        if api_key != settings.ESP32_API_KEY:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "Unauthorized",
+                },
+                status=401,
+            )
+
+        if not device_id:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "device_id is required",
+                },
+                status=400,
+            )
+
+        device = Device.objects.filter(
+            device_id=device_id,
+            is_active=True,
+        ).first()
+
+        if not device:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "Device not registered or disabled",
+                },
+                status=404,
+            )
+
+        relay_channels = RelayChannel.objects.filter(
+            device=device,
+            is_enabled=True,
+        ).order_by("channel_number")
+
+        relays = []
+
+        for relay in relay_channels:
+            relays.append(
+                {
+                    "channel": relay.channel_number,
+                    "gpio": relay.gpio_pin,
+                    "name": relay.name,
+                    "load_type": relay.load_type,
+                    "desired_state": relay.desired_state,
+                }
+            )
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "device_id": device.device_id,
+                "relays": relays,
+            }
+        )
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": "Invalid JSON",
+            },
+            status=400,
+        )
+
+    except Exception as error:
+        logger.exception("Relay command API failed: %s", error)
+
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": str(error),
+            },
+            status=500,
+        )
+@csrf_exempt
+@require_POST
+def report_relay_states(request):
+    try:
+        data = json.loads(request.body)
+
+        api_key = data.get("api_key")
+        device_id = data.get("device_id")
+        relay_states = data.get("relays", [])
+
+        if api_key != settings.ESP32_API_KEY:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "Unauthorized",
+                },
+                status=401,
+            )
+
+        if not device_id:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "device_id is required",
+                },
+                status=400,
+            )
+
+        if not isinstance(relay_states, list):
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "relays must be a list",
+                },
+                status=400,
+            )
+
+        device = Device.objects.filter(
+            device_id=device_id,
+            is_active=True,
+        ).first()
+
+        if not device:
+            return JsonResponse(
+                {
+                    "status": "error",
+                    "message": "Device not registered or disabled",
+                },
+                status=404,
+            )
+
+        updated_relays = []
+
+        for relay_data in relay_states:
+            channel_number = relay_data.get("channel")
+            actual_state = relay_data.get("actual_state")
+
+            if channel_number is None:
+                continue
+
+            if not isinstance(actual_state, bool):
+                continue
+
+            relay = RelayChannel.objects.filter(
+                device=device,
+                channel_number=channel_number,
+                is_enabled=True,
+            ).first()
+
+            if not relay:
+                continue
+
+            relay.actual_state = actual_state
+            relay.reported_at = timezone.now()
+            relay.last_error = ""
+
+            relay.save(
+                update_fields=[
+                    "actual_state",
+                    "reported_at",
+                    "last_error",
+                ]
+            )
+
+            updated_relays.append(
+                {
+                    "channel": relay.channel_number,
+                    "actual_state": relay.actual_state,
+                }
+            )
+
+        return JsonResponse(
+            {
+                "status": "success",
+                "device_id": device.device_id,
+                "updated_count": len(updated_relays),
+                "relays": updated_relays,
+            }
+        )
+
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": "Invalid JSON",
+            },
+            status=400,
+        )
+
+    except Exception as error:
+        logger.exception(
+            "Relay status API failed: %s",
+            error,
+        )
+
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": str(error),
+            },
+            status=500,
+        )
 
 
 def ensure_vaccine_records(batch, shed_type):
@@ -292,7 +502,10 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
 
 
     for shed in sheds:
-        devices = Device.objects.filter(shed=shed)
+        devices = Device.objects.filter(
+            shed=shed,
+            is_active=True,
+        )
 
         latest = None
         latest_readings = []
@@ -552,7 +765,7 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
         dashboard_rows.append({
             "shed": shed,
             "devices": devices,
-            "device": devices.first(),
+            "device": latest.device if latest else devices.first(),
             "latest": latest,
             "device_offline": device_offline,
             "temperature_status": temperature_status,
@@ -1230,3 +1443,179 @@ def close_batch(request, batch_id):
     )
 
     return redirect("active_batches")
+
+
+@login_required
+def relay_control(request):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        messages.error(
+            request,
+            "Only admin can control electrical outputs.",
+        )
+        return redirect("dashboard")
+
+    relay_channels = (
+        RelayChannel.objects.filter(
+            device__is_active=True,
+            is_enabled=True,
+        )
+        .select_related(
+            "device",
+            "device__shed",
+            "changed_by",
+        )
+        .order_by(
+            "device__device_id",
+            "channel_number",
+        )
+    )
+
+    return render(
+        request,
+        "api/relay_control.html",
+        {
+            "relay_channels": relay_channels,
+            "is_admin": is_admin,
+        },
+    )
+
+@login_required
+@require_GET
+def relay_status_snapshot(request):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        return JsonResponse(
+            {
+                "status": "error",
+                "message": "Permission denied",
+            },
+            status=403,
+        )
+
+    relays = (
+        RelayChannel.objects.filter(
+            device__is_active=True,
+            is_enabled=True,
+        )
+        .select_related(
+            "device",
+            "device__shed",
+        )
+        .order_by(
+            "device__device_id",
+            "channel_number",
+        )
+    )
+
+    relay_data = []
+
+    for relay in relays:
+        relay_data.append(
+            {
+                "id": relay.id,
+                "name": relay.name,
+                "desired_state": relay.desired_state,
+                "actual_state": relay.actual_state,
+                "reported": relay.reported_at is not None,
+                "reported_at": (
+                    relay.reported_at.isoformat()
+                    if relay.reported_at
+                    else None
+                ),
+            }
+        )
+
+    return JsonResponse(
+        {
+            "status": "success",
+            "relays": relay_data,
+        }
+    )
+
+
+@login_required
+@require_POST
+def set_relay_state(request, relay_id):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        messages.error(
+            request,
+            "Only admin can control electrical outputs.",
+        )
+        return redirect("dashboard")
+
+    relay = get_object_or_404(
+        RelayChannel.objects.select_related("device"),
+        id=relay_id,
+        is_enabled=True,
+        device__is_active=True,
+    )
+
+    requested_state = request.POST.get("state", "").strip().lower()
+
+    if requested_state not in {"on", "off"}:
+        messages.error(request, "Invalid relay command.")
+        if request.POST.get("return_to") == "detail":
+            return redirect(
+                "relay_detail",
+                relay_id=relay.id,
+            )
+
+        return redirect("relay_control")
+
+    relay.desired_state = requested_state == "on"
+    relay.commanded_at = timezone.now()
+    relay.changed_by = request.user
+    relay.last_error = ""
+
+    relay.save(
+        update_fields=[
+            "desired_state",
+            "commanded_at",
+            "changed_by",
+            "last_error",
+        ]
+    )
+
+    messages.success(
+        request,
+        f"{relay.name} command changed to "
+        f"{'ON' if relay.desired_state else 'OFF'}.",
+    )
+
+    return redirect("relay_control")
+
+@login_required
+def relay_detail(request, relay_id):
+    is_admin = request.user.is_superuser or request.user.is_staff
+
+    if not is_admin:
+        messages.error(
+            request,
+            "Only admin can view electrical controls.",
+        )
+        return redirect("dashboard")
+
+    relay = get_object_or_404(
+        RelayChannel.objects.select_related(
+            "device",
+            "device__shed",
+            "changed_by",
+        ),
+        id=relay_id,
+        device__is_active=True,
+        is_enabled=True,
+    )
+
+    return render(
+        request,
+        "api/relay_detail.html",
+        {
+            "relay": relay,
+            "is_admin": True,
+        },
+    )

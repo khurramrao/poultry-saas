@@ -4,6 +4,7 @@ from api.models import InvestorProfile, InvestorAllocation, BatchCost, FeedEntry
 from api.models.sensor import (
     Shed,
     Device,
+    RelayChannel,
     Batch,
     SensorData,
     MortalityRecord,
@@ -142,6 +143,44 @@ class MedicineEntryAdmin(admin.ModelAdmin):
 @admin.register(ChickCostEntry)
 class ChickCostEntry(admin.ModelAdmin):
     list_display = ("batch", "chick_cost", "carriage_cost", "notes", "created_at")
+
+@admin.register(RelayChannel)
+class RelayChannelAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "device",
+        "channel_number",
+        "name",
+        "gpio_pin",
+        "load_type",
+        "is_enabled",
+        "desired_state",
+        "actual_state",
+        "commanded_at",
+        "reported_at",
+    )
+
+    list_filter = (
+        "device",
+        "load_type",
+        "is_enabled",
+        "desired_state",
+        "actual_state",
+    )
+
+    search_fields = (
+        "device__device_id",
+        "name",
+    )
+
+    ordering = (
+        "device",
+        "channel_number",
+    )
+
+
+
+
 
 admin.site.register(UserProfile)
 admin.site.register(TemperatureRule)

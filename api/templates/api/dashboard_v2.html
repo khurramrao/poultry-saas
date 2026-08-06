@@ -1179,6 +1179,12 @@
                 <i class="fa-solid fa-house"></i>
                 <span>Dashboard</span>
             </a>
+            {% if is_admin %}
+                <a href="{% url 'relay_control' %}">
+                    <i class="fa-solid fa-toggle-on"></i>
+                    <span>Electrical Controls</span>
+                </a>
+            {% endif %}
 
             <a href="{% url 'daily_log' %}">
                 <i class="fa-regular fa-calendar-check"></i>
@@ -1542,21 +1548,14 @@
                                 <h3 class="{% if shed_kind == 'layer' %}layer-shed-title{% endif %}">
                                     {{ row.shed.name }}
                                 </h3>
-
-                                <p>
-                                    Device:
-                                    {% if row.device %}
-                                        {% if row.device.device_id == "esp32_shed_1" %}
-                                            DEV-01
-                                        {% elif row.device.device_id == "esp32_shed_2" %}
-                                            DEV-02
+                                    <p>
+                                        Device:
+                                        {% if row.device %}
+                                            {{ row.device.display_name }}
                                         {% else %}
-                                            {{ row.device.device_id }}
+                                            No active device assigned
                                         {% endif %}
-                                    {% else %}
-                                        No device assigned
-                                    {% endif %}
-                                </p>
+                                    </p>
 
                                 <p class="device-update">
                                     <span>Last update:</span>

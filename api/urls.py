@@ -4,6 +4,40 @@ from api.views import sensor, camera, sales, logs, finance_tracker
 
 urlpatterns = [
     path("sensor-data/", sensor.receive_sensor_data),
+path(
+    "relay-commands/",
+    sensor.get_relay_commands,
+    name="get_relay_commands",
+),
+path(
+    "relay-status/",
+    sensor.report_relay_states,
+    name="report_relay_states",
+),
+
+path(
+    "relay-control/",
+    sensor.relay_control,
+    name="relay_control",
+),
+
+path(
+    "relay-control/<int:relay_id>/set/",
+    sensor.set_relay_state,
+    name="set_relay_state",
+),
+
+path(
+    "relay-control/status/",
+    sensor.relay_status_snapshot,
+    name="relay_status_snapshot",
+),
+
+path(
+    "relay-control/<int:relay_id>/",
+    sensor.relay_detail,
+    name="relay_detail",
+),
     path("dashboard/", sensor.dashboard, name="dashboard"),
     path("vaccines/<int:batch_id>/", sensor.vaccine_records, name="vaccine_records"),
     path("ownership-shares/", sensor.ownership_shares, name="ownership_shares"),

@@ -1,0 +1,392 @@
+{% extends "api/base_dashboard.html" %}
+
+{% block title %}
+    Electrical Controls
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .control-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+
+        margin-bottom: 20px;
+        padding: 22px;
+
+        background: white;
+        border: 1px solid #e1e8f1;
+        border-radius: 14px;
+    }
+
+    .control-header h1 {
+        margin: 0;
+        font-size: 25px;
+    }
+
+    .control-header p {
+        margin: 7px 0 0;
+        color: #64748b;
+    }
+
+    .relay-count {
+        padding: 10px 15px;
+        border-radius: 10px;
+        background: #eaf3ff;
+        color: #135ba9;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+
+    .relay-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(auto-fit, minmax(245px, 1fr));
+        gap: 15px;
+    }
+
+    .relay-card {
+        padding: 17px;
+
+        background: white;
+        border: 1px solid #dfe6ef;
+        border-radius: 13px;
+    }
+
+    .relay-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .relay-name {
+        margin: 0;
+        font-size: 18px;
+    }
+
+    .relay-location {
+        margin-top: 5px;
+        color: #718096;
+        font-size: 13px;
+    }
+
+    .state-badge {
+        padding: 5px 9px;
+        border-radius: 999px;
+
+        font-size: 11px;
+        font-weight: bold;
+        white-space: nowrap;
+    }
+
+    .state-on {
+        color: #087936;
+        background: #dff5e7;
+    }
+
+    .state-off {
+        color: #c52d2d;
+        background: #fde4e4;
+    }
+
+    .state-changing {
+        color: #a66300;
+        background: #fff0ce;
+    }
+
+    .state-unavailable {
+        color: #596579;
+        background: #edf1f5;
+    }
+
+    .relay-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+
+        margin-top: 18px;
+    }
+
+    .relay-actions form {
+        margin: 0;
+    }
+
+    .relay-button {
+        width: 100%;
+        padding: 11px;
+
+        border: 0;
+        border-radius: 8px;
+
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .relay-button-on {
+        background: #149447;
+    }
+
+    .relay-button-off {
+        background: #df3d3d;
+    }
+
+    .relay-button:disabled {
+        opacity: 0.42;
+        cursor: not-allowed;
+    }
+
+    .details-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+
+        margin-top: 15px;
+        padding-top: 13px;
+
+        border-top: 1px solid #edf0f4;
+
+        color: #1767bd;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: bold;
+    }
+
+    .details-link:hover {
+        color: #0d4c90;
+    }
+
+    .empty-state {
+        padding: 30px;
+        background: white;
+        border: 1px solid #dfe6ef;
+        border-radius: 13px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="control-header">
+    <div>
+        <h1>
+            <i class="fa-solid fa-bolt"></i>
+            Electrical Controls
+        </h1>
+
+        <p>
+            Remote control for configured electrical equipment.
+        </p>
+    </div>
+
+    <div class="relay-count">
+        {{ relay_channels|length }} Configured Outputs
+    </div>
+</div>
+
+<div class="relay-grid">
+
+    {% for relay in relay_channels %}
+
+        <article
+            class="relay-card"
+            data-relay-id="{{ relay.id }}"
+        >
+
+            <div class="relay-card-top">
+
+                <div>
+                    <h2 class="relay-name">
+                        {{ relay.name }}
+                    </h2>
+
+                    <div class="relay-location">
+                        {{ relay.device.shed.name }}
+                    </div>
+                </div>
+
+                <span
+                    class="state-badge"
+                    data-role="state"
+                >
+                    {% if not relay.reported_at %}
+                        NOT REPORTED
+                    {% elif relay.desired_state != relay.actual_state %}
+                        CHANGING
+                    {% elif relay.actual_state %}
+                        ON
+                    {% else %}
+                        OFF
+                    {% endif %}
+                </span>
+
+            </div>
+
+            <div class="relay-actions">
+
+                <form
+                    method="post"
+                    action="{% url 'set_relay_state' relay.id %}"
+                >
+                    {% csrf_token %}
+
+                    <input
+                        type="hidden"
+                        name="state"
+                        value="on"
+                    >
+
+                    <button
+                        type="submit"
+                        class="relay-button relay-button-on"
+                        data-role="on-button"
+                        {% if relay.desired_state %}disabled{% endif %}
+                    >
+                        <i class="fa-solid fa-power-off"></i>
+                        ON
+                    </button>
+                </form>
+
+                <form
+                    method="post"
+                    action="{% url 'set_relay_state' relay.id %}"
+                >
+                    {% csrf_token %}
+
+                    <input
+                        type="hidden"
+                        name="state"
+                        value="off"
+                    >
+
+                    <button
+                        type="submit"
+                        class="relay-button relay-button-off"
+                        data-role="off-button"
+                        {% if not relay.desired_state %}disabled{% endif %}
+                    >
+                        <i class="fa-regular fa-circle-stop"></i>
+                        OFF
+                    </button>
+                </form>
+
+            </div>
+
+            <a
+                href="{% url 'relay_detail' relay.id %}"
+                class="details-link"
+            >
+                <span>View details</span>
+                <i class="fa-solid fa-chevron-right"></i>
+            </a>
+
+        </article>
+
+    {% empty %}
+
+        <div class="empty-state">
+            No enabled electrical outputs are configured.
+        </div>
+
+    {% endfor %}
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const relayStatusUrl =
+        "{% url 'relay_status_snapshot' %}";
+
+    function setBadgeState(badge, relay) {
+        badge.className = "state-badge";
+
+        if (!relay.reported) {
+            badge.textContent = "NOT REPORTED";
+            badge.classList.add("state-unavailable");
+            return;
+        }
+
+        if (relay.desired_state !== relay.actual_state) {
+            badge.textContent = "CHANGING";
+            badge.classList.add("state-changing");
+            return;
+        }
+
+        if (relay.actual_state) {
+            badge.textContent = "ON";
+            badge.classList.add("state-on");
+        } else {
+            badge.textContent = "OFF";
+            badge.classList.add("state-off");
+        }
+    }
+
+    async function refreshRelayStates() {
+        try {
+            const response = await fetch(
+                relayStatusUrl,
+                {
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                return;
+            }
+
+            const data = await response.json();
+
+            if (data.status !== "success") {
+                return;
+            }
+
+            data.relays.forEach(function (relay) {
+                const card = document.querySelector(
+                    `[data-relay-id="${relay.id}"]`
+                );
+
+                if (!card) {
+                    return;
+                }
+
+                const badge = card.querySelector(
+                    '[data-role="state"]'
+                );
+
+                const onButton = card.querySelector(
+                    '[data-role="on-button"]'
+                );
+
+                const offButton = card.querySelector(
+                    '[data-role="off-button"]'
+                );
+
+                setBadgeState(badge, relay);
+
+                onButton.disabled = relay.desired_state;
+                offButton.disabled = !relay.desired_state;
+            });
+
+        } catch (error) {
+            console.error(
+                "Relay status refresh failed:",
+                error
+            );
+        }
+    }
+
+    refreshRelayStates();
+
+    window.setInterval(
+        refreshRelayStates,
+        2000
+    );
+</script>
+{% endblock %}

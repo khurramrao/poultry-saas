@@ -1,0 +1,309 @@
+{% extends "api/base_dashboard.html" %}
+
+{% block title %}
+    {{ relay.name }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-page {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+
+        margin-bottom: 15px;
+
+        color: #1767bd;
+        text-decoration: none;
+        font-weight: bold;
+    }
+
+    .detail-card {
+        padding: 25px;
+
+        background: white;
+        border: 1px solid #dfe6ef;
+        border-radius: 15px;
+    }
+
+    .detail-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+
+        margin-bottom: 24px;
+    }
+
+    .detail-heading h1 {
+        margin: 0;
+    }
+
+    .detail-heading p {
+        margin: 7px 0 0;
+        color: #6c7b90;
+    }
+
+    .detail-state {
+        padding: 8px 13px;
+        border-radius: 999px;
+
+        background: #edf1f5;
+        font-weight: bold;
+    }
+
+    .detail-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+
+        margin-bottom: 25px;
+    }
+
+    .detail-actions form {
+        margin: 0;
+    }
+
+    .detail-button {
+        width: 100%;
+        padding: 14px;
+
+        border: 0;
+        border-radius: 9px;
+
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .detail-button-on {
+        background: #149447;
+    }
+
+    .detail-button-off {
+        background: #df3d3d;
+    }
+
+    .detail-button:disabled {
+        opacity: 0.42;
+        cursor: not-allowed;
+    }
+
+    .information-grid {
+        display: grid;
+        grid-template-columns:
+            repeat(auto-fit, minmax(220px, 1fr));
+        gap: 14px;
+    }
+
+    .information-item {
+        padding: 15px;
+
+        background: #f7f9fc;
+        border: 1px solid #e6ebf2;
+        border-radius: 10px;
+    }
+
+    .information-item span {
+        display: block;
+        margin-bottom: 5px;
+
+        color: #718096;
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+
+    .information-item strong {
+        font-size: 15px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="detail-page">
+
+    <a
+        href="{% url 'relay_control' %}"
+        class="back-link"
+    >
+        <i class="fa-solid fa-arrow-left"></i>
+        Back to Electrical Controls
+    </a>
+
+    <div class="detail-card">
+
+        <div class="detail-heading">
+            <div>
+                <h1>{{ relay.name }}</h1>
+
+                <p>
+                    {{ relay.device.shed.name }}
+                    · {{ relay.device.display_name }}
+                </p>
+            </div>
+
+            <div class="detail-state">
+                {% if not relay.reported_at %}
+                    Not reported
+                {% elif relay.desired_state != relay.actual_state %}
+                    Changing
+                {% elif relay.actual_state %}
+                    ON
+                {% else %}
+                    OFF
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="detail-actions">
+
+            <form
+                method="post"
+                action="{% url 'set_relay_state' relay.id %}"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="state"
+                    value="on"
+                >
+
+                <input
+                    type="hidden"
+                    name="return_to"
+                    value="detail"
+                >
+
+                <button
+                    type="submit"
+                    class="detail-button detail-button-on"
+                    {% if relay.desired_state %}disabled{% endif %}
+                >
+                    Turn ON
+                </button>
+            </form>
+
+            <form
+                method="post"
+                action="{% url 'set_relay_state' relay.id %}"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="state"
+                    value="off"
+                >
+
+                <input
+                    type="hidden"
+                    name="return_to"
+                    value="detail"
+                >
+
+                <button
+                    type="submit"
+                    class="detail-button detail-button-off"
+                    {% if not relay.desired_state %}disabled{% endif %}
+                >
+                    Turn OFF
+                </button>
+            </form>
+
+        </div>
+
+        <div class="information-grid">
+
+            <div class="information-item">
+                <span>Device</span>
+                <strong>{{ relay.device.display_name }}</strong>
+            </div>
+
+            <div class="information-item">
+                <span>Shed</span>
+                <strong>{{ relay.device.shed.name }}</strong>
+            </div>
+
+            <div class="information-item">
+                <span>Relay channel</span>
+                <strong>{{ relay.channel_number }}</strong>
+            </div>
+
+            <div class="information-item">
+                <span>ESP32 GPIO</span>
+                <strong>{{ relay.gpio_pin }}</strong>
+            </div>
+
+            <div class="information-item">
+                <span>Equipment type</span>
+                <strong>{{ relay.get_load_type_display }}</strong>
+            </div>
+
+            <div class="information-item">
+                <span>Requested state</span>
+                <strong>
+                    {% if relay.desired_state %}ON{% else %}OFF{% endif %}
+                </strong>
+            </div>
+
+            <div class="information-item">
+                <span>ESP32 reported state</span>
+                <strong>
+                    {% if not relay.reported_at %}
+                        Not reported
+                    {% elif relay.actual_state %}
+                        ON
+                    {% else %}
+                        OFF
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="information-item">
+                <span>Last command</span>
+                <strong>
+                    {% if relay.commanded_at %}
+                        {{ relay.commanded_at|date:"d M Y, h:i A" }}
+                    {% else %}
+                        No command yet
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="information-item">
+                <span>Last ESP32 report</span>
+                <strong>
+                    {% if relay.reported_at %}
+                        {{ relay.reported_at|date:"d M Y, h:i A" }}
+                    {% else %}
+                        Not reported
+                    {% endif %}
+                </strong>
+            </div>
+
+            <div class="information-item">
+                <span>Last changed by</span>
+                <strong>
+                    {% if relay.changed_by %}
+                        {{ relay.changed_by.get_full_name|default:relay.changed_by.username }}
+                    {% else %}
+                        No command yet
+                    {% endif %}
+                </strong>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
