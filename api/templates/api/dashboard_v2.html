@@ -223,6 +223,9 @@
         /* WELCOME */
 
         .welcome-card{
+            position:relative;
+            overflow:hidden;
+            isolation:isolate;
             background:white;
             border:1px solid #e8edf4;
             border-radius:14px;
@@ -232,6 +235,39 @@
             align-items:center;
             gap:20px;
             box-shadow:0 3px 12px rgba(26,57,88,0.05);
+        }
+
+        /* Farm artwork fills only the unused middle area. */
+        .welcome-farm-art{
+            position:absolute;
+            z-index:1;
+            left:34%;
+            right:305px;
+            top:0;
+            bottom:0;
+            pointer-events:none;
+            overflow:hidden;
+            display:flex;
+            align-items:flex-end;
+            justify-content:center;
+        }
+
+        .welcome-farm-art img{
+            width:100%;
+            height:100%;
+            min-width:390px;
+            object-fit:cover;
+            object-position:center bottom;
+            display:block;
+            opacity:0.98;
+            -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 11%,#000 89%,transparent 100%);
+            mask-image:linear-gradient(90deg,transparent 0%,#000 11%,#000 89%,transparent 100%);
+        }
+
+        .welcome-left,
+        .welcome-right{
+            position:relative;
+            z-index:2;
         }
 
         .welcome-left{
@@ -658,6 +694,10 @@
 
             .topbar{
                 padding:0 18px;
+            }
+
+            .welcome-farm-art{
+                display:none;
             }
 
             .welcome-card{
@@ -1357,6 +1397,14 @@
                             </div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Decorative image only; dashboard data remains unchanged -->
+                <div class="welcome-farm-art" aria-hidden="true">
+                    <img
+                        src="{% static 'images/dashboard-welcome-farm.png' %}"
+                        alt=""
+                    >
                 </div>
 
                 <div class="welcome-right">
