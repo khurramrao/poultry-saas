@@ -1,12 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>My Profile | RayNoor Organic Farms</title>
-    <link rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+{% extends "api/base_dashboard.html" %}
 
-    <style>
-        *{
+{% block title %}
+My Profile | RayNoor Organic Farms
+{% endblock %}
+
+{% block extra_css %}
+<style>
+*{
             box-sizing:border-box;
         }
 
@@ -274,65 +274,15 @@
     font-size:24px;
     color:#0b4b80;
 }
-    </style>
-</head>
-{% comment %}
-<script>
-    const profileImageInput = document.getElementById("profile_image");
-    const photoPreview = document.getElementById("photoPreview");
-    const photoHelp = document.getElementById("photoHelp");
-    const choosePhotoButton = document.getElementById("choosePhotoButton");
+</style>
+{% endblock %}
 
-    profileImageInput.addEventListener("change", function () {
-        const file = this.files[0];
-
-        if (!file) {
-            return;
-        }
-
-        if (!file.type.startsWith("image/")) {
-            photoHelp.textContent = "Please choose a valid image file.";
-            photoHelp.style.color = "#c62828";
-            this.value = "";
-            return;
-        }
-
-        if (file.size > 2 * 1024 * 1024) {
-            photoHelp.textContent = "Image must be smaller than 2 MB.";
-            photoHelp.style.color = "#c62828";
-            this.value = "";
-            return;
-        }
-
-        const reader = new FileReader();
-
-        reader.onload = function (event) {
-            photoPreview.innerHTML =
-                '<img src="' + event.target.result + '" alt="Profile preview">';
-        };
-
-        reader.readAsDataURL(file);
-
-        choosePhotoButton.textContent = "Change Profile Picture";
-
-        photoHelp.innerHTML =
-            '<span class="selected-photo-name">Selected: ' +
-            file.name +
-            '</span>';
-    });
-</script>
-      {% endcomment %}
-
-<body>
-
+{% block content %}
 <div class="page">
 
     <div class="topbar">
         <h1>My Profile</h1>
 
-        <a href="{% url 'dashboard_v2' %}" class="back-btn">
-            ← Dashboard
-        </a>
     </div>
 
     <div class="profile-card">
@@ -483,6 +433,4 @@
     </div>
 
 </div>
-
-</body>
-</html>
+{% endblock %}

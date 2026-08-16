@@ -1,17 +1,13 @@
+{% extends "api/base_dashboard.html" %}
 {% load humanize %}
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>User Activity</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% block title %}
+User Activity
+{% endblock %}
 
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-
-    <style>
-        *{
+{% block extra_css %}
+<style>
+*{
             box-sizing:border-box;
         }
 
@@ -142,11 +138,10 @@
                 justify-content:center;
             }
         }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
+{% block content %}
 <div class="page">
 
     <div class="topbar">
@@ -160,10 +155,6 @@
             </div>
         </div>
 
-        <a href="{% url 'dashboard' %}" class="back-btn">
-            <i class="fa-solid fa-arrow-left"></i>
-            Dashboard
-        </a>
     </div>
 
     <div class="card">
@@ -259,6 +250,4 @@
     </div>
 
 </div>
-
-</body>
-</html>
+{% endblock %}

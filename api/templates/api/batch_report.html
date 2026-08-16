@@ -1,12 +1,13 @@
+{% extends "api/base_dashboard.html" %}
 {% load humanize %}
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Batch Performance Report</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <style>
-        body{
+{% block title %}
+Batch Performance Report
+{% endblock %}
+
+{% block extra_css %}
+<style>
+body{
             font-family:Arial,sans-serif;
             background:#f4f6f8;
             margin:0;
@@ -303,11 +304,10 @@
                 box-sizing:border-box;
             }
         }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
+{% block content %}
 <div class="header">
     <h2>📊 Batch Performance Report</h2>
 </div>
@@ -315,8 +315,6 @@
 <div class="container">
 
     <div class="top-row">
-        <a href="{% url 'dashboard' %}" class="btn">← Dashboard</a>
-
         <div class="hint">
             Final batch reports are shown after a batch is closed.
         </div>
@@ -525,6 +523,4 @@
     {% endfor %}
 
 </div>
-
-</body>
-</html>
+{% endblock %}

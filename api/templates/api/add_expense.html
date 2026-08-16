@@ -1,10 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Add Expense</title>
+{% extends "api/base_dashboard.html" %}
 
-    <style>
-        body{
+{% block title %}
+Add Expense
+{% endblock %}
+
+{% block extra_css %}
+<style>
+body{
             font-family: Arial, sans-serif;
             background:#f4f6f8;
             margin:0;
@@ -88,11 +90,10 @@
         .btn-save:hover{
             background:#15803d;
         }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
+{% block content %}
 <div class="container">
     <div class="card">
 
@@ -163,6 +164,4 @@
 
     </div>
 </div>
-
-</body>
-</html>
+{% endblock %}

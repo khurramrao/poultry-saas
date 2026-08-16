@@ -1,3 +1,10 @@
+{% extends "api/base_dashboard.html" %}
+
+{% block title %}
+Sales Record
+{% endblock %}
+
+{% block content %}
 <h2>Sale Records - Batch # {{ batch.batch_number }}</h2>
 
 <p><strong>Total Birds Sold:</strong> {{ total_birds_sold }}</p>
@@ -25,6 +32,4 @@
     {% endfor %}
 </table>
 
-<br>
-
-<a href="{% url 'dashboard' %}">Back to Dashboard</a>
+{% endblock %}

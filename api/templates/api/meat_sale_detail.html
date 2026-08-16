@@ -1,10 +1,10 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Meat Sale Detailsdsdsdsd</title>
-</head>
-<body>
+{% extends "api/base_dashboard.html" %}
 
+{% block title %}
+Meat Sale Detailsdsdsdsd
+{% endblock %}
+
+{% block content %}
 <h2>Meat Sale Detail - Batch # {{ batch.batch_number }}</h2>
 
 <a href="{% url 'meat_sales_summary' %}">Back to Meat Sales</a>
@@ -37,6 +37,4 @@
     </tr>
     {% endfor %}
 </table>
-
-</body>
-</html>
+{% endblock %}

@@ -1,16 +1,16 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>
-        {% if is_admin %}
+{% extends "api/base_dashboard.html" %}
+
+{% block title %}
+{% if is_admin %}
             Medicine List
         {% else %}
             Medicine Summary
         {% endif %}
-    </title>
+{% endblock %}
 
-    <style>
-        body{
+{% block extra_css %}
+<style>
+body{
             font-family:Arial, sans-serif;
             background:#f4f6f8;
             margin:0;
@@ -188,11 +188,10 @@
                 margin-bottom:10px;
             }
         }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
+{% block content %}
 <div class="header">
     <h2>
         💊
@@ -305,6 +304,4 @@
     {% endif %}
 
 </div>
-
-</body>
-</html>
+{% endblock %}

@@ -1,10 +1,12 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Add Medicine Entry</title>
+{% extends "api/base_dashboard.html" %}
 
-    <style>
-        body{
+{% block title %}
+Add Medicine Entry
+{% endblock %}
+
+{% block extra_css %}
+<style>
+body{
             font-family: Arial, sans-serif;
             background:#f4f6f8;
             margin:0;
@@ -90,11 +92,10 @@
             text-align:center;
             margin-bottom:10px;
         }
-    </style>
+</style>
+{% endblock %}
 
-</head>
-<body>
-
+{% block content %}
 <div class="container">
 
     <div class="card">
@@ -179,6 +180,4 @@
     </div>
 
 </div>
-
-</body>
-</html>
+{% endblock %}

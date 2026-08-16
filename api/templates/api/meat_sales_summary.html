@@ -1,15 +1,11 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Meat Sales Summarys</title>
-</head>
-<body>
+{% extends "api/base_dashboard.html" %}
 
+{% block title %}
+Meat Sales Summarys
+{% endblock %}
+
+{% block content %}
 <h2>Meat Sales Summary</h2>
-
-<a href="{% url 'dashboard' %}">Back to Dashboard</a>
-
-<br><br>
 
 <table border="1" cellpadding="8">
     <tr>
@@ -38,6 +34,4 @@
     </tr>
     {% endfor %}
 </table>
-
-</body>
-</html>
+{% endblock %}

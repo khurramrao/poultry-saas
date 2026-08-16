@@ -1,12 +1,12 @@
+{% extends "api/base_dashboard.html" %}
 {% load humanize %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Finance Tracker</title>
-   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <style>
+{% block title %}
+Finance Tracker
+{% endblock %}
+
+{% block extra_css %}
+<style>
 body {
     font-family: Arial, sans-serif;
     background: #f4f6f8;
@@ -406,11 +406,10 @@ body {
         gap: 10px;
     }
 }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
+{% block content %}
 <div class="header">
     <h2>💰 Finance Tracker</h2>
 </div>
@@ -418,9 +417,6 @@ body {
 <div class="container">
 
     <div class="top-actions">
-        <a href="{% url 'dashboard' %}" class="btn">← Dashboard</a>
-
-
         {% if is_admin %}
             <a href="{% url 'add_chick_cost' %}" class="btn">🐣 Add Chick Cost</a>
             <a href="{% url 'add_sale_record' %}" class="btn sale-btn">💰 Record Sale</a>
@@ -854,6 +850,4 @@ body {
     {% endfor %}
 
 </div>
-
-</body>
-</html>
+{% endblock %}

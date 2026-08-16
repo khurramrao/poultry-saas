@@ -1,16 +1,13 @@
+{% extends "api/base_dashboard.html" %}
 {% load humanize %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ownership Shares | RayNoor Organic Farms</title>
 
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+{% block title %}
+Ownership Shares | RayNoor Organic Farms
+{% endblock %}
 
-    <style>
-        *{
+{% block extra_css %}
+<style>
+*{
             box-sizing:border-box;
         }
 
@@ -324,11 +321,10 @@
                 font-size:18px;
             }
         }
-    </style>
-</head>
+</style>
+{% endblock %}
 
-<body>
-
+{% block content %}
 <div class="page">
 
     <div class="topbar">
@@ -340,10 +336,6 @@
             <p>Live ownership and COGS breakdown for every active batch.</p>
         </div>
 
-        <a href="{% url 'dashboard_v2' %}" class="back-btn">
-            <i class="fa-solid fa-arrow-left"></i>
-            Dashboard
-        </a>
     </div>
 
     {% for item in ownership_batches %}
@@ -544,6 +536,4 @@
     {% endfor %}
 
 </div>
-
-</body>
-</html>
+{% endblock %}

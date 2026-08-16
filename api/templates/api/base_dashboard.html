@@ -41,7 +41,7 @@
         /* ================= SIDEBAR ================= */
 
         .sidebar {
-            width: 230px;
+            width: 265px;
             min-height: 100vh;
             height: 100vh;
             position: sticky;
@@ -51,7 +51,7 @@
             display: flex;
             flex-direction: column;
 
-            padding: 16px 14px;
+            padding: 18px 14px;
             background: linear-gradient(
                 180deg,
                 #042b4f,
@@ -63,34 +63,34 @@
         }
 
         .sidebar-logo {
-            padding: 0 7px 16px;
+            padding: 0 8px 18px;
             text-align: center;
         }
 
         .sidebar-logo img {
-            width: 190px;
+            width: 185px;
             max-width: 100%;
-            height: auto;
+            height: 185px;
             object-fit: contain;
         }
 
         .sidebar-nav {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 7px;
         }
 
         .sidebar-nav a {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
 
-            padding: 12px 13px;
-            border-radius: 9px;
+            padding: 13px 14px;
+            border-radius: 10px;
 
             color: white;
             text-decoration: none;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 700;
 
             transition: background 0.2s;
@@ -99,7 +99,7 @@
         .sidebar-nav a i {
             width: 20px;
             text-align: center;
-            font-size: 17px;
+            font-size: 18px;
         }
 
         .sidebar-nav a:hover,
@@ -141,7 +141,7 @@
             flex: 1;
         }
 
-        .topbar {
+        .app-topbar {
             height: 64px;
 
             display: flex;
@@ -319,7 +319,7 @@
                     repeat(auto-fit, minmax(175px, 1fr));
             }
 
-            .topbar {
+            .app-topbar {
                 padding: 0 16px;
             }
 
@@ -432,12 +432,14 @@
 
                 <a
                     href="{% url 'add_sale_record' %}"
+                    class="{% if request.resolver_match.url_name == 'add_sale_record' or request.resolver_match.url_name == 'sale_records' or request.resolver_match.url_name == 'meat_sales_summary' or request.resolver_match.url_name == 'meat_sale_detail' %}active{% endif %}"
                 >
                     <i class="fa-solid fa-circle-down"></i>
                     <span>Sales</span>
                 </a>
 
-                <a href="#">
+                <a href="#"
+                   class="{% if request.resolver_match.url_name == 'vaccine_records' %}active{% endif %}">
                     <i class="fa-solid fa-syringe"></i>
                     <span>Vaccine Records</span>
                 </a>
@@ -449,29 +451,32 @@
 
             {% endif %}
 
-            <div class="sidebar-divider"></div>
-
-            <a href="{% url 'finance_tracker' %}">
+            <a href="{% url 'finance_tracker' %}"
+               class="{% if request.resolver_match.url_name == 'finance_tracker' %}active{% endif %}">
                 <i class="fa-regular fa-money-bill-1"></i>
                 <span>Finance Tracker</span>
             </a>
 
-            <a href="{% url 'feed_list' %}">
+            <a href="{% url 'feed_list' %}"
+               class="{% if request.resolver_match.url_name == 'feed_list' or request.resolver_match.url_name == 'add_feed_entry' %}active{% endif %}">
                 <i class="fa-solid fa-bucket"></i>
                 <span>Feed Management</span>
             </a>
 
-            <a href="{% url 'medicine_list' %}">
+            <a href="{% url 'medicine_list' %}"
+               class="{% if request.resolver_match.url_name == 'medicine_list' or request.resolver_match.url_name == 'add_medicine_entry' %}active{% endif %}">
                 <i class="fa-solid fa-suitcase-medical"></i>
                 <span>Medicine</span>
             </a>
 
-            <a href="{% url 'expense_list' %}">
+            <a href="{% url 'expense_list' %}"
+               class="{% if request.resolver_match.url_name == 'expense_list' or request.resolver_match.url_name == 'add_expense' %}active{% endif %}">
                 <i class="fa-regular fa-clipboard"></i>
                 <span>Expenses</span>
             </a>
 
-            <a href="{% url 'batch_report' %}">
+            <a href="{% url 'batch_report' %}"
+               class="{% if request.resolver_match.url_name == 'batch_report' %}active{% endif %}">
                 <i class="fa-regular fa-chart-bar"></i>
                 <span>Reports</span>
             </a>
@@ -482,7 +487,7 @@
 
     <main class="main-content">
 
-        <div class="topbar">
+        <div class="app-topbar">
 
             <a
                 href="{% url 'daily_log' %}"
