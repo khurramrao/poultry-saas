@@ -1,203 +1,1013 @@
 {% extends "api/base_dashboard.html" %}
 
-{% block title %}
-Record Sale
-{% endblock %}
+{% block title %}Record Sale | RayNoor Organic Farms{% endblock %}
 
 {% block extra_css %}
 <style>
-body{
-            font-family: Arial, sans-serif;
-            background:#f4f6f8;
-            margin:0;
-            padding:30px;
+    .sale-page {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
+
+    .sale-page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 18px;
+    }
+
+    .sale-title-wrap {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+
+    .sale-title-icon {
+        width: 52px;
+        height: 52px;
+        min-width: 52px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #e8f7ed, #d9f4e2);
+        color: #17813b;
+        font-size: 22px;
+        border: 1px solid #ccebd7;
+    }
+
+    .sale-page-header h1 {
+        margin: 0 0 5px;
+        color: #0c3f72;
+        font-size: 26px;
+        line-height: 1.15;
+    }
+
+    .sale-page-header p {
+        margin: 0;
+        color: #64748b;
+        font-size: 14px;
+    }
+
+    .sale-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(300px, .75fr);
+        gap: 18px;
+        align-items: start;
+    }
+
+    .sale-card {
+        background: #fff;
+        border: 1px solid #e3eaf3;
+        border-radius: 16px;
+        box-shadow: 0 5px 18px rgba(20, 55, 90, 0.055);
+    }
+
+    .sale-form-card {
+        overflow: hidden;
+    }
+
+    .form-section {
+        padding: 22px;
+        border-bottom: 1px solid #edf1f6;
+    }
+
+    .form-section:last-of-type {
+        border-bottom: 0;
+    }
+
+    .section-heading-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 18px;
+    }
+
+    .section-heading-icon {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #edf5ff;
+        color: #1767c6;
+        font-size: 14px;
+    }
+
+    .section-heading-row h2 {
+        margin: 0;
+        color: #173b61;
+        font-size: 17px;
+    }
+
+    .section-heading-row p {
+        margin: 3px 0 0;
+        color: #7a8797;
+        font-size: 12px;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+    }
+
+    .form-group {
+        min-width: 0;
+    }
+
+    .form-group.full {
+        grid-column: 1 / -1;
+    }
+
+    .form-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 7px;
+        color: #2d4057;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .form-label .optional {
+        color: #8b98a8;
+        font-size: 11px;
+        font-weight: 500;
+    }
+
+    .sale-input,
+    .sale-select,
+    .sale-textarea {
+        width: 100%;
+        border: 1px solid #ccd7e4;
+        border-radius: 10px;
+        background: #fff;
+        color: #152b45;
+        font-size: 14px;
+        outline: none;
+        transition: border-color .18s, box-shadow .18s, background .18s;
+    }
+
+    .sale-input,
+    .sale-select {
+        height: 46px;
+        padding: 0 13px;
+    }
+
+    .sale-textarea {
+        min-height: 105px;
+        padding: 12px 13px;
+        resize: vertical;
+    }
+
+    .sale-input:focus,
+    .sale-select:focus,
+    .sale-textarea:focus {
+        border-color: #2372d4;
+        box-shadow: 0 0 0 3px rgba(35, 114, 212, .11);
+        background: #fcfdff;
+    }
+
+    .input-prefix-wrap {
+        position: relative;
+    }
+
+    .input-prefix {
+        position: absolute;
+        left: 13px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #66768a;
+        font-size: 13px;
+        font-weight: 700;
+        pointer-events: none;
+    }
+
+    .input-prefix-wrap .sale-input {
+        padding-left: 38px;
+    }
+
+    .field-help {
+        margin-top: 6px;
+        color: #7b8899;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .batch-info {
+        display: none;
+        margin-top: 10px;
+        padding: 10px 12px;
+        border: 1px solid #d9e8fb;
+        border-radius: 9px;
+        background: #f5f9ff;
+        color: #34516f;
+        font-size: 12px;
+    }
+
+    .batch-info.show {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        padding: 18px 22px 22px;
+        background: #fbfcfe;
+        border-top: 1px solid #edf1f6;
+    }
+
+    .sale-btn {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 18px;
+        border: 0;
+        border-radius: 10px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform .15s, background .15s, box-shadow .15s;
+    }
+
+    .sale-btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: #eef2f7;
+        color: #354861;
+    }
+
+    .btn-secondary:hover {
+        background: #e3e9f1;
+    }
+
+    .btn-save {
+        background: linear-gradient(135deg, #199447, #11783a);
+        color: #fff;
+        box-shadow: 0 6px 14px rgba(22, 145, 69, .18);
+    }
+
+    .btn-save:hover {
+        background: linear-gradient(135deg, #16863f, #0e6c34);
+    }
+
+
+    /* =====================================================
+       MOBILE LIVE SALE CALCULATION
+       ===================================================== */
+    .mobile-live-total {
+        display: none;
+        grid-column: 1 / -1;
+        margin-top: 4px;
+        border: 1px solid #bdd9f5;
+        border-radius: 14px;
+        overflow: hidden;
+        background: #ffffff;
+        box-shadow: 0 5px 16px rgba(22, 62, 100, 0.08);
+    }
+
+    .mobile-calc-title {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px;
+        background: #eef6ff;
+        color: #124f89;
+        font-size: 13px;
+        font-weight: 800;
+        border-bottom: 1px solid #dbe9f7;
+    }
+
+    .mobile-calc-title i {
+        color: #1872d1;
+    }
+
+    .mobile-calc-row,
+    .mobile-average-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-bottom: 1px solid #edf2f7;
+        color: #5c6e82;
+        font-size: 13px;
+    }
+
+    .mobile-calc-row strong,
+    .mobile-average-row strong {
+        color: #173b61;
+        font-size: 14px;
+        font-weight: 800;
+        text-align: right;
+    }
+
+    .mobile-discount-row strong {
+        color: #d1493f;
+    }
+
+    .mobile-live-total .mobile-final-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 15px 14px;
+        background: linear-gradient(135deg, #eaf9ef, #e2f6e9);
+        border-bottom: 1px solid #cbe9d5;
+        color: #245a39;
+        font-size: 14px;
+        font-weight: 800;
+    }
+
+    .mobile-live-total .mobile-final-line strong {
+        color: #0e7638;
+        font-size: 21px;
+        font-weight: 900;
+        text-align: right;
+    }
+
+    .mobile-average-row {
+        border-bottom: 0;
+        background: #fafcff;
+    }
+
+    .sale-summary-card {
+        position: sticky;
+        top: 82px;
+        overflow: hidden;
+    }
+
+    .summary-head {
+        padding: 18px 20px;
+        background: linear-gradient(135deg, #0e4779, #0b3c69);
+        color: #fff;
+    }
+
+    .summary-head h2 {
+        margin: 0 0 5px;
+        font-size: 18px;
+    }
+
+    .summary-head p {
+        margin: 0;
+        color: #d8e8f7;
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .summary-body {
+        padding: 18px 20px 20px;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        padding: 11px 0;
+        border-bottom: 1px solid #edf1f5;
+    }
+
+    .summary-row:last-child {
+        border-bottom: 0;
+    }
+
+    .summary-label {
+        color: #64748b;
+        font-size: 13px;
+    }
+
+    .summary-value {
+        color: #173b61;
+        font-size: 15px;
+        font-weight: 800;
+        text-align: right;
+    }
+
+    .summary-row.discount .summary-value {
+        color: #d14a3a;
+    }
+
+    .final-sale-box {
+        margin-top: 14px;
+        padding: 16px;
+        border: 1px solid #bfe7cb;
+        border-radius: 13px;
+        background: linear-gradient(135deg, #effbf3, #e8f8ed);
+    }
+
+    .final-sale-label {
+        color: #48705a;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+    }
+
+    .final-sale-amount {
+        margin-top: 5px;
+        color: #11763a;
+        font-size: 29px;
+        line-height: 1.1;
+        font-weight: 900;
+    }
+
+    .discount-message {
+        display: none;
+        margin-top: 7px;
+        color: #39714f;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .discount-message.show {
+        display: block;
+    }
+
+    .summary-formula {
+        margin-top: 14px;
+        padding: 11px 12px;
+        border-radius: 9px;
+        background: #f6f8fb;
+        color: #68798d;
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    .warning-box {
+        display: none;
+        margin-top: 12px;
+        padding: 10px 12px;
+        border: 1px solid #f1c5c1;
+        border-radius: 9px;
+        background: #fff3f2;
+        color: #a83b32;
+        font-size: 12px;
+        line-height: 1.45;
+    }
+
+    .warning-box.show {
+        display: block;
+    }
+
+    @media (max-width: 960px) {
+
+    .sale-layout {
+        grid-template-columns: 1fr;
+    }
+
+    /* Mobile uses the calculation beside the form.
+       Hide the duplicate desktop summary. */
+    .sale-summary-card {
+        display: none;
+    }
+
+    .mobile-live-total {
+        display: block;
+    }
+}
+
+    @media (max-width: 650px) {
+        .sale-page-header {
+            align-items: flex-start;
         }
 
-        .container{
-            max-width:700px;
-            margin:auto;
+        .sale-title-icon {
+            width: 46px;
+            height: 46px;
+            min-width: 46px;
+            border-radius: 13px;
         }
 
-        .card{
-            background:white;
-            border-radius:16px;
-            padding:30px;
-            box-shadow:0 4px 15px rgba(0,0,0,0.08);
+        .sale-page-header h1 {
+            font-size: 22px;
         }
 
-        .icon{
-            text-align:center;
-            font-size:48px;
-            margin-bottom:10px;
+        .sale-page-header p {
+            font-size: 13px;
         }
 
-        h2{
-            text-align:center;
-            color:#1f4e79;
-            margin-bottom:25px;
+        .form-section {
+            padding: 17px 15px;
         }
 
-        .form-group{
-            margin-bottom:18px;
+        .form-grid {
+            grid-template-columns: 1fr;
+            gap: 14px;
         }
 
-        label{
-            display:block;
-            font-weight:bold;
-            color:#344054;
-            margin-bottom:6px;
+        .form-group.full {
+            grid-column: auto;
         }
 
-        input,
-        select,
-        textarea{
-            width:100%;
-            padding:12px;
-            border:1px solid #d0d5dd;
-            border-radius:10px;
-            font-size:15px;
-            box-sizing:border-box;
+        .summary-body,
+        .summary-head {
+            padding-left: 16px;
+            padding-right: 16px;
         }
 
-        textarea{
-            resize:vertical;
+        .final-sale-amount {
+            font-size: 26px;
         }
 
-        .btn-row{
-            display:flex;
-            gap:10px;
-            margin-top:20px;
+        .form-actions {
+            padding: 15px;
+            flex-direction: column-reverse;
         }
 
-        .btn{
-            text-decoration:none;
-            padding:12px 20px;
-            border-radius:10px;
-            border:none;
-            cursor:pointer;
-            font-weight:bold;
-            font-size:15px;
+        .sale-btn {
+            width: 100%;
         }
-
-        .btn-back{
-            background:#667085;
-            color:white;
-        }
-
-        .btn-save{
-            background:#16a34a;
-            color:white;
-        }
-
-        .btn-save:hover{
-            background:#15803d;
-        }
-
-        @media(max-width:768px){
-            .btn-row{
-                flex-direction:column;
-            }
-
-            .btn{
-                width:100%;
-                text-align:center;
-            }
-        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="sale-page">
 
-    <div class="card">
-
-        <div class="icon">💰</div>
-
-        <h2>Record Sale</h2>
-
-        <form method="post">
-            {% csrf_token %}
-
-            <div class="form-group">
-                <label>Batch</label>
-
-                <select name="batch_id" required>
-                    <option value="">Select Batch</option>
-
-                    {% for batch in batches %}
-                        <option value="{{ batch.id }}">
-                            Batch #{{ batch.batch_number }}
-                            ({{ batch.shed.shed_type|title }})
-                            - {{ batch.current_birds }} Birds Available
-                        </option>
-                    {% endfor %}
-                </select>
+    <div class="sale-page-header">
+        <div class="sale-title-wrap">
+            <div class="sale-title-icon">
+                <i class="fa-solid fa-money-bill-trend-up"></i>
             </div>
-
-            <div class="form-group">
-                <label>Sale Date</label>
-                <input type="date" name="sale_date" required>
+            <div>
+                <h1>Record Sale</h1>
+                <p>Enter sale details and review the live amount before saving.</p>
             </div>
-
-            <div class="form-group">
-                <label>Birds Sold</label>
-                <input type="number"
-                       name="birds_sold"
-                       min="1"
-                       placeholder="Enter birds sold"
-                       required>
-            </div>
-
-            <div class="form-group">
-                <label>Total Weight (KG)</label>
-                <input type="number"
-                       step="0.01"
-                       name="total_weight_kg"
-                       placeholder="Enter total weight"
-                       required>
-            </div>
-
-            <div class="form-group">
-                <label>Rate Per KG (Rs)</label>
-                <input type="number"
-                       step="0.01"
-                       name="rate_per_kg"
-                       placeholder="Enter rate per kg"
-                       required>
-            </div>
-
-            <div class="form-group">
-                <label>Discount (Rs)</label>
-                <input type="number"
-                       step="0.01"
-                       name="discount_amount"
-                       value="0">
-            </div>
-
-            <div class="form-group">
-                <label>Notes</label>
-                <textarea name="notes"
-                          rows="4"
-                          placeholder="Optional notes..."></textarea>
-            </div>
-
-            <div class="btn-row">
-
-                <a href="{% url 'finance_tracker' %}"
-                   class="btn btn-back">
-                    ← Back
-                </a>
-
-                <button type="submit"
-                        class="btn btn-save">
-                    Save Sale
-                </button>
-
-            </div>
-
-        </form>
-
+        </div>
     </div>
 
+    <form method="post" id="saleForm">
+        {% csrf_token %}
+
+        <div class="sale-layout">
+
+            <div class="sale-card sale-form-card">
+
+                <section class="form-section">
+                    <div class="section-heading-row">
+                        <div class="section-heading-icon">
+                            <i class="fa-solid fa-warehouse"></i>
+                        </div>
+                        <div>
+                            <h2>Sale Details</h2>
+                            <p>Select the batch and sale date.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group full">
+                            <label class="form-label" for="batch_id">Batch</label>
+                            <select
+                                class="sale-select"
+                                name="batch_id"
+                                id="batch_id"
+                                required
+                            >
+                                <option value="">Select Batch</option>
+
+                                {% for batch in batches %}
+                                    <option
+                                        value="{{ batch.id }}"
+                                        data-available="{{ batch.current_birds }}"
+                                        data-number="{{ batch.batch_number }}"
+                                        data-shed="{{ batch.shed.shed_type|title }}"
+                                    >
+                                        Batch #{{ batch.batch_number }}
+                                        ({{ batch.shed.shed_type|title }})
+                                        — {{ batch.current_birds }} Birds Available
+                                    </option>
+                                {% endfor %}
+                            </select>
+
+                            <div class="batch-info" id="batchInfo">
+                                <i class="fa-solid fa-circle-info"></i>
+                                <span id="batchInfoText"></span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="sale_date">Sale Date</label>
+                            <input
+                                class="sale-input"
+                                type="date"
+                                name="sale_date"
+                                id="sale_date"
+                                value="{% now 'Y-m-d' %}"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="birds_sold">Birds Sold</label>
+                            <input
+                                class="sale-input"
+                                type="number"
+                                name="birds_sold"
+                                id="birds_sold"
+                                min="1"
+                                step="1"
+                                placeholder="e.g. 100"
+                                required
+                            >
+                            <div class="field-help" id="birdsHelp">
+                                Enter the number of birds included in this sale.
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="form-section">
+                    <div class="section-heading-row">
+                        <div class="section-heading-icon">
+                            <i class="fa-solid fa-scale-balanced"></i>
+                        </div>
+                        <div>
+                            <h2>Weight &amp; Pricing</h2>
+                            <p>The sale amount is calculated automatically.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label" for="total_weight_kg">
+                                Total Weight (KG)
+                            </label>
+                            <input
+                                class="sale-input"
+                                type="number"
+                                name="total_weight_kg"
+                                id="total_weight_kg"
+                                min="0.01"
+                                step="0.01"
+                                inputmode="decimal"
+                                placeholder="e.g. 185.50"
+                                required
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="rate_per_kg">
+                                Rate Per KG
+                            </label>
+                            <div class="input-prefix-wrap">
+                                <span class="input-prefix">Rs</span>
+                                <input
+                                    class="sale-input"
+                                    type="number"
+                                    name="rate_per_kg"
+                                    id="rate_per_kg"
+                                    min="0.01"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                    placeholder="e.g. 520"
+                                    required
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-group full">
+                            <label class="form-label" for="discount_amount">
+                                <span>Discount</span>
+                                <span class="optional">Optional</span>
+                            </label>
+                            <div class="input-prefix-wrap">
+                                <span class="input-prefix">Rs</span>
+                                <input
+                                    class="sale-input"
+                                    type="number"
+                                    name="discount_amount"
+                                    id="discount_amount"
+                                    min="0"
+                                    step="0.01"
+                                    inputmode="decimal"
+                                    value="0"
+                                    placeholder="0"
+                                >
+                            </div>
+                            <div class="field-help">
+                                Enter the total discount amount in rupees, not a percentage.
+                            </div>
+                        </div>
+
+                        <div class="mobile-live-total">
+                            <div class="mobile-calc-title">
+                                <i class="fa-solid fa-calculator"></i>
+                                Sale Calculation
+                            </div>
+
+                            <div class="mobile-calc-row">
+                                <span>Sale Amount</span>
+                                <strong id="mobileGrossAmount">Rs 0.00</strong>
+                            </div>
+
+                            <div class="mobile-calc-row mobile-discount-row">
+                                <span>Discount</span>
+                                <strong id="mobileDiscountAmount">− Rs 0.00</strong>
+                            </div>
+
+                            <div class="mobile-final-line">
+                                <span id="mobileFinalLabel">Final Sale Amount</span>
+                                <strong id="mobileFinalAmount">Rs 0.00</strong>
+                            </div>
+
+                            <div class="mobile-average-row">
+                                <span>Average Weight / Bird</span>
+                                <strong id="mobileAverageWeight">0.000 KG</strong>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="form-section">
+                    <div class="section-heading-row">
+                        <div class="section-heading-icon">
+                            <i class="fa-regular fa-note-sticky"></i>
+                        </div>
+                        <div>
+                            <h2>Notes</h2>
+                            <p>Optional details about buyer, vehicle, payment, etc.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <textarea
+                            class="sale-textarea"
+                            name="notes"
+                            id="notes"
+                            rows="4"
+                            placeholder="Optional notes about this sale..."
+                        ></textarea>
+                    </div>
+                </section>
+
+                <div class="form-actions">
+                    <a href="{% url 'finance_tracker' %}" class="sale-btn btn-secondary">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        Cancel
+                    </a>
+
+                    <button type="submit" class="sale-btn btn-save" id="saveSaleButton">
+                        <i class="fa-solid fa-check"></i>
+                        Save Sale
+                    </button>
+                </div>
+            </div>
+
+            <aside class="sale-card sale-summary-card">
+                <div class="summary-head">
+                    <h2>Live Sale Summary</h2>
+                    <p>Review the amount here before saving the sale.</p>
+                </div>
+
+                <div class="summary-body">
+                    <div class="summary-row">
+                        <span class="summary-label">Birds Sold</span>
+                        <span class="summary-value" id="summaryBirds">0</span>
+                    </div>
+
+                    <div class="summary-row">
+                        <span class="summary-label">Total Weight</span>
+                        <span class="summary-value" id="summaryWeight">0.00 KG</span>
+                    </div>
+
+                    <div class="summary-row">
+                        <span class="summary-label">Average Weight / Bird</span>
+                        <span class="summary-value" id="summaryAverage">0.000 KG</span>
+                    </div>
+
+                    <div class="summary-row">
+                        <span class="summary-label">Rate Per KG</span>
+                        <span class="summary-value" id="summaryRate">Rs 0.00</span>
+                    </div>
+
+                    <div class="summary-row">
+                        <span class="summary-label">Sale Amount</span>
+                        <span class="summary-value" id="grossSaleAmount">Rs 0.00</span>
+                    </div>
+
+                    <div class="summary-row discount">
+                        <span class="summary-label">Discount</span>
+                        <span class="summary-value" id="summaryDiscount">− Rs 0.00</span>
+                    </div>
+
+                    <div class="final-sale-box">
+                        <div class="final-sale-label">Final Sale Amount</div>
+                        <div class="final-sale-amount" id="finalSaleAmount">Rs 0.00</div>
+                        <div class="discount-message" id="discountMessage">
+                            Discount has been applied to this sale.
+                        </div>
+                    </div>
+
+                    <div class="warning-box" id="discountWarning">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        Discount cannot be greater than the Sale Amount.
+                    </div>
+
+                    <div class="summary-formula">
+                        <strong>Calculation</strong><br>
+                        Sale Amount = Total Weight × Rate per KG<br>
+                        Final Sale Amount = Sale Amount − Discount
+                    </div>
+                </div>
+            </aside>
+
+        </div>
+    </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const batchSelect = document.getElementById("batch_id");
+    const birdsInput = document.getElementById("birds_sold");
+    const weightInput = document.getElementById("total_weight_kg");
+    const rateInput = document.getElementById("rate_per_kg");
+    const discountInput = document.getElementById("discount_amount");
+    const saleForm = document.getElementById("saleForm");
+
+    const batchInfo = document.getElementById("batchInfo");
+    const batchInfoText = document.getElementById("batchInfoText");
+    const birdsHelp = document.getElementById("birdsHelp");
+
+    const summaryBirds = document.getElementById("summaryBirds");
+    const summaryWeight = document.getElementById("summaryWeight");
+    const summaryAverage = document.getElementById("summaryAverage");
+    const summaryRate = document.getElementById("summaryRate");
+    const grossSaleAmount = document.getElementById("grossSaleAmount");
+    const summaryDiscount = document.getElementById("summaryDiscount");
+    const finalSaleAmount = document.getElementById("finalSaleAmount");
+    const discountMessage = document.getElementById("discountMessage");
+    const discountWarning = document.getElementById("discountWarning");
+    const mobileGrossAmount = document.getElementById("mobileGrossAmount");
+    const mobileDiscountAmount = document.getElementById("mobileDiscountAmount");
+    const mobileFinalAmount = document.getElementById("mobileFinalAmount");
+    const mobileFinalLabel = document.getElementById("mobileFinalLabel");
+    const mobileAverageWeight = document.getElementById("mobileAverageWeight");
+
+    function numberValue(input) {
+        const value = Number.parseFloat(input.value);
+        return Number.isFinite(value) ? value : 0;
+    }
+
+    function money(value) {
+        return "Rs " + value.toLocaleString("en-PK", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function updateBatchInfo() {
+        const option = batchSelect.options[batchSelect.selectedIndex];
+
+        if (!option || !option.value) {
+            batchInfo.classList.remove("show");
+            birdsInput.removeAttribute("max");
+            birdsHelp.textContent =
+                "Enter the number of birds included in this sale.";
+            return;
+        }
+
+        const available = Number.parseInt(option.dataset.available || "0", 10);
+        const batchNumber = option.dataset.number || "";
+        const shed = option.dataset.shed || "";
+
+        birdsInput.max = String(available);
+
+        batchInfoText.textContent =
+            `Batch #${batchNumber} · ${shed} · ${available} birds currently available.`;
+
+        birdsHelp.textContent =
+            `Maximum available for this batch: ${available} birds.`;
+
+        batchInfo.classList.add("show");
+    }
+
+    function updateSummary() {
+        const birds = Math.max(0, Math.floor(numberValue(birdsInput)));
+        const weight = Math.max(0, numberValue(weightInput));
+        const rate = Math.max(0, numberValue(rateInput));
+        const discount = Math.max(0, numberValue(discountInput));
+
+        const gross = weight * rate;
+        const average = birds > 0 ? weight / birds : 0;
+        const finalAmount = Math.max(0, gross - discount);
+
+        summaryBirds.textContent = birds.toLocaleString("en-PK");
+        summaryWeight.textContent = weight.toLocaleString("en-PK", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }) + " KG";
+
+        summaryAverage.textContent = average.toLocaleString("en-PK", {
+            minimumFractionDigits: 3,
+            maximumFractionDigits: 3
+        }) + " KG";
+
+        summaryRate.textContent = money(rate);
+        grossSaleAmount.textContent = money(gross);
+        summaryDiscount.textContent = "− " + money(discount);
+        finalSaleAmount.textContent = money(finalAmount);
+        mobileGrossAmount.textContent = money(gross);
+        mobileDiscountAmount.textContent = "− " + money(discount);
+        mobileFinalAmount.textContent = money(finalAmount);
+        mobileFinalLabel.textContent = discount > 0
+            ? "Discounted Sale Amount"
+            : "Final Sale Amount";
+        mobileAverageWeight.textContent = average.toLocaleString("en-PK", {
+            minimumFractionDigits: 3,
+            maximumFractionDigits: 3
+        }) + " KG";
+
+        if (discount > 0 && discount <= gross) {
+            discountMessage.classList.add("show");
+        } else {
+            discountMessage.classList.remove("show");
+        }
+
+        const option = batchSelect.options[batchSelect.selectedIndex];
+        const available = option && option.value
+            ? Number.parseInt(option.dataset.available || "0", 10)
+            : 0;
+
+        if (available > 0 && birds <= available) {
+            birdsInput.setCustomValidity("");
+        }
+
+        const invalidDiscount = discount > gross && discount > 0;
+
+        if (invalidDiscount) {
+            discountWarning.classList.add("show");
+            discountInput.setCustomValidity(
+                "Discount cannot be greater than the Sale Amount."
+            );
+        } else {
+            discountWarning.classList.remove("show");
+            discountInput.setCustomValidity("");
+        }
+    }
+
+    batchSelect.addEventListener("change", function () {
+        updateBatchInfo();
+        updateSummary();
+    });
+
+    [birdsInput, weightInput, rateInput, discountInput].forEach(function (input) {
+        input.addEventListener("input", updateSummary);
+        input.addEventListener("change", updateSummary);
+    });
+
+    saleForm.addEventListener("submit", function (event) {
+        updateSummary();
+
+        const option = batchSelect.options[batchSelect.selectedIndex];
+        const available = option && option.value
+            ? Number.parseInt(option.dataset.available || "0", 10)
+            : 0;
+
+        const birds = Math.floor(numberValue(birdsInput));
+        const gross = Math.max(0, numberValue(weightInput))
+                    * Math.max(0, numberValue(rateInput));
+        const discount = Math.max(0, numberValue(discountInput));
+
+        if (available > 0 && birds > available) {
+            event.preventDefault();
+            birdsInput.setCustomValidity(
+                `Only ${available} birds are available in this batch.`
+            );
+            birdsInput.reportValidity();
+            return;
+        }
+
+        birdsInput.setCustomValidity("");
+
+        if (discount > gross) {
+            event.preventDefault();
+            discountInput.setCustomValidity(
+                "Discount cannot be greater than the Sale Amount."
+            );
+            discountInput.reportValidity();
+            return;
+        }
+    });
+
+    updateBatchInfo();
+    updateSummary();
+})();
+</script>
 {% endblock %}

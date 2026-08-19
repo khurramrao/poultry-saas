@@ -640,6 +640,44 @@
             font-size:12px;
         }
 
+
+        /* ================= MOBILE HAMBURGER ================= */
+
+        .mobile-menu-bar{
+            display:none;
+        }
+
+        .mobile-menu-brand{
+            display:flex;
+            align-items:center;
+            gap:9px;
+            color:white;
+            font-size:16px;
+            font-weight:700;
+        }
+
+        .mobile-menu-brand i{
+            font-size:20px;
+        }
+
+        .mobile-menu-toggle{
+            width:46px;
+            height:42px;
+            border:0;
+            border-radius:9px;
+            display:none;
+            align-items:center;
+            justify-content:center;
+            background:#2570d7;
+            color:white;
+            font-size:21px;
+            cursor:pointer;
+        }
+
+        .mobile-menu-toggle:hover{
+            background:#1661bd;
+        }
+
         /* RESPONSIVE */
 
         @media(max-width:1250px){
@@ -661,39 +699,85 @@
         }
 
         @media(max-width:900px){
+            .app-layout{
+                display:block;
+            }
+
             .sidebar{
-                width:78px;
-                padding:16px 10px;
+                position:relative;
+                top:auto;
+                width:100%;
+                min-height:auto;
+                height:auto;
+                padding:9px 14px;
+                overflow:visible;
             }
 
-            .sidebar-logo img{
-                width:55px;
-                height:55px;
-            }
-
-            .sidebar-nav a{
-                justify-content:center;
-                padding:14px 8px;
-            }
-
-            .sidebar-nav a span,
-            .profile-text,
-            .profile-arrow,
-            .nav-badge{
+            .sidebar-logo{
                 display:none;
             }
 
-            .sidebar-nav a i{
-                margin:0;
-                font-size:19px;
+            .mobile-menu-bar{
+                min-height:46px;
+                display:flex;
+                align-items:center;
+                justify-content:space-between;
+                gap:12px;
             }
 
-            .profile-mini{
-                justify-content:center;
+            .mobile-menu-toggle{
+                display:flex;
+                flex-shrink:0;
+            }
+
+            .sidebar-nav{
+                display:none;
+                grid-template-columns:repeat(2,minmax(0,1fr));
+                gap:7px;
+                padding-top:10px;
+            }
+
+            .sidebar-nav.mobile-open{
+                display:grid;
+            }
+
+            .sidebar-nav a{
+                min-height:46px;
+                padding:11px 10px;
+                justify-content:flex-start;
+                gap:9px;
+                font-size:13px;
+                background:rgba(255,255,255,0.03);
+            }
+
+            .sidebar-nav a i{
+                width:20px;
+                min-width:20px;
+                margin:0;
+                font-size:17px;
+            }
+
+            .sidebar-nav a span{
+                display:inline;
+            }
+
+            .nav-badge{
+                display:inline-flex;
+                margin-left:auto;
+            }
+
+            .sidebar-bottom{
+                display:none;
             }
 
             .topbar{
-                padding:0 18px;
+                height:56px;
+                padding:0 16px;
+                gap:18px;
+            }
+
+            .page-content{
+                padding:14px;
             }
 
             .welcome-farm-art{
@@ -707,68 +791,6 @@
 
             .welcome-actions{
                 align-self:auto;
-            }
-        }
-
-        @media(max-width:700px){
-            .app-layout{
-                display:block;
-            }
-
-            .sidebar{
-                position:static;
-                width:100%;
-                min-height:auto;
-                height:auto;
-                display:block;
-            }
-
-            .sidebar-logo{
-                display:none;
-            }
-
-            .sidebar-nav{
-                display:grid;
-                grid-template-columns:repeat(3,1fr);
-                gap:6px;
-            }
-
-            .sidebar-nav a{
-                padding:10px 5px;
-            }
-
-            .sidebar-bottom{
-                display:none;
-            }
-
-            .topbar{
-                height:55px;
-            }
-
-            .page-content{
-                padding:12px;
-            }
-
-            .welcome-left{
-                align-items:flex-start;
-            }
-
-            .welcome-logo{
-                width:68px;
-                height:68px;
-            }
-
-            .welcome-text h1{
-                font-size:23px;
-            }
-
-            .welcome-actions{
-                flex-direction:column;
-                padding-top:0;
-            }
-
-            .welcome-btn{
-                text-align:center;
             }
 
             .kpi-grid{
@@ -807,7 +829,52 @@
             }
         }
 
+        @media(max-width:700px){
+            .sidebar{
+                padding:8px 12px;
+            }
+
+            .mobile-menu-brand{
+                font-size:15px;
+            }
+
+            .sidebar-nav a{
+                padding:10px 8px;
+                font-size:12px;
+            }
+
+            .page-content{
+                padding:12px;
+            }
+
+            .welcome-left{
+                align-items:flex-start;
+            }
+
+            .welcome-logo{
+                width:68px;
+                height:68px;
+            }
+
+            .welcome-text h1{
+                font-size:23px;
+            }
+
+            .welcome-actions{
+                flex-direction:column;
+                padding-top:0;
+            }
+
+            .welcome-btn{
+                text-align:center;
+            }
+        }
+
         @media(max-width:430px){
+            .sidebar-nav{
+                grid-template-columns:repeat(2,minmax(0,1fr));
+            }
+
             .kpi-grid{
                 grid-template-columns:1fr;
             }
@@ -821,6 +888,7 @@
                 grid-column:span 1;
             }
         }
+
       .age-days{
     font-size:13px;
     font-weight:bold;
@@ -1214,7 +1282,25 @@
     >
 </div>
 
-        <nav class="sidebar-nav">
+        <!-- MOBILE NAVIGATION -->
+        <div class="mobile-menu-bar">
+            <div class="mobile-menu-brand">
+                <i class="fa-solid fa-leaf"></i>
+                <span>RayNoor Organic Farms</span>
+            </div>
+
+            <button
+                type="button"
+                class="mobile-menu-toggle"
+                id="mobileMenuToggle"
+                aria-label="Open navigation menu"
+                aria-expanded="false"
+            >
+                <i class="fa-solid fa-bars"></i>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav" id="sidebarNav">
             <a href="{% url 'dashboard' %}" class="active">
                 <i class="fa-solid fa-house"></i>
                 <span>Dashboard</span>
@@ -2039,6 +2125,85 @@
         </div>
     </main>
 </div>
+
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const mobileMenuToggle =
+            document.getElementById("mobileMenuToggle");
+
+        const sidebarNav =
+            document.getElementById("sidebarNav");
+
+        if (!mobileMenuToggle || !sidebarNav) {
+            return;
+        }
+
+        const menuIcon =
+            mobileMenuToggle.querySelector("i");
+
+        function closeMobileMenu() {
+            sidebarNav.classList.remove("mobile-open");
+
+            mobileMenuToggle.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+
+            if (menuIcon) {
+                menuIcon.classList.remove("fa-xmark");
+                menuIcon.classList.add("fa-bars");
+            }
+        }
+
+        mobileMenuToggle.addEventListener(
+            "click",
+            function () {
+                const isOpen =
+                    sidebarNav.classList.toggle("mobile-open");
+
+                mobileMenuToggle.setAttribute(
+                    "aria-expanded",
+                    isOpen ? "true" : "false"
+                );
+
+                if (menuIcon) {
+                    menuIcon.classList.toggle(
+                        "fa-bars",
+                        !isOpen
+                    );
+
+                    menuIcon.classList.toggle(
+                        "fa-xmark",
+                        isOpen
+                    );
+                }
+            }
+        );
+
+        sidebarNav
+            .querySelectorAll("a")
+            .forEach(function (link) {
+                link.addEventListener(
+                    "click",
+                    function () {
+                        if (window.innerWidth <= 900) {
+                            closeMobileMenu();
+                        }
+                    }
+                );
+            });
+
+        window.addEventListener(
+            "resize",
+            function () {
+                if (window.innerWidth > 900) {
+                    closeMobileMenu();
+                }
+            }
+        );
+    });
+</script>
 
 </body>
 </html>
