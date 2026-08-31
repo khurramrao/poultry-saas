@@ -1,37 +1,196 @@
 {% extends "api/base_dashboard.html" %}
 
-{% block title %}
-Meat Sales Summarys
+{% block title %}Meat Sales Summary{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sales-page { max-width: 1180px; margin: 0 auto; }
+    .sales-header {
+        display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+        padding:22px 24px; margin-bottom:18px; border:1px solid #dfe8f3; border-radius:18px;
+        background:linear-gradient(135deg,#ffffff,#f7fbff); box-shadow:0 8px 24px rgba(17,53,90,0.06);
+    }
+    .sales-header-main { display:flex; align-items:flex-start; gap:14px; }
+    .sales-icon {
+        width:54px; height:54px; min-width:54px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+        background:linear-gradient(135deg,#e8f3ff,#dcecff); color:#1f67ba; font-size:24px; border:1px solid #cbdff6;
+    }
+    .sales-header h1 { margin:0 0 6px; color:#133b63; font-size:28px; line-height:1.1; }
+    .sales-header p { margin:0; color:#6a7a8f; font-size:14px; line-height:1.5; max-width:700px; }
+    .sales-actions { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .page-btn {
+        min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 16px;
+        border-radius:12px; text-decoration:none; font-size:14px; font-weight:700; border:0; cursor:pointer;
+        transition:transform .15s ease, background .15s ease, box-shadow .15s ease;
+    }
+    .page-btn:hover { transform:translateY(-1px); }
+    .page-btn-secondary { background:#eaf1f8; color:#274763; }
+    .page-btn-secondary:hover { background:#dde8f3; }
+    .page-btn-primary { background:linear-gradient(135deg,#1b74cf,#155da8); color:#fff; box-shadow:0 8px 18px rgba(21,93,168,.18); }
+    .page-btn-primary:hover { background:linear-gradient(135deg,#1769bd,#124f92); }
+
+    .summary-strip { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+    .summary-card { padding:16px 18px; border:1px solid #e1e9f3; border-radius:16px; background:#fff; box-shadow:0 6px 18px rgba(16,47,79,0.05); }
+    .summary-label { color:#728296; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px; }
+    .summary-value { color:#133b63; font-size:26px; font-weight:900; line-height:1.1; }
+    .summary-help { color:#7b889a; font-size:12px; margin-top:6px; line-height:1.45; }
+
+    .toolbar { display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:18px; }
+    .toolbar-title { color:#173b61; font-size:20px; font-weight:800; }
+    .toolbar-help { color:#7a8797; font-size:13px; margin-top:4px; }
+    .search-wrap { position:relative; width:min(100%,320px); }
+    .search-wrap i { position:absolute; top:50%; left:14px; transform:translateY(-50%); color:#7a8a9f; font-size:14px; }
+    .search-input {
+        width:100%; height:44px; border:1px solid #d7e1ed; border-radius:12px; background:#fff; color:#15314d;
+        padding:0 14px 0 40px; font-size:14px; outline:none; box-sizing:border-box;
+    }
+    .search-input:focus { border-color:#2b78d1; box-shadow:0 0 0 3px rgba(43,120,209,.10); }
+
+    .batch-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .sale-batch-card {
+        border:1px solid #e0e8f2; border-radius:18px; background:#fff; box-shadow:0 7px 22px rgba(17,49,82,.05); overflow:hidden;
+    }
+    .sale-batch-head { padding:18px 20px; border-bottom:1px solid #edf2f7; }
+    .sale-batch-title { margin:0 0 6px; color:#123f6c; font-size:22px; line-height:1.1; }
+    .sale-batch-meta { display:flex; flex-wrap:wrap; gap:8px; color:#728195; font-size:12px; }
+    .mini-badge {
+        display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
+        background:#f4f8fc; color:#58718a; border:1px solid #e2ebf4; font-weight:700;
+    }
+    .metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; padding:16px 20px; }
+    .metric { padding:12px; border:1px solid #e7edf5; border-radius:12px; background:#fbfdff; }
+    .metric-label { color:#79889a; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; margin-bottom:7px; }
+    .metric-value { color:#173b61; font-size:18px; font-weight:900; line-height:1.15; }
+    .metric-value.money { color:#0f7a3d; }
+    .sale-batch-actions { padding:0 20px 18px; }
+    .view-btn {
+        width:100%; min-height:42px; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+        border-radius:11px; background:#edf5ff; color:#1f67ba; text-decoration:none; font-size:13px; font-weight:800;
+    }
+    .view-btn:hover { background:#e0eeff; }
+    .empty-state { padding:22px; border:1px dashed #d6e1ec; border-radius:14px; background:#fbfdff; color:#738397; text-align:center; font-size:14px; }
+    .no-results { display:none; padding:16px; border-radius:14px; background:#fff; border:1px dashed #d7e1ec; color:#708196; text-align:center; margin-top:16px; }
+
+    @media (max-width:960px) {
+        .sales-header, .toolbar { flex-direction:column; align-items:stretch; }
+        .summary-strip { grid-template-columns:1fr; }
+        .batch-grid { grid-template-columns:1fr; }
+        .search-wrap { width:100%; }
+    }
+    @media (max-width:700px) {
+        .sales-page { width:100%; }
+        .sales-header { padding:18px 16px; }
+        .sales-icon { width:48px; height:48px; min-width:48px; border-radius:14px; font-size:21px; }
+        .sales-header h1 { font-size:24px; }
+        .summary-card, .sale-batch-head, .metrics, .sale-batch-actions { padding-left:16px; padding-right:16px; }
+        .metrics { grid-template-columns:1fr 1fr; }
+        .metric:last-child { grid-column:1 / -1; }
+        .page-btn { width:100%; }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<h2>Meat Sales Summary</h2>
+<div class="sales-page">
+    <div class="sales-header">
+        <div class="sales-header-main">
+            <div class="sales-icon"><i class="fa-solid fa-chart-line"></i></div>
+            <div>
+                <h1>Meat Sales Summary</h1>
+                <p>Review sales batch-wise and open any batch to inspect individual sale records, birds sold, weight, rate, and revenue.</p>
+            </div>
+        </div>
+        <div class="sales-actions">
+            <a href="{% url 'finance_tracker' %}" class="page-btn page-btn-secondary"><i class="fa-solid fa-arrow-left"></i> Finance Tracker</a>
+            <a href="{% url 'add_sale_record' %}" class="page-btn page-btn-primary"><i class="fa-solid fa-plus"></i> Record Sale</a>
+        </div>
+    </div>
 
-<table border="1" cellpadding="8">
-    <tr>
-        <th>Batch</th>
-        <th>Shed</th>
-        <th>Start Date</th>
-        <th>Total Sold</th>
-        <th>Total Revenue</th>
-        <th>Records</th>
-        <th>Action</th>
-    </tr>
+    <div class="summary-strip">
+        <div class="summary-card">
+            <div class="summary-label">Batches Listed</div>
+            <div class="summary-value">{{ rows|length }}</div>
+            <div class="summary-help">Meat batches currently available in the sales summary.</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Sales View</div>
+            <div class="summary-value">Batch</div>
+            <div class="summary-help">Each card groups all sale records belonging to one batch.</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Entry Details</div>
+            <div class="summary-value">Track</div>
+            <div class="summary-help">Birds sold, revenue, sale count, date, weight, and rate.</div>
+        </div>
+    </div>
 
-    {% for row in rows %}
-    <tr>
-        <td>Batch # {{ row.batch.batch_number }}</td>
-        <td>{{ row.batch.shed.name }}</td>
-        <td>{{ row.batch.start_date }}</td>
-        <td>{{ row.total_sold }}</td>
-        <td>Rs {{ row.total_revenue }}</td>
-        <td>{{ row.sales_count }}</td>
-        <td>
-            <a href="{% url 'meat_sale_detail' row.batch.id %}">
-                View Detail
-            </a>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
+    <div class="toolbar">
+        <div>
+            <div class="toolbar-title">Batch-wise Sales History</div>
+            <div class="toolbar-help">Search by batch number or shed.</div>
+        </div>
+        <div class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="pageSearch" class="search-input" placeholder="Search batch or shed...">
+        </div>
+    </div>
+
+    {% if rows %}
+        <div class="batch-grid">
+            {% for row in rows %}
+                <section class="sale-batch-card searchable-card" data-search="batch {{ row.batch.batch_number }} {{ row.batch.shed.name }} {{ row.batch.shed.shed_type|title }}">
+                    <div class="sale-batch-head">
+                        <h2 class="sale-batch-title">{{ row.batch.shed.shed_type|title }} Batch #{{ row.batch.batch_number }}</h2>
+                        <div class="sale-batch-meta">
+                            <span class="mini-badge"><i class="fa-regular fa-calendar"></i> {{ row.batch.start_date|date:"d M Y" }}</span>
+                            <span class="mini-badge"><i class="fa-solid fa-warehouse"></i> {{ row.batch.shed.name }}</span>
+                        </div>
+                    </div>
+                    <div class="metrics">
+                        <div class="metric">
+                            <div class="metric-label">Birds Sold</div>
+                            <div class="metric-value">{{ row.total_sold }}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Sale Records</div>
+                            <div class="metric-value">{{ row.sales_count }}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Net Revenue</div>
+                            <div class="metric-value money">Rs {{ row.total_revenue|floatformat:0 }}</div>
+                        </div>
+                    </div>
+                    <div class="sale-batch-actions">
+                        <a href="{% url 'meat_sale_detail' row.batch.id %}" class="view-btn"><i class="fa-solid fa-arrow-right"></i> View Sale Details</a>
+                    </div>
+                </section>
+            {% endfor %}
+        </div>
+        <div class="no-results" id="noResults">No matching sales batch was found.</div>
+    {% else %}
+        <div class="empty-state">No meat sales batches are available yet.</div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const searchInput = document.getElementById('pageSearch');
+    const cards = Array.from(document.querySelectorAll('.searchable-card'));
+    const noResults = document.getElementById('noResults');
+    if (!searchInput || !cards.length) return;
+    function runSearch() {
+        const term = searchInput.value.trim().toLowerCase();
+        let visible = 0;
+        cards.forEach(function (card) {
+            const match = term === '' || (card.dataset.search || '').toLowerCase().includes(term);
+            card.style.display = match ? '' : 'none';
+            if (match) visible += 1;
+        });
+        if (noResults) noResults.style.display = visible === 0 ? 'block' : 'none';
+    }
+    searchInput.addEventListener('input', runSearch);
+})();
+</script>
 {% endblock %}

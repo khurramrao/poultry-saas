@@ -1,40 +1,181 @@
 {% extends "api/base_dashboard.html" %}
 
-{% block title %}
-Meat Sale Detailsdsdsdsd
+{% block title %}Meat Sale Detail{% endblock %}
+
+{% block extra_css %}
+<style>
+    .detail-page { max-width:1180px; margin:0 auto; }
+    .detail-header {
+        display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:22px 24px; margin-bottom:18px;
+        border:1px solid #dfe8f3; border-radius:18px; background:linear-gradient(135deg,#ffffff,#f7fbff); box-shadow:0 8px 24px rgba(17,53,90,.06);
+    }
+    .detail-header-main { display:flex; align-items:flex-start; gap:14px; }
+    .detail-icon { width:54px; height:54px; min-width:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#e8f3ff,#dcecff); color:#1f67ba; font-size:24px; border:1px solid #cbdff6; }
+    .detail-header h1 { margin:0 0 6px; color:#133b63; font-size:28px; line-height:1.1; }
+    .detail-header p { margin:0; color:#6a7a8f; font-size:14px; line-height:1.5; }
+    .page-btn { min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 16px; border-radius:12px; text-decoration:none; font-size:14px; font-weight:700; border:0; cursor:pointer; }
+    .page-btn-secondary { background:#eaf1f8; color:#274763; }
+    .page-btn-primary { background:linear-gradient(135deg,#1b74cf,#155da8); color:#fff; }
+    .detail-actions { display:flex; gap:10px; flex-wrap:wrap; }
+
+    .kpi-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+    .kpi-card { padding:16px 18px; border:1px solid #e1e9f3; border-radius:16px; background:#fff; box-shadow:0 6px 18px rgba(16,47,79,.05); }
+    .kpi-label { color:#728296; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; margin-bottom:8px; }
+    .kpi-value { color:#133b63; font-size:26px; font-weight:900; line-height:1.1; }
+    .kpi-value.money { color:#0f7a3d; }
+    .kpi-help { color:#7b889a; font-size:12px; margin-top:6px; line-height:1.45; }
+
+    .records-card { border:1px solid #e0e8f2; border-radius:18px; background:#fff; box-shadow:0 7px 22px rgba(17,49,82,.05); overflow:hidden; }
+    .records-head { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:18px 20px; border-bottom:1px solid #edf2f7; }
+    .records-title { margin:0; color:#173b61; font-size:20px; font-weight:800; }
+    .records-help { margin-top:4px; color:#7a8797; font-size:13px; }
+    .search-wrap { position:relative; width:min(100%,320px); }
+    .search-wrap i { position:absolute; top:50%; left:14px; transform:translateY(-50%); color:#7a8a9f; font-size:14px; }
+    .search-input { width:100%; height:42px; border:1px solid #d7e1ed; border-radius:12px; padding:0 14px 0 40px; font-size:14px; outline:none; box-sizing:border-box; }
+    .record-list { padding:8px 20px 18px; }
+    .record-row {
+        display:grid; grid-template-columns:130px 110px 130px 130px minmax(160px,1fr) 150px; gap:14px; align-items:center;
+        padding:14px 0; border-bottom:1px solid #eef2f6;
+    }
+    .record-row:last-child { border-bottom:0; }
+    .record-date { color:#50657c; font-size:13px; font-weight:700; }
+    .record-label { color:#7b8898; font-size:11px; font-weight:800; text-transform:uppercase; margin-bottom:4px; }
+    .record-value { color:#173b61; font-size:14px; font-weight:800; }
+    .record-note { color:#718195; font-size:13px; line-height:1.4; }
+    .record-note.is-empty { font-style:italic; }
+    .record-money { text-align:right; color:#0f7a3d; font-size:18px; font-weight:900; }
+    .discount-line { color:#c94a3b; font-size:11px; font-weight:700; margin-top:3px; }
+    .empty-state { padding:22px; border:1px dashed #d6e1ec; border-radius:14px; background:#fbfdff; color:#738397; text-align:center; font-size:14px; }
+    .no-results { display:none; padding:16px; color:#708196; text-align:center; }
+
+    @media (max-width:1050px) {
+        .record-row { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .record-money { text-align:left; }
+    }
+    @media (max-width:800px) {
+        .detail-header, .records-head { flex-direction:column; align-items:stretch; }
+        .kpi-grid { grid-template-columns:1fr; }
+        .search-wrap { width:100%; }
+        .record-row { grid-template-columns:1fr 1fr; gap:12px; }
+        .record-note-wrap, .record-money-wrap { grid-column:1 / -1; }
+    }
+    @media (max-width:600px) {
+        .detail-page { width:100%; }
+        .detail-header { padding:18px 16px; }
+        .detail-header h1 { font-size:24px; }
+        .detail-icon { width:48px; height:48px; min-width:48px; border-radius:14px; font-size:21px; }
+        .records-head, .record-list, .kpi-card { padding-left:16px; padding-right:16px; }
+        .record-row { grid-template-columns:1fr; }
+        .record-note-wrap, .record-money-wrap { grid-column:auto; }
+        .detail-actions .page-btn { width:100%; }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<h2>Meat Sale Detail - Batch # {{ batch.batch_number }}</h2>
+<div class="detail-page">
+    <div class="detail-header">
+        <div class="detail-header-main">
+            <div class="detail-icon"><i class="fa-solid fa-receipt"></i></div>
+            <div>
+                <h1>{{ batch.shed.shed_type|title }} Batch #{{ batch.batch_number }} Sales</h1>
+                <p>Detailed sale history for this batch, including birds sold, average weight, rate per KG, discount, and net sale amount.</p>
+            </div>
+        </div>
+        <div class="detail-actions">
+            <a href="{% url 'meat_sales_summary' %}" class="page-btn page-btn-secondary"><i class="fa-solid fa-arrow-left"></i> Sales Summary</a>
+            <a href="{% url 'add_sale_record' %}" class="page-btn page-btn-primary"><i class="fa-solid fa-plus"></i> Record Sale</a>
+        </div>
+    </div>
 
-<a href="{% url 'meat_sales_summary' %}">Back to Meat Sales</a>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Total Birds Sold</div>
+            <div class="kpi-value">{{ total_sold }}</div>
+            <div class="kpi-help">Total birds recorded as sold from this batch.</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Net Sales</div>
+            <div class="kpi-value money">Rs {{ total_revenue|floatformat:0 }}</div>
+            <div class="kpi-help">Sale revenue after discounts.</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Sale Records</div>
+            <div class="kpi-value">{{ records|length }}</div>
+            <div class="kpi-help">Individual sale entries recorded for this batch.</div>
+        </div>
+    </div>
 
-<p><strong>Total Sold:</strong> {{ total_sold }}</p>
-<p><strong>Total Revenue:</strong> Rs {{ total_revenue }}</p>
+    <section class="records-card">
+        <div class="records-head">
+            <div>
+                <h2 class="records-title">Sale Records</h2>
+                <div class="records-help">Search by date, notes, birds sold, or amount.</div>
+            </div>
+            <div class="search-wrap">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="pageSearch" class="search-input" placeholder="Search sale records...">
+            </div>
+        </div>
 
-<table border="1" cellpadding="8">
-    <tr>
-        <th>Date</th>
-        <th>Birds Sold</th>
-        <th>Average Weight KG</th>
-        <th>Rate / KG</th>
-        <th>Total Amount</th>
-        <th>Notes</th>
-    </tr>
+        <div class="record-list">
+            {% for record in records %}
+                <div class="record-row searchable-row" data-search="{{ record.sale_date }} {{ record.birds_sold }} {{ record.total_weight_kg }} {{ record.rate_per_kg }} {{ record.total_amount }} {{ record.notes|default:'' }}">
+                    <div>
+                        <div class="record-label">Date</div>
+                        <div class="record-date">{{ record.sale_date|date:"d M Y" }}</div>
+                    </div>
+                    <div>
+                        <div class="record-label">Birds Sold</div>
+                        <div class="record-value">{{ record.birds_sold }}</div>
+                    </div>
+                    <div>
+                        <div class="record-label">Avg Weight</div>
+                        <div class="record-value">{{ record.average_weight_kg }} KG</div>
+                    </div>
+                    <div>
+                        <div class="record-label">Rate / KG</div>
+                        <div class="record-value">Rs {{ record.rate_per_kg|floatformat:0 }}</div>
+                    </div>
+                    <div class="record-note-wrap">
+                        <div class="record-label">Notes</div>
+                        <div class="record-note {% if not record.notes %}is-empty{% endif %}">{{ record.notes|default:"No notes added" }}</div>
+                    </div>
+                    <div class="record-money-wrap">
+                        <div class="record-label">Net Sale</div>
+                        <div class="record-money">Rs {{ record.total_amount|floatformat:0 }}</div>
+                        {% if record.discount_amount > 0 %}
+                            <div class="discount-line">Discount: Rs {{ record.discount_amount|floatformat:0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">No sale records have been recorded for this batch yet.</div>
+            {% endfor %}
+            <div class="no-results" id="noResults">No matching sale record was found.</div>
+        </div>
+    </section>
+</div>
+{% endblock %}
 
-    {% for record in records %}
-    <tr>
-        <td>{{ record.sale_date }}</td>
-        <td>{{ record.birds_sold }}</td>
-        <td>{{ record.average_weight_kg }}</td>
-        <td>{{ record.rate_per_kg }}</td>
-        <td>Rs {{ record.total_amount }}</td>
-        <td>{{ record.notes }}</td>
-    </tr>
-    {% empty %}
-    <tr>
-        <td colspan="6">No sale records yet.</td>
-    </tr>
-    {% endfor %}
-</table>
+{% block extra_js %}
+<script>
+(function () {
+    const searchInput = document.getElementById('pageSearch');
+    const rows = Array.from(document.querySelectorAll('.searchable-row'));
+    const noResults = document.getElementById('noResults');
+    if (!searchInput || !rows.length) return;
+    function runSearch() {
+        const term = searchInput.value.trim().toLowerCase();
+        let visible = 0;
+        rows.forEach(function (row) {
+            const match = term === '' || (row.dataset.search || '').toLowerCase().includes(term);
+            row.style.display = match ? '' : 'none';
+            if (match) visible += 1;
+        });
+        if (noResults) noResults.style.display = visible === 0 ? 'block' : 'none';
+    }
+    searchInput.addEventListener('input', runSearch);
+})();
+</script>
 {% endblock %}

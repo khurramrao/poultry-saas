@@ -1,167 +1,203 @@
 {% extends "api/base_dashboard.html" %}
 
-{% block title %}
-Add Expense
-{% endblock %}
+{% block title %}Add Expense{% endblock %}
 
 {% block extra_css %}
 <style>
-body{
-            font-family: Arial, sans-serif;
-            background:#f4f6f8;
-            margin:0;
-            padding:30px;
-        }
-
-        .container{
-            max-width:700px;
-            margin:auto;
-        }
-
-        .card{
-            background:white;
-            border-radius:16px;
-            padding:30px;
-            box-shadow:0 4px 15px rgba(0,0,0,0.08);
-        }
-
-        .icon{
-            text-align:center;
-            font-size:48px;
-            margin-bottom:10px;
-        }
-
-        h2{
-            text-align:center;
-            color:#1f4e79;
-            margin-bottom:25px;
-        }
-
-        .form-group{
-            margin-bottom:18px;
-        }
-
-        label{
-            display:block;
-            font-weight:bold;
-            color:#344054;
-            margin-bottom:6px;
-        }
-
-        input, select, textarea{
-            width:100%;
-            padding:12px;
-            border:1px solid #d0d5dd;
-            border-radius:10px;
-            font-size:15px;
-            box-sizing:border-box;
-        }
-
-        textarea{
-            resize:vertical;
-        }
-
-        .btn-row{
-            display:flex;
-            gap:10px;
-            margin-top:20px;
-        }
-
-        .btn{
-            text-decoration:none;
-            padding:12px 20px;
-            border-radius:10px;
-            border:none;
-            cursor:pointer;
-            font-weight:bold;
-            font-size:15px;
-        }
-
-        .btn-back{
-            background:#667085;
-            color:white;
-        }
-
-        .btn-save{
-            background:#16a34a;
-            color:white;
-        }
-
-        .btn-save:hover{
-            background:#15803d;
-        }
+    .entry-page { max-width: 980px; margin: 0 auto; }
+    .entry-header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; padding:22px 24px; margin-bottom:18px; border:1px solid #dfe8f3; border-radius:18px; background:linear-gradient(135deg,#ffffff,#f7fbff); box-shadow:0 8px 24px rgba(17,53,90,0.06); }
+    .entry-header-main { display:flex; align-items:flex-start; gap:14px; }
+    .entry-icon { width:54px; height:54px; min-width:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#eaf7ee,#dff3e5); color:#188447; font-size:24px; border:1px solid #ccebd8; }
+    .entry-header h1 { margin:0 0 6px; color:#133b63; font-size:28px; line-height:1.1; }
+    .entry-header p { margin:0; color:#6a7a8f; font-size:14px; line-height:1.5; max-width:650px; }
+    .page-btn { min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 16px; border-radius:12px; text-decoration:none; font-size:14px; font-weight:700; border:0; cursor:pointer; transition:transform .15s ease, background .15s ease; }
+    .page-btn:hover { transform:translateY(-1px); }
+    .page-btn-secondary { background:#eaf1f8; color:#274763; }
+    .page-btn-primary { background:linear-gradient(135deg,#1da756,#148843); color:#fff; }
+    .form-layout { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(280px,.7fr); gap:18px; align-items:start; }
+    .panel { background:#fff; border:1px solid #e1e9f3; border-radius:18px; box-shadow:0 7px 22px rgba(17,49,82,0.05); overflow:hidden; }
+    .panel-body { padding:22px; }
+    .section-title { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+    .section-icon { width:36px; height:36px; min-width:36px; border-radius:11px; display:flex; align-items:center; justify-content:center; background:#eef6ff; color:#236ec3; font-size:14px; }
+    .section-title h2 { margin:0; color:#173b61; font-size:18px; }
+    .section-title p { margin:3px 0 0; color:#7a8797; font-size:12px; }
+    .form-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; }
+    .form-group.full { grid-column:1 / -1; }
+    .form-label { display:block; margin-bottom:7px; color:#2d4057; font-size:13px; font-weight:700; }
+    .field-help { margin-top:6px; color:#7b8899; font-size:11px; line-height:1.45; }
+    .entry-input, .entry-select, .entry-textarea { width:100%; box-sizing:border-box; border:1px solid #ccd7e4; border-radius:12px; background:#fff; color:#152b45; font-size:14px; outline:none; transition:border-color .18s, box-shadow .18s, background .18s; }
+    .entry-input, .entry-select { height:48px; padding:0 14px; }
+    .entry-textarea { min-height:120px; padding:12px 14px; resize:vertical; }
+    .entry-input:focus, .entry-select:focus, .entry-textarea:focus { border-color:#2372d4; box-shadow:0 0 0 3px rgba(35,114,212,.11); background:#fcfdff; }
+    .input-prefix-wrap { position:relative; }
+    .input-prefix { position:absolute; left:14px; top:50%; transform:translateY(-50%); color:#66768a; font-size:13px; font-weight:700; pointer-events:none; }
+    .input-prefix-wrap .entry-input { padding-left:39px; }
+    .summary-card-head { padding:18px 20px; background:linear-gradient(135deg,#0f4678,#0c3a68); color:#fff; }
+    .summary-card-head h3 { margin:0 0 5px; font-size:18px; }
+    .summary-card-head p { margin:0; color:#d8e8f7; font-size:12px; line-height:1.45; }
+    .summary-list { padding:16px 20px 20px; }
+    .summary-row { display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid #edf1f5; }
+    .summary-row:last-child { border-bottom:0; }
+    .summary-label { color:#66788c; font-size:13px; }
+    .summary-value { color:#173b61; font-size:14px; font-weight:800; text-align:right; }
+    .category-help-box { margin-top:14px; padding:12px 14px; border:1px solid #d9e8fb; border-radius:12px; background:#f5f9ff; color:#34516f; font-size:13px; line-height:1.45; }
+    .tips-box { margin-top:16px; padding:12px 14px; border-radius:12px; background:#e9f8ee; border:1px solid #cae8d5; color:#1b6e3a; font-size:12px; line-height:1.55; }
+    .form-actions { display:flex; justify-content:flex-end; gap:10px; padding:18px 22px 22px; border-top:1px solid #edf1f6; background:#fbfcfe; }
+    @media (max-width:960px) { .form-layout { grid-template-columns:1fr; } }
+    @media (max-width:700px) {
+        .entry-page { width:100%; }
+        .entry-header { padding:18px 16px; flex-direction:column; }
+        .entry-header h1 { font-size:24px; }
+        .entry-icon { width:48px; height:48px; min-width:48px; border-radius:14px; font-size:21px; }
+        .form-grid { grid-template-columns:1fr; }
+        .panel-body, .summary-list { padding:16px; }
+        .summary-card-head { padding:16px; }
+        .form-actions { padding:16px; flex-direction:column-reverse; }
+        .page-btn { width:100%; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="card">
-
-        <div class="icon">🧾</div>
-
-        <h2>Add Expense</h2>
-
-        <form method="post">
-            {% csrf_token %}
-
-            <div class="form-group">
-                <label>Batch</label>
-               <select name="batch_id" required>
-                    <option value="">Select Batch</option>
-
-                    {% for batch in batches %}
-                        <option value="{{ batch.id }}">
-                            Batch #{{ batch.batch_number }}
-                            ({{ batch.shed.shed_type|title }})
-                            - {{ batch.current_birds }} Birds Available
-                        </option>
-                    {% endfor %}
-                </select>
+<div class="entry-page">
+    <div class="entry-header">
+        <div class="entry-header-main">
+            <div class="entry-icon"><i class="fa-solid fa-receipt"></i></div>
+            <div>
+                <h1>Add Expense</h1>
+                <p>Record a batch expense such as diesel, labour, electricity, transport, maintenance, rent, internet, service charges, or misc cost.</p>
             </div>
-
-            <div class="form-group">
-                <label>Expense Date</label>
-                <input type="date" name="expense_date" required>
-            </div>
-
-            <div class="form-group">
-                <label>Category</label>
-                <select name="category" required>
-                    <option value="">Select Category</option>
-                    <option value="diesel">Diesel</option>
-                    <option value="labor">Labor</option>
-                    <option value="electricity">Electricity</option>
-                    <option value="transport">Transport</option>
-                    <option value="maintenance">Maintenance</option>
-                    <option value="rent">Farm Rent</option>
-                    <option value="internet">Internet</option>
-                    <option value="service">Service Charges</option>
-                    <option value="misc">Misc</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>Amount (Rs)</label>
-                <input type="number" step="0.01" name="amount" placeholder="Enter amount" required>
-            </div>
-
-            <div class="form-group">
-                <label>Description</label>
-                <textarea name="description" rows="4" placeholder="Optional notes..."></textarea>
-            </div>
-
-            <div class="btn-row">
-                <a href="{% url 'expense_list' %}" class="btn btn-back">
-                    ← Back
-                </a>
-
-                <button type="submit" class="btn btn-save">
-                    Save Expense
-                </button>
-            </div>
-
-        </form>
-
+        </div>
+        <a href="{% url 'expense_list' %}" class="page-btn page-btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back to Expense List</a>
     </div>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-layout">
+            <div class="panel">
+                <div class="panel-body">
+                    <div class="section-title">
+                        <div class="section-icon"><i class="fa-solid fa-pen"></i></div>
+                        <div><h2>Expense Details</h2><p>Fill the expense information carefully.</p></div>
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-group full">
+                            <label class="form-label" for="batch_id">Batch</label>
+                            <select class="entry-select" name="batch_id" id="batch_id" required>
+                                <option value="">Select Batch</option>
+                                {% for batch in batches %}
+                                    <option value="{{ batch.id }}" data-shed="{{ batch.shed.shed_type|title }}" data-birds="{{ batch.current_birds }}" data-number="{{ batch.batch_number }}">Batch #{{ batch.batch_number }} ({{ batch.shed.shed_type|title }}) - {{ batch.current_birds }} Birds Available</option>
+                                {% endfor %}
+                            </select>
+                            <div class="field-help">Choose the active batch for this expense.</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="expense_date">Expense Date</label>
+                            <input class="entry-input" type="date" name="expense_date" id="expense_date" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="category">Category</label>
+                            <select class="entry-select" name="category" id="category" required>
+                                <option value="">Select Category</option>
+                                <option value="diesel">Diesel</option>
+                                <option value="labor">Labor</option>
+                                <option value="electricity">Electricity</option>
+                                <option value="transport">Transport</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="rent">Farm Rent</option>
+                                <option value="internet">Internet</option>
+                                <option value="service">Service Charges</option>
+                                <option value="misc">Misc</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="amount">Amount</label>
+                            <div class="input-prefix-wrap">
+                                <span class="input-prefix">Rs</span>
+                                <input class="entry-input" type="number" step="0.01" min="0" name="amount" id="amount" placeholder="Enter amount" required>
+                            </div>
+                        </div>
+                        <div class="form-group full">
+                            <label class="form-label" for="description">Description</label>
+                            <textarea class="entry-textarea" name="description" id="description" rows="4" placeholder="Optional details about the expense..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <a href="{% url 'expense_list' %}" class="page-btn page-btn-secondary">Cancel</a>
+                    <button type="submit" class="page-btn page-btn-primary"><i class="fa-solid fa-check"></i> Save Expense</button>
+                </div>
+            </div>
+            <aside class="panel">
+                <div class="summary-card-head"><h3>Quick Summary</h3><p>Preview the key information before saving.</p></div>
+                <div class="summary-list">
+                    <div class="summary-row"><span class="summary-label">Selected Batch</span><span class="summary-value" id="summaryBatch">Not selected</span></div>
+                    <div class="summary-row"><span class="summary-label">Available Birds</span><span class="summary-value" id="summaryBirds">—</span></div>
+                    <div class="summary-row"><span class="summary-label">Category</span><span class="summary-value" id="summaryCategory">—</span></div>
+                    <div class="summary-row"><span class="summary-label">Date</span><span class="summary-value" id="summaryDate">—</span></div>
+                    <div class="summary-row"><span class="summary-label">Amount</span><span class="summary-value" id="summaryAmount">Rs 0</span></div>
+                    <div class="category-help-box" id="categoryHelp">Select a category to see a quick reminder here.</div>
+                    <div class="tips-box"><strong>Tip:</strong> Use clear descriptions such as “Electricity bill for July”, “Generator diesel”, or “Labour weekly payment” so finance tracker remains easy to explain later.</div>
+                </div>
+            </aside>
+        </div>
+    </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const batchSelect = document.getElementById('batch_id');
+    const categorySelect = document.getElementById('category');
+    const amountInput = document.getElementById('amount');
+    const dateInput = document.getElementById('expense_date');
+    const summaryBatch = document.getElementById('summaryBatch');
+    const summaryBirds = document.getElementById('summaryBirds');
+    const summaryCategory = document.getElementById('summaryCategory');
+    const summaryDate = document.getElementById('summaryDate');
+    const summaryAmount = document.getElementById('summaryAmount');
+    const categoryHelp = document.getElementById('categoryHelp');
+
+    const helpMap = {
+        diesel: 'Use this for diesel or fuel purchases related to the batch.',
+        labor: 'Use this for labour or worker payments related to the batch.',
+        electricity: 'Use this for electricity bills or meter-related expense.',
+        transport: 'Use this for transport, loading, or shipment-related cost.',
+        maintenance: 'Use this for repair, maintenance, or equipment servicing cost.',
+        rent: 'Use this for farm rent or space rental cost.',
+        internet: 'Use this for internet or connectivity charges.',
+        service: 'Use this for bank, service, or utility handling charges.',
+        misc: 'Use this for other recorded expense that does not fit a main category.'
+    };
+
+    function money(value) {
+        const n = Number.parseFloat(value);
+        const safe = Number.isFinite(n) ? n : 0;
+        return 'Rs ' + safe.toLocaleString('en-PK', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+    }
+
+    function updatePreview() {
+        const option = batchSelect.options[batchSelect.selectedIndex];
+        if (option && option.value) {
+            const shed = option.dataset.shed || '';
+            const birds = option.dataset.birds || '0';
+            const number = option.dataset.number || '';
+            summaryBatch.textContent = shed + ' Batch #' + number;
+            summaryBirds.textContent = birds;
+        } else {
+            summaryBatch.textContent = 'Not selected';
+            summaryBirds.textContent = '—';
+        }
+        const categoryText = categorySelect.value ? categorySelect.options[categorySelect.selectedIndex].text : '—';
+        summaryCategory.textContent = categoryText;
+        summaryDate.textContent = dateInput.value || '—';
+        summaryAmount.textContent = money(amountInput.value);
+        categoryHelp.textContent = helpMap[categorySelect.value] || 'Select a category to see a quick reminder here.';
+    }
+
+    [batchSelect, categorySelect, amountInput, dateInput].forEach(function (el) { el.addEventListener('input', updatePreview); el.addEventListener('change', updatePreview); });
+    updatePreview();
+})();
+</script>
 {% endblock %}

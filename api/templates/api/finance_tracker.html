@@ -1,851 +1,1593 @@
 {% extends "api/base_dashboard.html" %}
 {% load humanize %}
 
-{% block title %}
-Finance Tracker
-{% endblock %}
+{% block title %}Finance Tracker | RayNoor Organic Farms{% endblock %}
 
 {% block extra_css %}
 <style>
-body {
-    font-family: Arial, sans-serif;
-    background: #f4f6f8;
-    margin: 0;
-    color: #111827;
-    overflow-x: hidden;
-}
-
-.header {
-    background: #1f4e79;
-    color: white;
-    text-align: center;
-    padding: 24px 15px;
-}
-
-.header h2 {
-    margin: 0;
-    font-size: 28px;
-}
-
-.container {
-    max-width: 1200px;
-    width: 100%;
-    margin: 20px auto;
-    padding: 15px;
-    box-sizing: border-box;
-}
-
-.top-actions {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-}
-
-.btn {
-    display: inline-block;
-    background: #1f4e79;
-    color: white;
-    text-decoration: none;
-    padding: 11px 16px;
-    border-radius: 8px;
-    font-weight: bold;
-    box-sizing: border-box;
-}
-
-.sale-btn {
-    background: #16a34a;
-}
-
-.btn-feed {
-    background: #f59e0b;
-    color: white;
-}
-
-.btn-medicine {
-    background: #dc2626;
-    color: white;
-}
-
-.finance-card {
-    background: white;
-    border-radius: 14px;
-    padding: 22px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-    box-sizing: border-box;
-}
-
-.card-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 18px;
-    gap: 10px;
-}
-
-.batch-name {
-    font-size: 24px;
-    font-weight: bold;
-    color: #1f4e79;
-}
-
-.status-badge {
-    background: #dff7df;
-    color: green;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 12px;
-    margin-bottom: 22px;
-}
-
-.stat-box {
-    background: #f8fafc;
-    padding: 16px;
-    border-radius: 12px;
-    text-align: center;
-    border: 1px solid #edf1f5;
-}
-
-.stat-label {
-    font-size: 14px;
-    color: #667085;
-}
-
-.stat-value {
-    font-size: 26px;
-    font-weight: bold;
-    color: #1f4e79;
-    margin-top: 5px;
-}
-
-.section-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(430px, 1fr));
-    gap: 16px;
-    margin-top: 16px;
-}
-
-.finance-section {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    padding: 18px;
-    background: white;
-    box-sizing: border-box;
-}
-
-.highlight-section {
-    background: #eef6ff;
-    border-color: #d9eaff;
-}
-
-.finance-section h4 {
-    margin: 0 0 12px 0;
-    color: #1f4e79;
-    font-size: 20px;
-}
-
-.sub-title {
-    margin: 16px 0 8px 0;
-    color: #344054;
-    font-size: 15px;
-    font-weight: bold;
-    border-top: 1px solid #eef2f6;
-    padding-top: 12px;
-}
-
-.finance-row {
-    display: grid;
-    grid-template-columns: minmax(210px, 1fr) 170px;
-    align-items: center;
-    padding: 8px 0;
-    font-size: 15px;
-    gap: 16px;
-}
-
-.finance-row span:last-child,
-.finance-row strong:last-child {
-    text-align: right;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-}
-
-.total-row {
-    border-top: 1px solid #e5e7eb;
-    margin-top: 8px;
-    padding-top: 12px;
-}
-
-.sale-item,
-.expense-item {
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    background: #fafcff;
-    overflow: hidden;
-}
-
-.sale-item summary,
-.expense-item summary {
-    padding: 13px;
-    cursor: pointer;
-    font-weight: bold;
-    color: #1f4e79;
-    list-style: none;
-    font-size: 15px;
-}
-
-.sale-details,
-.expense-details {
-    padding: 13px;
-    border-top: 1px solid #e5e7eb;
-    background: white;
-}
-
-.positive {
-    color: green;
-    font-weight: bold;
-}
-
-.negative {
-    color: #dc2626;
-    font-weight: bold;
-}
-
-.muted {
-    color: #667085;
-}
-
-.roi-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
-    margin-top: 28px;
-    padding-top: 18px;
-}
-
-.roi-row .roi-box:only-child {
-    grid-column: 1 / 3;
-}
-
-.roi-box {
-    background: #eef6ff;
-    border: 1px solid #d9eaff;
-    border-radius: 12px;
-    padding: 22px;
-    text-align: center;
-}
-
-.roi-title {
-    font-size: 15px;
-    color: #1f4e79;
-    margin-bottom: 10px;
-}
-
-.roi-value {
-    font-size: 38px;
-    font-weight: bold;
-    color: #1f4e79;
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-    .header {
-        padding: 28px 12px;
+    .finance-page{
+        max-width:1500px;
+        margin:0 auto;
     }
 
-    .header h2 {
-        font-size: 28px;
+    .finance-page-header{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:18px;
+        margin-bottom:16px;
     }
 
-    .container {
-        max-width: 100%;
-        width: 100%;
-        padding: 12px;
-        margin: 12px auto;
+    .finance-heading{
+        display:flex;
+        align-items:center;
+        gap:13px;
     }
 
-    .top-actions {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 10px;
+    .finance-heading-icon{
+        width:50px;
+        height:50px;
+        min-width:50px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:14px;
+        background:linear-gradient(135deg,#e8f7ed,#ddf3e5);
+        border:1px solid #cae8d4;
+        color:#198343;
+        font-size:21px;
     }
 
-    .btn {
-        width: 100%;
-        text-align: center;
-        font-size: 17px;
-        padding: 14px;
+    .finance-heading h1{
+        margin:0 0 5px;
+        color:#123f70;
+        font-size:26px;
+        line-height:1.15;
     }
 
-    .finance-card {
-        padding: 18px;
-        border-radius: 16px;
+    .finance-heading p{
+        margin:0;
+        color:#66768a;
+        font-size:13px;
+        line-height:1.45;
     }
 
-    .card-title {
-        flex-direction: column;
-        align-items: flex-start;
+    .filter-tabs{
+        display:flex;
+        align-items:center;
+        gap:6px;
+        padding:4px;
+        border:1px solid #dfe7f0;
+        border-radius:11px;
+        background:#fff;
+        box-shadow:0 3px 10px rgba(20,55,90,.04);
     }
 
-    .batch-name {
-        font-size: 25px;
-        line-height: 1.3;
+    .filter-tab{
+        padding:9px 13px;
+        border-radius:8px;
+        color:#53677d;
+        text-decoration:none;
+        font-size:12px;
+        font-weight:800;
+        white-space:nowrap;
     }
 
-    .stats-grid {
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
+    .filter-tab:hover{
+        background:#f2f7fd;
+        color:#1765bd;
     }
 
-    .stat-box {
-        padding: 16px 10px;
+    .filter-tab.active{
+        background:#1767c6;
+        color:#fff;
     }
 
-    .stat-label {
-        font-size: 14px;
-        line-height: 1.4;
+    .finance-actions{
+        display:flex;
+        flex-wrap:wrap;
+        gap:8px;
+        margin-bottom:16px;
     }
 
-    .stat-value {
-        font-size: 26px;
+    .finance-action{
+        min-height:38px;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap:7px;
+        padding:0 13px;
+        border:1px solid #dbe5ef;
+        border-radius:9px;
+        background:#fff;
+        color:#26445f;
+        text-decoration:none;
+        font-size:12px;
+        font-weight:800;
+        box-shadow:0 2px 7px rgba(20,55,90,.035);
     }
 
-    .section-grid {
-        grid-template-columns: 1fr;
-        gap: 16px;
+    .finance-action:hover{
+        border-color:#bdd3ea;
+        background:#f7fbff;
     }
 
-    .finance-section {
-        padding: 18px;
+    .finance-action.primary{
+        background:#0f7c3a;
+        border-color:#0f7c3a;
+        color:#fff;
     }
 
-    .finance-section h4 {
-        font-size: 22px;
+    .overview-grid{
+        display:grid;
+        grid-template-columns:repeat(5,minmax(0,1fr));
+        gap:12px;
+        margin-bottom:13px;
     }
 
-    .sub-title {
-        font-size: 16px;
+    .overview-card{
+        min-width:0;
+        background:#fff;
+        border:1px solid #e1e8f0;
+        border-radius:14px;
+        padding:15px;
+        box-shadow:0 4px 12px rgba(20,55,90,.045);
     }
 
-    .finance-row {
-        display: grid;
-        grid-template-columns: 1fr 125px;
-        gap: 12px;
-        padding: 11px 0;
-        font-size: 16px;
+    .overview-top{
+        display:flex;
+        align-items:center;
+        gap:9px;
+        margin-bottom:10px;
     }
 
-    .finance-row span:first-child,
-    .finance-row strong:first-child {
-        text-align: left;
+    .overview-icon{
+        width:35px;
+        height:35px;
+        min-width:35px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:10px;
+        background:#edf5ff;
+        color:#1767c6;
+        font-size:14px;
     }
 
-    .finance-row span:last-child,
-    .finance-row strong:last-child {
-        text-align: right;
-        white-space: nowrap;
-        font-size: 16px;
+    .overview-card.profit .overview-icon{
+        background:#eaf8ef;
+        color:#16813d;
     }
 
-    .sale-item summary,
-    .expense-item summary {
-        font-size: 17px;
-        padding: 15px;
+    .overview-card.expense .overview-icon{
+        background:#fff6e8;
+        color:#c77a00;
     }
 
-    .sale-details,
-    .expense-details {
-        padding: 15px;
+    .overview-label{
+        color:#586b7f;
+        font-size:11px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.025em;
     }
 
-    .roi-row {
-        grid-template-columns: 1fr;
-        gap: 14px;
+    .overview-value{
+        color:#133d68;
+        font-size:23px;
+        line-height:1.1;
+        font-weight:900;
+        white-space:nowrap;
     }
 
-    .roi-row .roi-box:only-child {
-        grid-column: auto;
+    .overview-card.profit .overview-value{
+        color:#13713a;
     }
 
-    .roi-box {
-        padding: 24px;
+    .overview-note{
+        margin-top:6px;
+        color:#8090a1;
+        font-size:10px;
+        line-height:1.35;
     }
 
-    .roi-title {
-        font-size: 16px;
+    .bird-strip{
+        display:grid;
+        grid-template-columns:repeat(5,minmax(0,1fr));
+        gap:1px;
+        margin-bottom:18px;
+        overflow:hidden;
+        border:1px solid #e1e8f0;
+        border-radius:12px;
+        background:#e7edf4;
     }
 
-    .roi-value {
-        font-size: 38px;
-    }
-}
-
-@media (max-width: 480px) {
-    .stats-grid {
-        grid-template-columns: 1fr;
+    .bird-stat{
+        padding:11px 13px;
+        background:#fbfcfe;
     }
 
-    .finance-card {
-        padding: 15px;
+    .bird-stat span{
+        display:block;
+        color:#738397;
+        font-size:10px;
+        font-weight:700;
+        text-transform:uppercase;
     }
 
-    .finance-section {
-        padding: 15px;
+    .bird-stat strong{
+        display:block;
+        margin-top:3px;
+        color:#173b61;
+        font-size:16px;
     }
 
-    .finance-row {
-        grid-template-columns: 1fr 115px;
-        gap: 10px;
+    .batch-finance-card{
+        margin-bottom:18px;
+        overflow:hidden;
+        background:#fff;
+        border:1px solid #dfe7f0;
+        border-radius:16px;
+        box-shadow:0 5px 16px rgba(20,55,90,.055);
     }
-}
+
+    .batch-head{
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:16px;
+        padding:17px 19px 15px;
+        border-bottom:1px solid #edf1f5;
+        background:linear-gradient(180deg,#fff,#fbfdff);
+    }
+
+    .batch-kicker{
+        margin-bottom:4px;
+        color:#6d7e91;
+        font-size:10px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.06em;
+    }
+
+    .batch-title{
+        margin:0;
+        color:#123f70;
+        font-size:20px;
+        line-height:1.2;
+    }
+
+    .batch-meta{
+        display:flex;
+        flex-wrap:wrap;
+        gap:7px 12px;
+        margin-top:7px;
+        color:#697a8d;
+        font-size:11px;
+    }
+
+    .batch-meta span{
+        display:inline-flex;
+        align-items:center;
+        gap:5px;
+    }
+
+    .status-pill{
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        padding:7px 10px;
+        border-radius:999px;
+        font-size:10px;
+        font-weight:900;
+        text-transform:uppercase;
+        white-space:nowrap;
+    }
+
+    .status-pill.active{
+        background:#e7f7ec;
+        color:#167b37;
+    }
+
+    .status-pill.sold{
+        background:#eaf3ff;
+        color:#1765bd;
+    }
+
+    .status-pill.closed{
+        background:#eef1f5;
+        color:#586779;
+    }
+
+    .batch-body{
+        padding:16px 18px 19px;
+    }
+
+    .batch-birds-grid,
+    .batch-money-grid{
+        display:grid;
+        gap:10px;
+    }
+
+    .batch-birds-grid{
+        grid-template-columns:repeat(5,minmax(0,1fr));
+        margin-bottom:10px;
+    }
+
+    .batch-money-grid{
+        grid-template-columns:repeat(5,minmax(0,1fr));
+        margin-bottom:16px;
+    }
+
+    .mini-stat,
+    .money-stat{
+        min-width:0;
+        padding:12px 13px;
+        border:1px solid #e4ebf2;
+        border-radius:11px;
+        background:#fafcff;
+    }
+
+    .mini-stat span,
+    .money-stat span{
+        display:block;
+        color:#718196;
+        font-size:10px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.025em;
+    }
+
+    .mini-stat strong{
+        display:block;
+        margin-top:5px;
+        color:#173b61;
+        font-size:19px;
+    }
+
+    .money-stat strong{
+        display:block;
+        margin-top:5px;
+        color:#173b61;
+        font-size:17px;
+        white-space:nowrap;
+    }
+
+    .money-stat.net{
+        background:#effaf3;
+        border-color:#cfe9d8;
+    }
+
+    .money-stat.net strong{
+        color:#13733b;
+    }
+
+    .money-stat.roi{
+        background:#eef6ff;
+        border-color:#d6e6f8;
+    }
+
+    .money-stat.roi strong{
+        color:#1765bd;
+    }
+
+    .section-title-row{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        margin:17px 0 10px;
+    }
+
+    .section-title{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        margin:0;
+        color:#183f66;
+        font-size:15px;
+    }
+
+    .section-title i{
+        color:#1767c6;
+    }
+
+    .section-help{
+        color:#8290a0;
+        font-size:10px;
+    }
+
+    .owner-table-wrap{
+        overflow-x:auto;
+        border:1px solid #dfe7ef;
+        border-radius:12px;
+    }
+
+    .owner-table{
+        width:100%;
+        min-width:1080px;
+        border-collapse:collapse;
+        font-size:11px;
+    }
+
+    .owner-table th{
+        padding:10px 9px;
+        background:#f7f9fc;
+        color:#627388;
+        text-align:right;
+        font-size:9px;
+        text-transform:uppercase;
+        letter-spacing:.03em;
+        border-bottom:1px solid #e3e9f0;
+        white-space:nowrap;
+    }
+
+    .owner-table th:first-child,
+    .owner-table td:first-child{
+        text-align:left;
+    }
+
+    .owner-table td{
+        padding:11px 9px;
+        color:#24405d;
+        text-align:right;
+        border-bottom:1px solid #edf1f5;
+        white-space:nowrap;
+    }
+
+    .owner-table tr:last-child td{
+        border-bottom:0;
+    }
+
+    .owner-name{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        min-width:150px;
+        font-weight:800;
+        color:#173f68;
+    }
+
+    .owner-avatar{
+        width:29px;
+        height:29px;
+        min-width:29px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:9px;
+        background:#edf5ff;
+        color:#1767c6;
+    }
+
+    .owner-avatar.admin{
+        background:#eaf8ef;
+        color:#16813c;
+    }
+
+    .money-positive{
+        color:#14803d !important;
+        font-weight:900;
+    }
+
+    .money-negative{
+        color:#c93d3d !important;
+        font-weight:900;
+    }
+
+    .owner-mobile-list{
+        display:none;
+    }
+
+    .owner-mobile-card{
+        padding:14px;
+        border:1px solid #dfe7ef;
+        border-radius:12px;
+        background:#fbfcfe;
+    }
+
+    .owner-mobile-head{
+        display:flex;
+        justify-content:space-between;
+        gap:10px;
+        align-items:flex-start;
+        margin-bottom:10px;
+    }
+
+    .owner-mobile-name{
+        color:#173f68;
+        font-size:15px;
+        font-weight:900;
+    }
+
+    .owner-mobile-share{
+        color:#1767c6;
+        font-size:12px;
+        font-weight:900;
+    }
+
+    .owner-mobile-birds,
+    .owner-mobile-money{
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:7px;
+    }
+
+    .owner-mobile-birds{
+        margin-bottom:8px;
+    }
+
+    .owner-mobile-metric{
+        padding:9px 10px;
+        border-radius:9px;
+        background:#fff;
+        border:1px solid #e6ecf3;
+    }
+
+    .owner-mobile-metric span{
+        display:block;
+        color:#7b8999;
+        font-size:9px;
+        font-weight:800;
+        text-transform:uppercase;
+    }
+
+    .owner-mobile-metric strong{
+        display:block;
+        margin-top:3px;
+        color:#173b61;
+        font-size:14px;
+    }
+
+    .owner-details-grid{
+        display:grid;
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:10px;
+        margin-top:11px;
+    }
+
+    details.finance-detail{
+        overflow:hidden;
+        border:1px solid #dfe7ef;
+        border-radius:11px;
+        background:#fff;
+    }
+
+    details.finance-detail > summary{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        padding:12px 13px;
+        cursor:pointer;
+        list-style:none;
+        color:#244765;
+        font-size:12px;
+        font-weight:900;
+        background:#fafcff;
+    }
+
+    details.finance-detail > summary::-webkit-details-marker{
+        display:none;
+    }
+
+    details.finance-detail > summary::after{
+        content:"+";
+        color:#1767c6;
+        font-size:18px;
+        line-height:1;
+    }
+
+    details.finance-detail[open] > summary::after{
+        content:"−";
+    }
+
+    .detail-body{
+        padding:12px 13px 13px;
+        border-top:1px solid #e8edf3;
+    }
+
+    .detail-row{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:12px;
+        padding:7px 0;
+        border-bottom:1px solid #eef2f6;
+        color:#647487;
+        font-size:11px;
+    }
+
+    .detail-row:last-child{
+        border-bottom:0;
+    }
+
+    .detail-row strong{
+        color:#173b61;
+        text-align:right;
+        white-space:nowrap;
+    }
+
+    .detail-row.total{
+        margin-top:4px;
+        padding-top:9px;
+        border-top:1px solid #dfe6ee;
+        border-bottom:0;
+        font-weight:900;
+    }
+
+    /* Feed cost can be expanded to show every feed purchase. */
+    .feed-cost-detail{
+        border-bottom:1px solid #eef2f6;
+    }
+
+    .feed-cost-detail > summary{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:7px 0;
+        cursor:pointer;
+        list-style:none;
+        color:#647487;
+        font-size:11px;
+        user-select:none;
+    }
+
+    .feed-cost-detail > summary::-webkit-details-marker{
+        display:none;
+    }
+
+    .feed-cost-label{
+        display:flex;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:7px;
+        min-width:0;
+    }
+
+    .feed-view-hint{
+        display:inline-flex;
+        align-items:center;
+        gap:4px;
+        padding:2px 6px;
+        border-radius:999px;
+        background:#edf5ff;
+        color:#1767c6;
+        font-size:9px;
+        font-weight:800;
+        white-space:nowrap;
+    }
+
+    .feed-cost-right{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        white-space:nowrap;
+    }
+
+    .feed-cost-right strong{
+        color:#173b61;
+        text-align:right;
+    }
+
+    .feed-cost-chevron{
+        color:#1767c6;
+        font-size:10px;
+        transition:transform .18s ease;
+    }
+
+    .feed-cost-detail[open] .feed-cost-chevron{
+        transform:rotate(180deg);
+    }
+
+    .feed-purchase-list{
+        margin:0 0 8px;
+        overflow:hidden;
+        border:1px solid #dce7f2;
+        border-radius:9px;
+        background:#f8fbff;
+    }
+
+    .feed-purchase-head{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        padding:8px 10px;
+        border-bottom:1px solid #dfe8f2;
+        background:#eef6ff;
+        color:#31506f;
+        font-size:10px;
+        font-weight:800;
+    }
+
+    .feed-purchase-row{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:12px;
+        padding:9px 10px;
+        border-bottom:1px solid #e6edf5;
+        background:#fff;
+    }
+
+    .feed-purchase-row:last-child{
+        border-bottom:0;
+    }
+
+    .feed-purchase-date{
+        color:#2f506f;
+        font-size:10px;
+        font-weight:800;
+    }
+
+    .feed-purchase-note{
+        margin-top:3px;
+        color:#75869a;
+        font-size:10px;
+        line-height:1.35;
+    }
+
+    .feed-purchase-row strong{
+        color:#173b61;
+        font-size:11px;
+        white-space:nowrap;
+    }
+
+    .feed-empty{
+        padding:10px;
+        color:#7a899a;
+        font-size:10px;
+        background:#fff;
+    }
+
+    .history-item{
+        margin-bottom:7px;
+        overflow:hidden;
+        border:1px solid #e3e9f0;
+        border-radius:9px;
+        background:#fff;
+    }
+
+    .history-item:last-child{
+        margin-bottom:0;
+    }
+
+    .history-item summary{
+        padding:9px 10px;
+        cursor:pointer;
+        color:#31506f;
+        font-size:10px;
+        font-weight:800;
+        background:#fbfcfe;
+    }
+
+    .history-body{
+        padding:7px 10px 9px;
+        border-top:1px solid #edf1f5;
+    }
+
+    .profit-formula{
+        margin-top:12px;
+        padding:10px 12px;
+        border:1px solid #dce8f4;
+        border-radius:9px;
+        background:#f7fbff;
+        color:#526b84;
+        font-size:11px;
+        line-height:1.5;
+    }
+
+    .profit-formula strong{
+        color:#244a70;
+    }
+
+    .empty-finance{
+        padding:30px 20px;
+        text-align:center;
+        background:#fff;
+        border:1px solid #e1e8f0;
+        border-radius:14px;
+        color:#718094;
+    }
+
+    .empty-finance i{
+        display:block;
+        margin-bottom:9px;
+        color:#93a2b4;
+        font-size:27px;
+    }
+
+    @media(max-width:1250px){
+        .overview-grid{
+            grid-template-columns:repeat(3,minmax(0,1fr));
+        }
+
+        .batch-money-grid{
+            grid-template-columns:repeat(3,minmax(0,1fr));
+        }
+    }
+
+    @media(max-width:900px){
+        .finance-page-header{
+            flex-direction:column;
+        }
+
+        .filter-tabs{
+            width:100%;
+        }
+
+        .filter-tab{
+            flex:1;
+            text-align:center;
+        }
+
+        .overview-grid{
+            grid-template-columns:repeat(2,minmax(0,1fr));
+        }
+
+        .bird-strip{
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:1px;
+        }
+
+        .bird-stat:last-child{
+            grid-column:1 / -1;
+        }
+
+        .batch-money-grid{
+            grid-template-columns:repeat(2,minmax(0,1fr));
+        }
+
+        .owner-table-wrap{
+            display:none;
+        }
+
+        .owner-mobile-list{
+            display:grid;
+            gap:9px;
+        }
+
+        .owner-details-grid{
+            grid-template-columns:1fr;
+        }
+    }
+
+    @media(max-width:620px){
+        .finance-heading-icon{
+            width:44px;
+            height:44px;
+            min-width:44px;
+        }
+
+        .finance-heading h1{
+            font-size:22px;
+        }
+
+        .finance-actions{
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+        }
+
+        .finance-action{
+            min-width:0;
+            padding:0 8px;
+            font-size:11px;
+        }
+
+        .overview-grid{
+            gap:8px;
+        }
+
+        .overview-card{
+            padding:12px;
+        }
+
+        .overview-value{
+            font-size:18px;
+        }
+
+        .overview-note{
+            display:none;
+        }
+
+        .batch-head{
+            padding:14px;
+        }
+
+        .batch-body{
+            padding:13px;
+        }
+
+        .batch-title{
+            font-size:18px;
+        }
+
+        .batch-birds-grid,
+        .batch-money-grid{
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:7px;
+        }
+
+        .money-stat:last-child{
+            grid-column:1 / -1;
+        }
+
+        .mini-stat,
+        .money-stat{
+            padding:10px;
+        }
+
+        .batch-birds-grid .cost-per-chick-stat{
+            grid-column:1 / -1;
+        }
+
+        .money-stat strong{
+            font-size:15px;
+        }
+
+        .section-title-row{
+            align-items:flex-start;
+            flex-direction:column;
+            gap:3px;
+        }
+    }
+
+    @media(max-width:400px){
+        .finance-actions{
+            grid-template-columns:1fr;
+        }
+
+        .overview-grid{
+            grid-template-columns:1fr;
+        }
+
+        .bird-strip{
+            grid-template-columns:1fr 1fr;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="header">
-    <h2>💰 Finance Tracker</h2>
-</div>
+<div class="finance-page">
 
-<div class="container">
+    <header class="finance-page-header">
+        <div class="finance-heading">
+            <div class="finance-heading-icon">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div>
+                <h1>
+                    {% if is_admin %}Finance Tracker{% else %}My Finance Portfolio{% endif %}
+                </h1>
+                <p>
+                    {% if is_admin %}
+                        Batch profitability, realized results and owner-by-owner financial performance.
+                    {% else %}
+                        Your ownership, realized revenue, costs and profit across your farm batches.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
 
-    <div class="top-actions">
+        <nav class="filter-tabs" aria-label="Finance batch filters">
+            <a href="?status=all" class="filter-tab {% if status_filter == 'all' %}active{% endif %}">All</a>
+            <a href="?status=active" class="filter-tab {% if status_filter == 'active' %}active{% endif %}">Active</a>
+            <a href="?status=closed" class="filter-tab {% if status_filter == 'closed' %}active{% endif %}">Closed</a>
+        </nav>
+    </header>
+
+    <div class="finance-actions">
         {% if is_admin %}
-            <a href="{% url 'add_chick_cost' %}" class="btn">🐣 Add Chick Cost</a>
-            <a href="{% url 'add_sale_record' %}" class="btn sale-btn">💰 Record Sale</a>
-         {% endif %}
-            <a href="{% url 'feed_list' %}" class="btn btn-feed">🌾 Feed</a>
-            <a href="{% url 'medicine_list' %}" class="btn btn-medicine">💊 Medicine</a>
-         {% if is_admin %}
-            <a href="{% url 'expense_list' %}" class="btn">🧾 Expenses</a>
+            <a href="{% url 'add_sale_record' %}" class="finance-action primary">
+                <i class="fa-solid fa-circle-plus"></i> Record Sale
+            </a>
+            <a href="{% url 'add_chick_cost' %}" class="finance-action">
+                <i class="fa-solid fa-egg"></i> Chick Cost
+            </a>
+        {% endif %}
+        <a href="{% url 'feed_list' %}" class="finance-action">
+            <i class="fa-solid fa-wheat-awn"></i> Feed
+        </a>
+        <a href="{% url 'medicine_list' %}" class="finance-action">
+            <i class="fa-solid fa-suitcase-medical"></i> Medicine
+        </a>
+        {% if is_admin %}
+            <a href="{% url 'expense_list' %}" class="finance-action">
+                <i class="fa-regular fa-clipboard"></i> Expenses
+            </a>
         {% endif %}
     </div>
 
+    <section class="overview-grid">
+        <article class="overview-card">
+            <div class="overview-top">
+                <div class="overview-icon"><i class="fa-solid fa-coins"></i></div>
+                <div class="overview-label">Net Sales</div>
+            </div>
+            <div class="overview-value">Rs {{ overview.net_sales|floatformat:0|intcomma }}</div>
+            <div class="overview-note">Sales after discounts</div>
+        </article>
+
+        <article class="overview-card">
+            <div class="overview-top">
+                <div class="overview-icon"><i class="fa-solid fa-boxes-stacked"></i></div>
+                <div class="overview-label">Realized COGS</div>
+            </div>
+            <div class="overview-value">Rs {{ overview.realized_cogs|floatformat:0|intcomma }}</div>
+            <div class="overview-note">Locked cost of birds already sold</div>
+        </article>
+
+        <article class="overview-card expense">
+            <div class="overview-top">
+                <div class="overview-icon"><i class="fa-solid fa-layer-group"></i></div>
+                <div class="overview-label">Total Recorded COGS</div>
+            </div>
+            <div class="overview-value">Rs {{ overview.recorded_cogs|floatformat:0|intcomma }}</div>
+            <div class="overview-note">Chicks + carriage + feed + medicine + all expenses</div>
+        </article>
+
+        <article class="overview-card profit">
+            <div class="overview-top">
+                <div class="overview-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                <div class="overview-label">Realized Profit</div>
+            </div>
+            <div class="overview-value {% if overview.net_income < 0 %}money-negative{% endif %}">
+                Rs {{ overview.net_income|floatformat:0|intcomma }}
+            </div>
+            <div class="overview-note">Net sales less realized COGS</div>
+        </article>
+
+        <article class="overview-card">
+            <div class="overview-top">
+                <div class="overview-icon"><i class="fa-solid fa-percent"></i></div>
+                <div class="overview-label">Realized ROI</div>
+            </div>
+            <div class="overview-value {% if overview.roi < 0 %}money-negative{% endif %}">
+                {{ overview.roi|floatformat:1 }}%
+            </div>
+            <div class="overview-note">Net income ÷ realized investment</div>
+        </article>
+    </section>
+
+    <section class="bird-strip">
+        <div class="bird-stat">
+            <span>{% if is_admin %}Starting Birds{% else %}My Starting Birds{% endif %}</span>
+            <strong>{{ overview.starting_birds|intcomma }}</strong>
+        </div>
+        <div class="bird-stat">
+            <span>Mortality</span>
+            <strong>{{ overview.mortality|intcomma }}</strong>
+        </div>
+        <div class="bird-stat">
+            <span>Sold</span>
+            <strong>{{ overview.sold|intcomma }}</strong>
+        </div>
+        <div class="bird-stat">
+            <span>Current Birds</span>
+            <strong>{{ overview.current_birds|intcomma }}</strong>
+        </div>
+        <div class="bird-stat">
+            <span>Active Batches</span>
+            <strong>{{ overview.active_batches }}</strong>
+        </div>
+    </section>
+
     {% for row in finance_rows %}
-
-        <div class="finance-card">
-
-            <div class="card-title">
-                <div class="batch-name">
-                    {{ row.batch.shed.shed_type|title }} Batch #{{ row.batch.batch_number }}
-                </div>
-                <div class="status-badge">Active</div>
-            </div>
-
-            <div class="stats-grid">
-                {% if is_admin %}
-                    <div class="stat-box">
-                        <div class="stat-label">Batch Current Birds</div>
-                        <div class="stat-value">{{ row.current_birds }}</div>
-                    </div>
-
-                    <div class="stat-box">
-                        <div class="stat-label">Total Birds Sold</div>
-                        <div class="stat-value">{{ row.total_sold }}</div>
-                    </div>
-
-                    <div class="stat-box">
-                        <div class="stat-label">Admin Share</div>
-                        <div class="stat-value">{{ row.admin_percentage }}%</div>
-                    </div>
-
-                    <div class="stat-box">
-                        <div class="stat-label">Admin Current Birds</div>
-                        <div class="stat-value">{{ row.admin_current_birds }}</div>
-                    </div>
-                {% else %}
-                    <div class="stat-box">
-                        <div class="stat-label">Starting Birds</div>
-                        <div class="stat-value">{{ row.investor_birds }}</div>
-                    </div>
-
-                    <div class="stat-box">
-                        <div class="stat-label">Your Share</div>
-                        <div class="stat-value">{{ row.investor_percentage }}%</div>
-                    </div>
-
-                    <div class="stat-box">
-                        <div class="stat-label">Mortality</div>
-                        <div class="stat-value">{{ row.investor_mortality }}</div>
-                    </div>
-
-                    <div class="stat-box">
-                        <div class="stat-label">Your Current Birds</div>
-                        <div class="stat-value">{{ row.investor_current_birds }}</div>
-                    </div>
-                {% endif %}
-            </div>
-
-            {% if is_admin %}
-
-                <div class="section-grid">
-
-                    <div class="finance-section">
-                        <h4>Full Batch Finance</h4>
-
-                        <div class="sub-title">COGS</div>
-
-                        <div class="finance-row"><span>Chick Cost</span><span>Rs {{ row.chick_cost|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Feed Cost</span><span>Rs {{ row.feed_cost|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Medicine Cost</span><span>Rs {{ row.medicine_cost|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Electricity Cost</span><span>Rs {{ row.electricity_cost|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Carriage Cost</span><span>Rs {{ row.carriage_cost|floatformat:0|intcomma }}</span></div>
-
-                        <div class="finance-row total-row">
-                            <strong>Total COGS</strong>
-                            <strong>Rs {{ row.total_cogs|floatformat:0|intcomma }}</strong>
-                        </div>
-
-                        <div class="sub-title">Sales Summary</div>
-
-                        <div class="finance-row"><span>Total Birds Sold</span><span>{{ row.total_sold }}</span></div>
-                        <div class="finance-row"><span>Total Weight Sold</span><span>{{ row.total_sale_weight|floatformat:2|intcomma }} kg</span></div>
-                        <div class="finance-row"><span>Average Weight</span><span>{{ row.average_sale_weight|floatformat:3 }} kg</span></div>
-                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ row.average_sale_rate|floatformat:0|intcomma }}/kg</span></div>
-                        <div class="finance-row"><span>Total Discount</span><span>Rs {{ row.total_discount|floatformat:0|intcomma }}</span></div>
-
-                        <div class="finance-row total-row">
-                            <strong>Total Net Sales Revenue</strong>
-                            <strong>Rs {{ row.total_sales_revenue|floatformat:0|intcomma }}</strong>
-                        </div>
-
-                        <div class="finance-row">
-                            <span>Sold Birds COGS</span>
-                            <span>Rs {{ row.batch_locked_cogs_total|floatformat:0|intcomma }}</span>
-                        </div>
-
-                        <div class="sub-title">Expenses</div>
-
-                        <div class="finance-row total-row">
-                            <strong>Total Expenses</strong>
-                            <strong>Rs {{ row.total_expenses|floatformat:0|intcomma }}</strong>
-                        </div>
-
-                        <details class="expense-item">
-                            <summary>View Expense Details</summary>
-
-                            <div class="expense-details">
-                                {% if row.expense_history %}
-                                    {% for expense in row.expense_history %}
-                                        <div class="finance-row">
-                                            <span>{{ expense.expense_date }} — {{ expense.category }}</span>
-                                            <span>Rs {{ expense.amount|floatformat:0|intcomma }}</span>
-                                        </div>
-
-
-                                    {% endfor %}
-                                {% else %}
-                                    <p class="muted">No expenses recorded yet.</p>
-                                {% endif %}
-                            </div>
-                        </details>
-
-                        <div class="finance-row total-row">
-                            <strong>Batch Net Income</strong>
-                           <span class="{% if row.batch_net_income < 0 %}negative{% else %}positive{% endif %}">
-                                Rs {{ row.batch_net_income|floatformat:0|intcomma }}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div class="finance-section highlight-section">
-                        <h4>Admin Own Share</h4>
-
-                        <div class="sub-title">Bird Position</div>
-
-                        <div class="finance-row"><span>Starting Birds</span><span>{{ row.admin_birds }}</span></div>
-                        <div class="finance-row"><span>Current Birds</span><span>{{ row.admin_current_birds }}</span></div>
-                        <div class="finance-row"><span>Birds Sold</span><span>{{ row.admin_sold }}</span></div>
-                        <div class="finance-row"><span>Weight Sold</span><span>{{ row.admin_weight_sold|floatformat:2|intcomma }} kg</span></div>
-
-                        <div class="sub-title">Admin COGS</div>
-
-                        <div class="finance-row"><span>Chick Cost Share</span><span>Rs {{ row.admin_chick_cost_share|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Feed Cost Share</span><span>Rs {{ row.admin_feed_cost_share|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Medicine Cost Share</span><span>Rs {{ row.admin_medicine_cost_share|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Electricity Cost Share</span><span>Rs {{ row.admin_electricity_cost_share|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Carriage Cost Share</span><span>Rs {{ row.admin_carriage_cost_share|floatformat:0|intcomma }}</span></div>
-
-                        <div class="finance-row total-row">
-                            <strong>Admin Total COGS Share</strong>
-                            <strong>Rs {{ row.admin_cogs_share|floatformat:0|intcomma }}</strong>
-                        </div>
-
-                        <div class="sub-title">Admin Sales</div>
-
-                        <div class="finance-row"><span>Discount Share</span><span>Rs {{ row.admin_discount_share|floatformat:0|intcomma }}</span></div>
-
-                        <div class="finance-row total-row">
-                            <strong>Revenue Share</strong>
-                            <strong>Rs {{ row.admin_sales_revenue|floatformat:0|intcomma }}</strong>
-                        </div>
-
-                        <div class="finance-row">
-                            <span>Sold Birds COGS</span>
-                            <span>Rs {{ row.admin_locked_cogs_total|floatformat:0|intcomma }}</span>
-                        </div>
-
-                        <div class="sub-title">Admin Expenses</div>
-
-                        <div class="finance-row">
-                            <span>Expense Share</span>
-                            <span>Rs {{ row.admin_expense_share|floatformat:0|intcomma }}</span>
-                        </div>
-
-                        <details class="expense-item">
-                            <summary>View Expense Details</summary>
-
-                            <div class="expense-details">
-                                {% if row.expense_history %}
-                                    {% for expense in row.expense_history %}
-
-                                        <div class="finance-row">
-                                            <span>{{ expense.expense_date }} — {{ expense.category }}</span>
-                                            <span>Rs {{ expense.admin_share_amount|floatformat:0|intcomma }}</span>
-                                        </div>
-
-
-
-                                    {% endfor %}
-                                {% else %}
-                                    <p class="muted">No expenses recorded yet.</p>
-                                {% endif %}
-                            </div>
-                        </details>
-
-                        <div class="finance-row total-row">
-                            <strong>Admin Net Income</strong>
-                            <strong class="positive">Rs {{ row.admin_net_income|floatformat:0|intcomma }}</strong>
-                        </div>
-
-                        <div class="sub-title">Admin Sale History</div>
-
-                        {% if row.sale_history %}
-                            {% for sale in row.sale_history %}
-                                <details class="sale-item">
-                                    <summary>
-                                       Sale #{{ forloop.revcounter }} • {{ sale.admin_birds_sold }} Birds • Rs {{ sale.admin_revenue|floatformat:0|intcomma }}
-                                    </summary>
-
-                                    <div class="sale-details">
-                                        <div class="finance-row"><span>Date</span><span>{{ sale.sale_date }}</span></div>
-                                        <div class="finance-row"><span>Admin Birds Sold</span><span>{{ sale.admin_birds_sold }}</span></div>
-                                        <div class="finance-row"><span>Admin Weight Sold</span><span>{{ sale.admin_weight_sold|floatformat:0|intcomma }} kg</span></div>
-                                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:0|intcomma }}</span></div>
-                                        <div class="finance-row"><span>Revenue Share</span><span>Rs {{ sale.admin_gross_revenue|floatformat:0|intcomma }}</span></div>
-                                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ sale.admin_discount|floatformat:0|intcomma }}</span></div>
-                                         <div class="finance-row total-row">
-                                            <strong>Your Net Revenue</strong>
-                                            <strong>Rs {{ sale.admin_net_revenue|floatformat:0|intcomma }}</strong>
-                                        </div>
-                                        <div class="finance-row"><span>Locked COGS Share</span><span>Rs {{ sale.admin_cogs|floatformat:0|intcomma }}</span></div>
-
-                                        <div class="finance-row total-row">
-                                            <strong>Admin Sale Profit</strong>
-                                           <span class="{% if sale.admin_profit < 0 %}negative{% else %}positive{% endif %}">
-                                                Rs {{ sale.admin_profit|floatformat:0|intcomma }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </details>
-                            {% endfor %}
-                        {% else %}
-                            <p class="muted">No sales recorded yet.</p>
-                        {% endif %}
-                    </div>
-
-                    <div class="finance-section">
-                        <h4>Sale History</h4>
-
-                        {% if row.sale_history %}
-                            {% for sale in row.sale_history %}
-                                <details class="sale-item">
-                                    <summary>
-                                        Sale #{{ forloop.revcounter }} • {{ sale.birds_sold }} Birds • Rs {{ sale.total_amount|floatformat:0|intcomma }}
-                                    </summary>
-
-                                    <div class="sale-details">
-                                        <div class="finance-row"><span>Date</span><span>{{ sale.sale_date }}</span></div>
-                                        <div class="finance-row"><span>Birds Sold</span><span>{{ sale.birds_sold }}</span></div>
-                                        <div class="finance-row"><span>Total Weight</span><span>{{ sale.total_weight_kg|floatformat:0|intcomma }} kg</span></div>
-                                        <div class="finance-row"><span>Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:0|intcomma }}</span></div>
-                                        <div class="finance-row"><span>Discount</span><span>Rs {{ sale.discount_amount|floatformat:0|intcomma }}</span></div>
-                                        <div class="finance-row"><span>Net Revenue</span><span>Rs {{ sale.total_amount|floatformat:0|intcomma }}</span></div>
-                                        <div class="finance-row"><span>Locked COGS</span><span>Rs {{ sale.cogs_allocated|floatformat:0|intcomma }}</span></div>
-
-                                        <div class="finance-row total-row">
-                                            <strong>Gross Profit</strong>
-                                            <span class="{% if sale.gross_profit < 0 %}negative{% else %}positive{% endif %}">
-                                                Rs {{ sale.gross_profit|floatformat:0|intcomma }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </details>
-                            {% endfor %}
-                        {% else %}
-                            <p class="muted">No sales recorded yet.</p>
-                        {% endif %}
-                    </div>
-
-                </div>
-
-            {% else %}
-
-                <div class="section-grid">
-
-                    <div class="finance-section">
-                        <h4>Your COGS</h4>
-
-                        <div class="finance-row"><span>Your Chick Cost</span><span>Rs {{ row.investor_chick_cost_share|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Your Feed Cost</span><span>Rs {{ row.investor_feed_cost|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Your Medicine Cost</span><span>Rs {{ row.investor_medicine_cost|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Your Electricity Cost</span><span>Rs {{ row.investor_electricity_cost|floatformat:0|intcomma }}</span></div>
-                        <div class="finance-row"><span>Your Carriage Cost</span><span>Rs {{ row.investor_carriage_cost|floatformat:0|intcomma }}</span></div>
-
-                        <div class="finance-row total-row">
-                            <strong>Your Total COGS Share</strong>
-                            <strong>Rs {{ row.investor_cogs_share|floatformat:0|intcomma }}</strong>
-                        </div>
-                    </div>
-
-                    <div class="finance-section">
-                        <h4>Your Sales Summary</h4>
-
-                        <div class="finance-row"><span>Average Weight</span><span>{{ row.average_sale_weight|floatformat:3 }} kg</span></div>
-                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ row.average_sale_rate|floatformat:0|intcomma }}/kg</span></div>
-                        <div class="finance-row"><span>Your Birds Sold</span><span>{{ row.investor_sold }}</span></div>
-                        <div class="finance-row"><span>Your Weight Sold</span><span>{{ row.investor_weight_sold|floatformat:0|intcomma }} kg</span></div>
-                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ row.investor_discount_share|floatformat:0|intcomma }}</span></div>
-
-                        <div class="finance-row total-row">
-                            <strong>Your Revenue Share</strong>
-                            <strong>Rs {{ row.investor_sales_revenue|floatformat:0|intcomma }}</strong>
-                        </div>
-                    </div>
-
-                    <div class="finance-section">
-                        <h4>Your Sale History</h4>
-
-                        {% if row.sale_history %}
-                            {% for sale in row.sale_history %}
-                                <details class="sale-item">
-                                    <summary>
-                                       Sale #{{ forloop.revcounter }} • {{ sale.investor_birds_sold }} Birds • Rs {{ sale.investor_gross_revenue|floatformat:0|intcomma }}
-                                    </summary>
-
-                                    <div class="sale-details">
-                                        <div class="finance-row"><span>Date</span><span>{{ sale.sale_date }}</span></div>
-                                        <div class="finance-row"><span>Your Birds Sold</span><span>{{ sale.investor_birds_sold }}</span></div>
-                                        <div class="finance-row"><span>Your Weight Sold</span><span>{{ sale.investor_weight_sold|floatformat:0|intcomma }} kg</span></div>
-                                        <div class="finance-row"><span>Sale Rate</span><span>Rs {{ sale.rate_per_kg|floatformat:0|intcomma }}</span></div>
-                                        <div class="finance-row"><span>Your Revenue</span><span>Rs {{ sale.investor_gross_revenue|floatformat:0|intcomma }}</span></div>
-                                        <div class="finance-row"><span>Your Discount Share</span><span>Rs {{ sale.investor_discount|floatformat:0|intcomma }}</span></div>
-                                        <div class="finance-row total-row">
-                                            <strong>Your Net Revenue</strong>
-                                            <strong>Rs {{ sale.investor_net_revenue|floatformat:0|intcomma }}</strong>
-                                        </div>
-                                        <div class="finance-row"><span>Your Locked COGS</span><span>Rs {{ sale.investor_cogs|floatformat:0|intcomma }}</span></div>
-
-                                        <div class="finance-row total-row">
-                                            <strong>Your Sale Profit</strong>
-                                            <span class="{% if sale.investor_profit < 0 %}negative{% else %}positive{% endif %}">
-                                                Rs {{ sale.investor_profit|floatformat:0|intcomma }}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </details>
-                            {% endfor %}
-                        {% else %}
-                            <p class="muted">No sales recorded yet.</p>
-                        {% endif %}
-                    </div>
-
-                    <div class="finance-section highlight-section">
-                        <h4>Your Result</h4>
-
-                        <div class="finance-row">
-                            <span>Revenue Share</span>
-                            <span>Rs {{ row.investor_sales_revenue|floatformat:0|intcomma }}</span>
-                        </div>
-
-                        <div class="finance-row">
-                            <span>Sold Birds COGS</span>
-                            <span>Rs {{ row.investor_locked_cogs_total|floatformat:0|intcomma }}</span>
-                        </div>
-
-                        <div class="finance-row">
-                            <span>Expense Share</span>
-                            <span>Rs {{ row.investor_expense_share|floatformat:0|intcomma }}</span>
-                        </div>
-                        <details class="expense-item">
-                            <summary>View Expense Details</summary>
-
-                            <div class="expense-details">
-                                {% if row.expense_history %}
-                                    {% for expense in row.expense_history %}
-
-                                        <div class="finance-row">
-                                            <span>{{ expense.expense_date }} — {{ expense.category }}</span>
-                                            <span>Rs {{ expense.investor_share_amount|floatformat:0|intcomma }}</span>
-                                        </div>
-
-
-
-                                    {% endfor %}
-                                {% else %}
-                                    <p class="muted">No expenses recorded yet.</p>
-                                {% endif %}
-                            </div>
-                        </details>
-
-                        <div class="finance-row total-row">
-                            <strong>Net Income</strong>
-                            <strong class="positive">Rs  {{ row.investor_net_income|floatformat:0|intcomma }}</strong>
-                        </div>
-                    </div>
-
-                </div>
-
-            {% endif %}
-
-            <div class="roi-row">
-                <div class="roi-box">
-                    <div class="roi-title">
-                        <strong> {% if is_admin %}
-                       Batch ROI{% else %}
-                        Investor ROI{% endif %}</strong>
-                    </div>
-                    <div class="roi-value">
+        <article class="batch-finance-card" id="batch-{{ row.batch.id }}">
+            <div class="batch-head">
+                <div>
+                    <div class="batch-kicker">{{ row.batch.shed.name }} · {{ row.batch.batch_type|title }} Batch</div>
+                    <h2 class="batch-title">Batch #{{ row.batch.batch_number }}</h2>
+                    <div class="batch-meta">
+                        <span><i class="fa-regular fa-calendar"></i> Started {{ row.batch.start_date|date:"M d, Y" }}</span>
+                        <span><i class="fa-solid fa-warehouse"></i> {{ row.batch.shed.name }}</span>
                         {% if is_admin %}
-                            {{ row.batch_roi|floatformat:2 }}%
-                        {% else %}
-                            {{ row.investor_roi|floatformat:2 }}%
+                            <span><i class="fa-solid fa-users"></i> {{ row.all_owner_count }} Owner{{ row.all_owner_count|pluralize }}</span>
                         {% endif %}
                     </div>
                 </div>
 
-                {% if is_admin %}
-                <div class="roi-box">
-                    <div class="roi-title"><strong>Admin ROI</strong></div>
-                    <div class="roi-value">
-                        {{ row.admin_roi|floatformat:2 }}%
-                    </div>
-                </div>
-                {% endif %}
+                <span class="status-pill {{ row.status_key }}">
+                    <i class="fa-solid fa-circle"></i>
+                    {{ row.status_display }}
+                </span>
             </div>
 
-              </div>
+            <div class="batch-body">
+                <div class="batch-birds-grid">
+                    <div class="mini-stat">
+                        <span>{% if is_admin %}Starting{% else %}My Starting{% endif %}</span>
+                        <strong>
+                            {% if is_admin %}
+                                {{ row.batch.bird_count_initial|intcomma }}
+                            {% else %}
+                                {{ row.current_user_owner.start_birds|intcomma }}
+                            {% endif %}
+                        </strong>
+                    </div>
+                    <div class="mini-stat">
+                        <span>Mortality</span>
+                        <strong>
+                            {% if is_admin %}{{ row.total_mortality|intcomma }}{% else %}{{ row.current_user_owner.mortality|intcomma }}{% endif %}
+                        </strong>
+                    </div>
+                    <div class="mini-stat">
+                        <span>Sold</span>
+                        <strong>
+                            {% if is_admin %}{{ row.total_sold|intcomma }}{% else %}{{ row.current_user_owner.sold|intcomma }}{% endif %}
+                        </strong>
+                    </div>
+                    <div class="mini-stat">
+                        <span>Current</span>
+                        <strong>
+                            {% if is_admin %}{{ row.current_birds|intcomma }}{% else %}{{ row.current_user_owner.current_birds|intcomma }}{% endif %}
+                        </strong>
+                    </div>
+                    <div class="mini-stat cost-per-chick-stat">
+                        <span>Cost / Chick</span>
+                        <strong>Rs {{ row.cost_per_chick|floatformat:2|intcomma }}</strong>
+                    </div>
+                </div>
 
+                <div class="batch-money-grid">
+                    <div class="money-stat">
+                        <span>Net Sales</span>
+                        <strong>
+                            Rs {% if is_admin %}{{ row.total_sales_revenue|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.revenue|floatformat:0|intcomma }}{% endif %}
+                        </strong>
+                    </div>
+                    <div class="money-stat">
+                        <span>Realized COGS</span>
+                        <strong>
+                            Rs {% if is_admin %}{{ row.batch_locked_cogs_total|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.locked_cogs|floatformat:0|intcomma }}{% endif %}
+                        </strong>
+                    </div>
+                    <div class="money-stat">
+                        <span>Total COGS to Date</span>
+                        <strong>
+                            Rs {% if is_admin %}{{ row.total_cogs|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.recorded_cogs|floatformat:0|intcomma }}{% endif %}
+                        </strong>
+                    </div>
+                    <div class="money-stat net">
+                        <span>Realized Profit</span>
+                        {% if is_admin %}
+                            <strong class="{% if row.batch_net_income < 0 %}money-negative{% endif %}">Rs {{ row.batch_net_income|floatformat:0|intcomma }}</strong>
+                        {% else %}
+                            <strong class="{% if row.current_user_owner.net_income < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.net_income|floatformat:0|intcomma }}</strong>
+                        {% endif %}
+                    </div>
+                    <div class="money-stat roi">
+                        <span>Realized ROI</span>
+                        <strong>
+                            {% if is_admin %}{{ row.batch_roi|floatformat:1 }}{% else %}{{ row.current_user_owner.roi|floatformat:1 }}{% endif %}%
+                        </strong>
+                    </div>
+                </div>
+
+                <div class="section-title-row">
+                    <h3 class="section-title">
+                        <i class="fa-solid fa-chart-pie"></i>
+                        {% if is_admin %}Ownership &amp; Financial Performance{% else %}My Ownership &amp; Financial Performance{% endif %}
+                    </h3>
+                    <span class="section-help">Bird counts are reconciled to whole birds; money is calculated precisely and displayed rounded.</span>
+                </div>
+
+                <div class="owner-table-wrap">
+                    <table class="owner-table">
+                        <thead>
+                            <tr>
+                                <th>Owner</th>
+                                <th>Share</th>
+                                <th>Start</th>
+                                <th>Mort.</th>
+                                <th>Sold</th>
+                                <th>Current</th>
+                                <th>Revenue</th>
+                                <th>Realized COGS</th>
+                                <th>Total COGS Share</th>
+                                <th>Realized Profit</th>
+                                <th>ROI</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for owner in row.owner_rows %}
+                                <tr>
+                                    <td>
+                                        <div class="owner-name">
+                                            <span class="owner-avatar {% if owner.kind == 'admin' %}admin{% endif %}">
+                                                <i class="fa-solid {% if owner.kind == 'admin' %}fa-building-columns{% else %}fa-user{% endif %}"></i>
+                                            </span>
+                                            {{ owner.name|title }}
+                                        </div>
+                                    </td>
+                                    <td>{{ owner.percentage|floatformat:1 }}%</td>
+                                    <td>{{ owner.start_birds|intcomma }}</td>
+                                    <td>{{ owner.mortality|intcomma }}</td>
+                                    <td>{{ owner.sold|intcomma }}</td>
+                                    <td>{{ owner.current_birds|intcomma }}</td>
+                                    <td>Rs {{ owner.revenue|floatformat:0|intcomma }}</td>
+                                    <td>Rs {{ owner.locked_cogs|floatformat:0|intcomma }}</td>
+                                    <td>Rs {{ owner.recorded_cogs|floatformat:0|intcomma }}</td>
+                                    <td class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</td>
+                                    <td class="{% if owner.roi < 0 %}money-negative{% else %}money-positive{% endif %}">{{ owner.roi|floatformat:1 }}%</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="owner-mobile-list">
+                    {% for owner in row.owner_rows %}
+                        <div class="owner-mobile-card">
+                            <div class="owner-mobile-head">
+                                <div>
+                                    <div class="owner-mobile-name">{{ owner.name|title }}</div>
+                                    <div class="section-help">{{ owner.start_birds|intcomma }} starting birds</div>
+                                </div>
+                                <div class="owner-mobile-share">{{ owner.percentage|floatformat:1 }}%</div>
+                            </div>
+
+                            <div class="owner-mobile-birds">
+                                <div class="owner-mobile-metric"><span>Mortality</span><strong>{{ owner.mortality }}</strong></div>
+                                <div class="owner-mobile-metric"><span>Sold</span><strong>{{ owner.sold }}</strong></div>
+                                <div class="owner-mobile-metric"><span>Current</span><strong>{{ owner.current_birds }}</strong></div>
+                                <div class="owner-mobile-metric"><span>ROI</span><strong>{{ owner.roi|floatformat:1 }}%</strong></div>
+                            </div>
+
+                            <div class="owner-mobile-money">
+                                <div class="owner-mobile-metric"><span>Revenue</span><strong>Rs {{ owner.revenue|floatformat:0|intcomma }}</strong></div>
+                                <div class="owner-mobile-metric"><span>Realized Profit</span><strong class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</strong></div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <div class="owner-details-grid">
+                    {% for owner in row.owner_rows %}
+                        <details class="finance-detail" {% if not is_admin %}open{% endif %}>
+                            <summary>
+                                <span><i class="fa-solid fa-user-chart"></i> {{ owner.name|title }} — Detailed Breakdown</span>
+                            </summary>
+                            <div class="detail-body">
+                                <div class="detail-row"><span>Ownership</span><strong>{{ owner.percentage|floatformat:1 }}% · {{ owner.start_birds }} Birds</strong></div>
+                                <div class="detail-row"><span>Chick Cost Share</span><strong>Rs {{ owner.chick_cost|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>Carriage Share</span><strong>Rs {{ owner.carriage_cost|floatformat:0|intcomma }}</strong></div>
+                                <details class="feed-cost-detail">
+                                    <summary>
+                                        <span class="feed-cost-label">
+                                            <span>Feed Cost Share</span>
+                                            {% if owner.feed_history %}
+                                                <span class="feed-view-hint"><i class="fa-solid fa-clock-rotate-left"></i> {{ owner.feed_history|length }} purchase{{ owner.feed_history|length|pluralize }} · View</span>
+                                            {% endif %}
+                                        </span>
+                                        <span class="feed-cost-right"><strong>Rs {{ owner.feed_cost|floatformat:0|intcomma }}</strong><i class="fa-solid fa-chevron-down feed-cost-chevron"></i></span>
+                                    </summary>
+                                    <div class="feed-purchase-list">
+                                        <div class="feed-purchase-head"><span>Feed Share History</span><span>Your Share: Rs {{ owner.feed_cost|floatformat:0|intcomma }}</span></div>
+                                        {% for feed in owner.feed_history %}
+                                            <div class="feed-purchase-row">
+                                                <div>
+                                                    <div class="feed-purchase-date">{{ feed.entry_date|date:"M d, Y" }}</div>
+                                                    <div class="feed-purchase-note">{% if feed.notes %}<strong style="color:#31506f;">{{ feed.notes|linebreaksbr }}</strong>{% else %}Feed purchase{% endif %}</div>
+                                                </div>
+                                                <strong>Rs {{ feed.amount|floatformat:0|intcomma }}</strong>
+                                            </div>
+                                        {% empty %}<div class="feed-empty">No feed purchases have been recorded for this batch.</div>{% endfor %}
+                                    </div>
+                                </details>
+
+                                <details class="feed-cost-detail">
+                                    <summary>
+                                        <span class="feed-cost-label">
+                                            <span>Medicine Cost Share</span>
+                                            {% if owner.medicine_history %}
+                                                <span class="feed-view-hint"><i class="fa-solid fa-clock-rotate-left"></i> {{ owner.medicine_history|length }} purchase{{ owner.medicine_history|length|pluralize }} · View</span>
+                                            {% endif %}
+                                        </span>
+                                        <span class="feed-cost-right"><strong>Rs {{ owner.medicine_cost|floatformat:0|intcomma }}</strong><i class="fa-solid fa-chevron-down feed-cost-chevron"></i></span>
+                                    </summary>
+                                    <div class="feed-purchase-list">
+                                        <div class="feed-purchase-head"><span>Medicine Share History</span><span>Your Share: Rs {{ owner.medicine_cost|floatformat:0|intcomma }}</span></div>
+                                        {% for medicine in owner.medicine_history %}
+                                            <div class="feed-purchase-row">
+                                                <div>
+                                                    <div class="feed-purchase-date">{{ medicine.entry_date|date:"M d, Y" }}</div>
+                                                    <div class="feed-purchase-note"><strong style="color:#31506f;">{{ medicine.medicine_type_display }} · {{ medicine.medicine_name }}</strong>{% if medicine.notes %}<br>{{ medicine.notes|linebreaksbr }}{% endif %}</div>
+                                                </div>
+                                                <strong>Rs {{ medicine.amount|floatformat:0|intcomma }}</strong>
+                                            </div>
+                                        {% empty %}<div class="feed-empty">No medicine purchases have been recorded for this batch.</div>{% endfor %}
+                                    </div>
+                                </details>
+
+                                <details class="feed-cost-detail">
+                                    <summary>
+                                        <span class="feed-cost-label">
+                                            <span>All Expenses Share</span>
+                                            {% if owner.expense_history %}
+                                                <span class="feed-view-hint"><i class="fa-solid fa-clock-rotate-left"></i> {{ owner.expense_history|length }} expense{{ owner.expense_history|length|pluralize }} · View</span>
+                                            {% endif %}
+                                        </span>
+                                        <span class="feed-cost-right"><strong>Rs {{ owner.expense_share|floatformat:0|intcomma }}</strong><i class="fa-solid fa-chevron-down feed-cost-chevron"></i></span>
+                                    </summary>
+                                    <div class="feed-purchase-list">
+                                        <div class="feed-purchase-head"><span>Expense Share History</span><span>Your Share: Rs {{ owner.expense_share|floatformat:0|intcomma }}</span></div>
+                                        {% for expense in owner.expense_history %}
+                                            <div class="feed-purchase-row">
+                                                <div>
+                                                    <div class="feed-purchase-date">{{ expense.expense_date|date:"M d, Y" }}</div>
+                                                    <div class="feed-purchase-note"><strong style="color:#31506f;">{{ expense.category }}</strong>{% if expense.description %}<br>{{ expense.description }}{% else %}<br>No description added.{% endif %}</div>
+                                                </div>
+                                                <strong>Rs {{ expense.amount|floatformat:0|intcomma }}</strong>
+                                            </div>
+                                        {% empty %}<div class="feed-empty">No expenses have been recorded for this batch.</div>{% endfor %}
+                                    </div>
+                                </details>
+
+                                <div class="detail-row total"><span>Total Recorded COGS Share</span><strong>Rs {{ owner.recorded_cogs|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>Realized COGS</span><strong>Rs {{ owner.locked_cogs|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>COGS Remaining in Live Birds</span><strong>Rs {{ owner.remaining_cogs|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>Net Sales Revenue</span><strong>Rs {{ owner.revenue|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>Discount Share</span><strong>Rs {{ owner.discount_share|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row total"><span>Realized Profit</span><strong class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</strong></div>
+
+                                <div class="section-title-row">
+                                    <h4 class="section-title"><i class="fa-solid fa-cart-shopping"></i> Sale History</h4>
+                                </div>
+                                {% for sale in owner.sale_history %}
+                                    <details class="history-item">
+                                        <summary>{{ sale.sale_date|date:"M d, Y" }} · {{ sale.birds_sold }} Birds · Rs {{ sale.net_revenue|floatformat:0|intcomma }}</summary>
+                                        <div class="history-body">
+                                            <div class="detail-row"><span>Weight</span><strong>{{ sale.weight_sold|floatformat:2 }} KG</strong></div>
+                                            <div class="detail-row"><span>Rate</span><strong>Rs {{ sale.rate_per_kg|floatformat:0|intcomma }}/KG</strong></div>
+                                            <div class="detail-row"><span>Gross Revenue</span><strong>Rs {{ sale.gross_revenue|floatformat:0|intcomma }}</strong></div>
+                                            <div class="detail-row"><span>Discount</span><strong>Rs {{ sale.discount|floatformat:0|intcomma }}</strong></div>
+                                            <div class="detail-row"><span>Net Revenue</span><strong>Rs {{ sale.net_revenue|floatformat:0|intcomma }}</strong></div>
+                                            <div class="detail-row"><span>Locked COGS</span><strong>Rs {{ sale.locked_cogs|floatformat:0|intcomma }}</strong></div>
+                                            <div class="detail-row total"><span>Sale Margin</span><strong class="{% if sale.sale_margin < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ sale.sale_margin|floatformat:0|intcomma }}</strong></div>
+                                        </div>
+                                    </details>
+                                {% empty %}
+                                    <div class="section-help">No sales recorded yet.</div>
+                                {% endfor %}
+                            </div>
+                        </details>
+                    {% endfor %}
+
+                    {% if is_admin %}
+                        <details class="finance-detail">
+                            <summary><span><i class="fa-solid fa-layer-group"></i> Batch Cost Position</span></summary>
+                            <div class="detail-body">
+                                <div class="detail-row"><span>Chick Cost</span><strong>Rs {{ row.chick_cost|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>Carriage</span><strong>Rs {{ row.carriage_cost|floatformat:0|intcomma }}</strong></div>
+                                <details class="feed-cost-detail">
+                                    <summary>
+                                        <span class="feed-cost-label">
+                                            <span>Feed</span>
+                                            {% if row.feed_purchase_count %}
+                                                <span class="feed-view-hint">
+                                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                                    {{ row.feed_purchase_count }} purchase{{ row.feed_purchase_count|pluralize }} · View
+                                                </span>
+                                            {% endif %}
+                                        </span>
+
+                                        <span class="feed-cost-right">
+                                            <strong>Rs {{ row.feed_cost|floatformat:0|intcomma }}</strong>
+                                            <i class="fa-solid fa-chevron-down feed-cost-chevron"></i>
+                                        </span>
+                                    </summary>
+
+                                    <div class="feed-purchase-list">
+                                        <div class="feed-purchase-head">
+                                            <span>Feed Purchase History</span>
+                                            <span>Total: Rs {{ row.feed_cost|floatformat:0|intcomma }}</span>
+                                        </div>
+
+                                        {% for feed in row.feed_history %}
+                                            <div class="feed-purchase-row">
+                                                <div>
+                                                    <div class="feed-purchase-date">
+                                                        {{ feed.entry_date|date:"M d, Y" }}
+                                                    </div>
+                                                    <div class="feed-purchase-note">
+                                                        {% if feed.notes %}
+                                                            {{ feed.notes|linebreaksbr }}
+                                                        {% else %}
+                                                            No notes added.
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <strong>Rs {{ feed.amount|floatformat:0|intcomma }}</strong>
+                                            </div>
+                                        {% empty %}
+                                            <div class="feed-empty">
+                                                No feed purchases have been recorded for this batch.
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </details>
+                                <details class="feed-cost-detail">
+                                    <summary>
+                                        <span class="feed-cost-label">
+                                            <span>Medicine</span>
+                                            {% if row.medicine_purchase_count %}
+                                                <span class="feed-view-hint">
+                                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                                    {{ row.medicine_purchase_count }} entr{{ row.medicine_purchase_count|pluralize:"y,ies" }} · View
+                                                </span>
+                                            {% endif %}
+                                        </span>
+
+                                        <span class="feed-cost-right">
+                                            <strong>Rs {{ row.medicine_cost|floatformat:0|intcomma }}</strong>
+                                            <i class="fa-solid fa-chevron-down feed-cost-chevron"></i>
+                                        </span>
+                                    </summary>
+
+                                    <div class="feed-purchase-list">
+                                        <div class="feed-purchase-head">
+                                            <span>Medicine Purchase History</span>
+                                            <span>Total: Rs {{ row.medicine_cost|floatformat:0|intcomma }}</span>
+                                        </div>
+
+                                        {% for medicine in row.medicine_history %}
+                                            <div class="feed-purchase-row">
+                                                <div>
+                                                    <div class="feed-purchase-date">
+                                                        {{ medicine.entry_date|date:"M d, Y" }}
+                                                    </div>
+                                                    <div class="feed-purchase-note">
+                                                        <strong style="color:#31506f;">
+                                                            {{ medicine.medicine_type_display }} · {{ medicine.medicine_name }}
+                                                        </strong>
+                                                        {% if medicine.notes %}
+                                                            <br>{{ medicine.notes|linebreaksbr }}
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <strong>Rs {{ medicine.amount|floatformat:0|intcomma }}</strong>
+                                            </div>
+                                        {% empty %}
+                                            <div class="feed-empty">
+                                                No medicine purchases have been recorded for this batch.
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </details>
+
+                                <details class="feed-cost-detail">
+                                    <summary>
+                                        <span class="feed-cost-label">
+                                            <span>All Expenses</span>
+                                            {% if row.expense_count %}
+                                                <span class="feed-view-hint">
+                                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                                    {{ row.expense_count }} expense{{ row.expense_count|pluralize }} · View
+                                                </span>
+                                            {% endif %}
+                                        </span>
+
+                                        <span class="feed-cost-right">
+                                            <strong>Rs {{ row.expense_cost|floatformat:0|intcomma }}</strong>
+                                            <i class="fa-solid fa-chevron-down feed-cost-chevron"></i>
+                                        </span>
+                                    </summary>
+
+                                    <div class="feed-purchase-list">
+                                        <div class="feed-purchase-head">
+                                            <span>Complete Expense History</span>
+                                            <span>Total: Rs {{ row.expense_cost|floatformat:0|intcomma }}</span>
+                                        </div>
+
+                                        {% for expense in row.expense_history %}
+                                            <div class="feed-purchase-row">
+                                                <div>
+                                                    <div class="feed-purchase-date">{{ expense.expense_date|date:"M d, Y" }}</div>
+                                                    <div class="feed-purchase-note">
+                                                        <strong style="color:#31506f;">{{ expense.category }}</strong>
+                                                        {% if expense.description %}<br>{{ expense.description }}{% else %}<br>No description added.{% endif %}
+                                                    </div>
+                                                </div>
+                                                <strong>Rs {{ expense.amount|floatformat:0|intcomma }}</strong>
+                                            </div>
+                                        {% empty %}
+                                            <div class="feed-empty">No expenses have been recorded for this batch.</div>
+                                        {% endfor %}
+                                    </div>
+                                </details>
+                                <div class="detail-row total"><span>Total Recorded COGS</span><strong>Rs {{ row.total_cogs|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>Realized / Locked COGS</span><strong>Rs {{ row.batch_locked_cogs_total|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>COGS Remaining</span><strong>Rs {{ row.remaining_cogs|floatformat:0|intcomma }}</strong></div>
+                            </div>
+                        </details>
+
+                        <details class="finance-detail">
+                            <summary>
+                                <span>
+                                    <i class="fa-solid fa-chart-line"></i>
+                                    Sales &amp; Profit Position
+                                </span>
+                            </summary>
+
+                            <div class="detail-body">
+                                <div class="detail-row">
+                                    <span>Gross Sales</span>
+                                    <strong>Rs {{ row.gross_sales_revenue|floatformat:0|intcomma }}</strong>
+                                </div>
+
+                                <div class="detail-row">
+                                    <span>Discount</span>
+                                    <strong class="money-negative">− Rs {{ row.total_discount|floatformat:0|intcomma }}</strong>
+                                </div>
+
+                                <div class="detail-row total">
+                                    <span>Net Sales</span>
+                                    <strong>Rs {{ row.total_sales_revenue|floatformat:0|intcomma }}</strong>
+                                </div>
+
+                                <div class="detail-row">
+                                    <span>Realized / Locked COGS</span>
+                                    <strong>Rs {{ row.batch_locked_cogs_total|floatformat:0|intcomma }}</strong>
+                                </div>
+
+                                <div class="detail-row total">
+                                    <span>Realized Profit / Loss</span>
+                                    <strong class="{% if row.batch_net_income < 0 %}money-negative{% else %}money-positive{% endif %}">
+                                        Rs {{ row.batch_net_income|floatformat:0|intcomma }}
+                                    </strong>
+                                </div>
+
+                                <div class="detail-row">
+                                    <span>Realized ROI</span>
+                                    <strong class="{% if row.batch_roi < 0 %}money-negative{% else %}money-positive{% endif %}">
+                                        {{ row.batch_roi|floatformat:1 }}%
+                                    </strong>
+                                </div>
+
+                                <div class="profit-formula">
+                                    <strong>Profit formula:</strong>
+                                    Net Sales − Realized COGS = Realized Profit / Loss.
+                                    All recorded expenses are already included inside COGS.
+                                </div>
+
+                                <details class="history-item" style="margin-top:12px;">
+                                    <summary>
+                                        <i class="fa-solid fa-cart-shopping"></i>
+                                        View Sale History · {{ row.sale_history|length }} sale{{ row.sale_history|length|pluralize }}
+                                    </summary>
+                                    <div class="history-body">
+                                        {% for sale in row.sale_history %}
+                                            <details class="history-item">
+                                                <summary>{{ sale.sale_date|date:"M d, Y" }} · {{ sale.birds_sold }} Birds · Rs {{ sale.total_amount|floatformat:0|intcomma }}</summary>
+                                                <div class="history-body">
+                                                    <div class="detail-row"><span>Total Weight</span><strong>{{ sale.total_weight_kg|floatformat:2 }} KG</strong></div>
+                                                    <div class="detail-row"><span>Rate</span><strong>Rs {{ sale.rate_per_kg|floatformat:0|intcomma }}/KG</strong></div>
+                                                    <div class="detail-row"><span>Gross Amount</span><strong>Rs {{ sale.gross_amount|floatformat:0|intcomma }}</strong></div>
+                                                    <div class="detail-row"><span>Discount</span><strong>Rs {{ sale.discount_amount|floatformat:0|intcomma }}</strong></div>
+                                                    <div class="detail-row"><span>Net Sale</span><strong>Rs {{ sale.total_amount|floatformat:0|intcomma }}</strong></div>
+                                                    <div class="detail-row"><span>Realized COGS</span><strong>Rs {{ sale.cogs_allocated|floatformat:0|intcomma }}</strong></div>
+                                                    <div class="detail-row total"><span>Sale Profit / Loss</span><strong class="{% if sale.gross_profit < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ sale.gross_profit|floatformat:0|intcomma }}</strong></div>
+                                                </div>
+                                            </details>
+                                        {% empty %}
+                                            <div class="section-help">No sales recorded yet.</div>
+                                        {% endfor %}
+                                    </div>
+                                </details>
+                            </div>
+                        </details>
+                    {% endif %}
+                </div>
+            </div>
+        </article>
     {% empty %}
-        <div class="finance-card">
-            <p>No finance records available.</p>
+        <div class="empty-finance">
+            <i class="fa-solid fa-chart-column"></i>
+            No finance records are available for this filter.
         </div>
     {% endfor %}
 

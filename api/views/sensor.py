@@ -1079,17 +1079,17 @@ def ownership_shares(request):
             batch=batch
         ).aggregate(total=Sum("amount"))["total"] or 0
 
-        electricity_cost = Expense.objects.filter(
-            batch=batch,
-            category="electricity"
+        expense_cost = Expense.objects.filter(
+            batch=batch
         ).aggregate(total=Sum("amount"))["total"] or 0
 
+        # Every batch expense is part of COGS.
         total_cogs = (
             chick_cost
             + carriage_cost
             + feed_cost
             + medicine_cost
-            + electricity_cost
+            + expense_cost
         )
 
         allocations = list(
@@ -1195,14 +1195,14 @@ def ownership_shares(request):
             chick_share = round(float(chick_cost) * share_ratio, 2)
             feed_share = round(float(feed_cost) * share_ratio, 2)
             medicine_share = round(float(medicine_cost) * share_ratio, 2)
-            electricity_share = round(float(electricity_cost) * share_ratio, 2)
+            expense_share = round(float(expense_cost) * share_ratio, 2)
             carriage_share = round(float(carriage_cost) * share_ratio, 2)
 
             total_cogs_share = round(
                 chick_share
                 + feed_share
                 + medicine_share
-                + electricity_share
+                + expense_share
                 + carriage_share,
                 2
             )
@@ -1218,7 +1218,7 @@ def ownership_shares(request):
                 "chick_cost": chick_share,
                 "feed_cost": feed_share,
                 "medicine_cost": medicine_share,
-                "electricity_cost": electricity_share,
+                "expense_cost": expense_share,
                 "carriage_cost": carriage_share,
                 "total_cogs_share": total_cogs_share,
 
@@ -1243,7 +1243,7 @@ def ownership_shares(request):
             "chick_cost": chick_cost,
             "feed_cost": feed_cost,
             "medicine_cost": medicine_cost,
-            "electricity_cost": electricity_cost,
+            "expense_cost": expense_cost,
             "carriage_cost": carriage_cost,
             "total_cogs": total_cogs,
 

@@ -284,6 +284,34 @@ Ownership Shares | RayNoor Organic Farms
             margin-top:10px;
         }
 
+        .batch-actions{
+            display:flex;
+            align-items:center;
+            gap:9px;
+            flex-wrap:wrap;
+            justify-content:flex-end;
+        }
+
+        .finance-detail-btn{
+            display:inline-flex;
+            align-items:center;
+            gap:7px;
+            min-height:34px;
+            padding:0 11px;
+            border:1px solid #cfe1f5;
+            border-radius:9px;
+            background:#f4f9ff;
+            color:#135b9d;
+            text-decoration:none;
+            font-size:12px;
+            font-weight:800;
+        }
+
+        .finance-detail-btn:hover{
+            background:#eaf4ff;
+            border-color:#afd0ef;
+        }
+
         @media(max-width:1000px){
             .summary-grid{
                 grid-template-columns:repeat(2, 1fr);
@@ -302,6 +330,21 @@ Ownership Shares | RayNoor Organic Farms
 
             .back-btn{
                 width:100%;
+                justify-content:center;
+            }
+
+            .batch-header{
+                align-items:flex-start;
+                flex-direction:column;
+            }
+
+            .batch-actions{
+                width:100%;
+                justify-content:space-between;
+            }
+
+            .finance-detail-btn{
+                flex:1;
                 justify-content:center;
             }
         }
@@ -359,10 +402,20 @@ Ownership Shares | RayNoor Organic Farms
                     </div>
                 </div>
 
-                <span class="active-badge">
-                    <span class="active-dot">●</span>
-                    Active
-                </span>
+                <div class="batch-actions">
+                    <a
+                        href="{% url 'finance_tracker' %}?status=active#batch-{{ item.batch.id }}"
+                        class="finance-detail-btn"
+                    >
+                        <i class="fa-solid fa-chart-line"></i>
+                        View Finance Details
+                    </a>
+
+                    <span class="active-badge">
+                        <span class="active-dot">●</span>
+                        Active
+                    </span>
+                </div>
             </div>
 
             <div class="summary-grid">
@@ -425,9 +478,9 @@ Ownership Shares | RayNoor Organic Farms
                 </div>
 
                 <div class="cogs-box">
-                    <div class="cogs-label">Electricity Cost</div>
+                    <div class="cogs-label">All Expenses</div>
                     <div class="cogs-value">
-                        Rs {{ item.electricity_cost|floatformat:0|intcomma }}
+                        Rs {{ item.expense_cost|floatformat:0|intcomma }}
                     </div>
                 </div>
 
@@ -457,7 +510,7 @@ Ownership Shares | RayNoor Organic Farms
                             <th>Chick</th>
                             <th>Feed</th>
                             <th>Medicine</th>
-                            <th>Electricity</th>
+                            <th>Expenses</th>
                             <th>Carriage</th>
                             <th>Total COGS Share</th>
                         </tr>
@@ -501,7 +554,7 @@ Ownership Shares | RayNoor Organic Farms
                                 </td>
 
                                 <td class="money-value">
-                                    Rs {{ owner.electricity_cost|floatformat:0|intcomma }}
+                                    Rs {{ owner.expense_cost|floatformat:0|intcomma }}
                                 </td>
 
                                 <td class="money-value">
@@ -520,7 +573,8 @@ Ownership Shares | RayNoor Organic Farms
             <div class="note-card">
                 <i class="fa-solid fa-circle-info"></i>
                 Cost share is calculated from each owner’s bird ownership percentage.
-                Electricity is included in COGS.
+                All batch expenses are included in COGS. Open Finance Tracker for Feed, Medicine,
+                Expense and Sale transaction details.
             </div>
 
         </section>

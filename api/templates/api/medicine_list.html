@@ -1,307 +1,493 @@
 {% extends "api/base_dashboard.html" %}
 
 {% block title %}
-{% if is_admin %}
-            Medicine List
-        {% else %}
-            Medicine Summary
-        {% endif %}
+    {% if is_admin %}Medicine List{% else %}Medicine Summary{% endif %}
 {% endblock %}
 
 {% block extra_css %}
 <style>
-body{
-            font-family:Arial, sans-serif;
-            background:#f4f6f8;
-            margin:0;
-            color:#111827;
+    .resource-page {
+        max-width: 1180px;
+        margin: 0 auto;
+    }
+
+    .resource-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 22px 24px;
+        margin-bottom: 18px;
+        border: 1px solid #dfe8f3;
+        border-radius: 18px;
+        background: linear-gradient(135deg, #ffffff, #f8fbff);
+        box-shadow: 0 8px 24px rgba(17, 53, 90, 0.06);
+    }
+
+    .resource-header-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+    }
+
+    .resource-icon {
+        width: 54px;
+        height: 54px;
+        min-width: 54px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #fde8ec, #fdd9e0);
+        color: #c92d54;
+        font-size: 24px;
+        border: 1px solid #f5ccd6;
+    }
+
+    .resource-header h1 {
+        margin: 0 0 6px;
+        color: #133b63;
+        font-size: 28px;
+        line-height: 1.1;
+    }
+
+    .resource-header p {
+        margin: 0;
+        color: #6a7a8f;
+        font-size: 14px;
+        line-height: 1.5;
+        max-width: 700px;
+    }
+
+    .resource-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .page-btn {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 16px;
+        border-radius: 12px;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 700;
+        border: 0;
+        cursor: pointer;
+        transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+    }
+
+    .page-btn:hover { transform: translateY(-1px); }
+
+    .page-btn-secondary {
+        background: #eaf1f8;
+        color: #274763;
+    }
+
+    .page-btn-secondary:hover { background: #dde8f3; }
+
+    .page-btn-primary {
+        background: linear-gradient(135deg, #e24545, #c82929);
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(200, 41, 41, 0.18);
+    }
+
+    .page-btn-primary:hover {
+        background: linear-gradient(135deg, #d53b3b, #b61f1f);
+    }
+
+    .summary-strip {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .summary-card {
+        padding: 16px 18px;
+        border: 1px solid #e1e9f3;
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 6px 18px rgba(16, 47, 79, 0.05);
+    }
+
+    .summary-label {
+        color: #728296;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+    }
+
+    .summary-value {
+        color: #133b63;
+        font-size: 26px;
+        font-weight: 900;
+        line-height: 1.1;
+    }
+
+    .summary-help {
+        color: #7b889a;
+        font-size: 12px;
+        margin-top: 6px;
+        line-height: 1.45;
+    }
+
+    .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        margin-bottom: 18px;
+    }
+
+    .toolbar-title {
+        color: #173b61;
+        font-size: 20px;
+        font-weight: 800;
+    }
+
+    .toolbar-help {
+        color: #7a8797;
+        font-size: 13px;
+        margin-top: 4px;
+    }
+
+    .search-wrap { position: relative; width: min(100%, 320px); }
+    .search-wrap i {
+        position: absolute;
+        top: 50%;
+        left: 14px;
+        transform: translateY(-50%);
+        color: #7a8a9f;
+        font-size: 14px;
+    }
+
+    .search-input {
+        width: 100%;
+        height: 44px;
+        border: 1px solid #d7e1ed;
+        border-radius: 12px;
+        background: #fff;
+        color: #15314d;
+        padding: 0 14px 0 40px;
+        font-size: 14px;
+        outline: none;
+        box-sizing: border-box;
+    }
+
+    .search-input:focus {
+        border-color: #2b78d1;
+        box-shadow: 0 0 0 3px rgba(43, 120, 209, 0.10);
+    }
+
+    .resource-card {
+        border: 1px solid #e0e8f2;
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 7px 22px rgba(17, 49, 82, 0.05);
+        overflow: hidden;
+        margin-bottom: 18px;
+    }
+
+    .resource-card-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 18px 20px;
+        border-bottom: 1px solid #edf2f7;
+    }
+
+    .resource-card-title {
+        margin: 0 0 6px;
+        color: #123f6c;
+        font-size: 24px;
+        line-height: 1.1;
+    }
+
+    .resource-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: #728195;
+        font-size: 12px;
+    }
+
+    .mini-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #f4f8fc;
+        color: #58718a;
+        border: 1px solid #e2ebf4;
+        font-weight: 700;
+    }
+
+    .total-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        border-radius: 14px;
+        background: #fff0f1;
+        color: #be274c;
+        border: 1px solid #f7d1d8;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .entry-list { padding: 8px 20px 18px; }
+
+    .entry-row {
+        display: grid;
+        grid-template-columns: 145px minmax(0, 1fr) 150px;
+        gap: 16px;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid #eef2f6;
+    }
+
+    .entry-row:last-child { border-bottom: 0; }
+
+    .entry-date {
+        color: #50657c;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .entry-title {
+        color: #173b61;
+        font-size: 16px;
+        font-weight: 800;
+        margin-bottom: 6px;
+    }
+
+    .meta-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 6px;
+    }
+
+    .type-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .02em;
+    }
+
+    .type-vaccine { background: #efe8ff; color: #6a43b9; }
+    .type-medicine { background: #e8f7ec; color: #1c7b3a; }
+    .type-multivitamin { background: #fff1d8; color: #a96e00; }
+
+    .entry-note {
+        color: #748398;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    .entry-note.is-empty { font-style: italic; }
+
+    .entry-amount {
+        text-align: right;
+        color: #c52744;
+        font-size: 21px;
+        font-weight: 900;
+    }
+
+    .empty-state {
+        padding: 18px;
+        border: 1px dashed #d6e1ec;
+        border-radius: 14px;
+        background: #fbfdff;
+        color: #738397;
+        text-align: center;
+        font-size: 14px;
+    }
+
+    .no-results {
+        display: none;
+        padding: 16px;
+        border-radius: 14px;
+        background: #ffffff;
+        border: 1px dashed #d7e1ec;
+        color: #708196;
+        text-align: center;
+    }
+
+    @media (max-width: 960px) {
+        .resource-header,
+        .toolbar,
+        .resource-card-head { flex-direction: column; align-items: stretch; }
+        .summary-strip { grid-template-columns: 1fr; }
+        .search-wrap { width: 100%; }
+    }
+
+    @media (max-width: 720px) {
+        .resource-page { width: 100%; }
+        .resource-header { padding: 18px 16px; }
+        .resource-icon {
+            width: 48px; height: 48px; min-width: 48px; border-radius: 14px; font-size: 21px;
         }
-
-        .header{
-            background:#1f4e79;
-            color:white;
-            padding:22px;
-            text-align:center;
-        }
-
-        .header h2{
-            margin:0;
-        }
-
-        .header p{
-            margin:7px 0 0;
-            font-size:14px;
-            opacity:0.9;
-        }
-
-        .container{
-            max-width:1000px;
-            margin:25px auto;
-            padding:15px;
-        }
-
-        .top-actions{
-            margin-bottom:20px;
-        }
-
-        .btn{
-            display:inline-block;
-            background:#1f4e79;
-            color:white;
-            text-decoration:none;
-            padding:10px 16px;
-            border-radius:8px;
-            margin-right:8px;
-        }
-
-        .add-btn{
-            background:#dc2626;
-        }
-
-        .add-btn:hover{
-            background:#b91c1c;
-        }
-
-        .batch-card{
-            background:white;
-            border-radius:14px;
-            padding:20px;
-            margin-bottom:22px;
-            box-shadow:0 2px 10px rgba(0,0,0,0.08);
-        }
-
-        .batch-title{
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            margin-bottom:15px;
-            gap:12px;
-        }
-
-        .batch-title h3{
-            margin:0;
-            color:#1f4e79;
-        }
-
-        .total-badge{
-            background:#fee2e2;
-            color:#b91c1c;
-            padding:8px 14px;
-            border-radius:20px;
-            font-weight:bold;
-            white-space:nowrap;
-        }
-
-        .medicine-row{
-            display:grid;
-            grid-template-columns:120px 1fr 140px;
-            gap:12px;
-            padding:13px 0;
-            border-bottom:1px solid #edf2f7;
-            align-items:center;
-        }
-
-        .medicine-row:last-child{
-            border-bottom:none;
-        }
-
-        .medicine-date{
-            color:#667085;
-            font-size:14px;
-        }
-
-        .medicine-name{
-            font-weight:bold;
-            color:#1f4e79;
-            margin-bottom:6px;
-        }
-
-        .medicine-meta{
-            display:flex;
-            align-items:center;
-            gap:8px;
-            flex-wrap:wrap;
-            margin-bottom:5px;
-        }
-
-        .medicine-type{
-            display:inline-block;
-            padding:4px 8px;
-            border-radius:7px;
-            font-size:11px;
-            font-weight:bold;
-        }
-
-        .type-vaccine{
-            color:#633db0;
-            background:#eee8ff;
-        }
-
-        .type-medicine{
-            color:#157c32;
-            background:#e5f7e7;
-        }
-
-        .type-multivitamin{
-            color:#a96700;
-            background:#fff1d6;
-        }
-
-        .desc{
-            color:#667085;
-            font-size:13px;
-        }
-
-        .amount{
-            text-align:right;
-            font-weight:bold;
-            color:#b91c1c;
-        }
-
-        .empty{
-            color:#667085;
-            padding:15px;
-            background:#f8fafc;
-            border-radius:10px;
-        }
-
-        @media(max-width:768px){
-
-            .batch-title{
-                flex-direction:column;
-                align-items:flex-start;
-            }
-
-            .medicine-row{
-                grid-template-columns:1fr;
-                gap:7px;
-            }
-
-            .amount{
-                text-align:left;
-            }
-
-            .btn{
-                width:100%;
-                text-align:center;
-                box-sizing:border-box;
-                margin-bottom:10px;
-            }
-        }
+        .resource-header h1 { font-size: 24px; }
+        .summary-card,
+        .resource-card-head,
+        .entry-list { padding-left: 16px; padding-right: 16px; }
+        .entry-row { grid-template-columns: 1fr; gap: 8px; }
+        .entry-amount { text-align: left; font-size: 18px; }
+        .page-btn { width: 100%; }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="header">
-    <h2>
-        💊
-        {% if is_admin %}
-            Medicine List
-        {% else %}
-            Medicine Summary
-        {% endif %}
-    </h2>
+<div class="resource-page">
+    <div class="resource-header">
+        <div class="resource-header-main">
+            <div class="resource-icon">
+                <i class="fa-solid fa-capsules"></i>
+            </div>
+            <div>
+                <h1>{% if is_admin %}Medicine List{% else %}Medicine Summary{% endif %}</h1>
+                <p>
+                    Review medicine, vaccine, and multivitamin entries batch-wise.
+                    {% if is_admin %}
+                        Use this page to confirm what was purchased and when it was used.
+                    {% else %}
+                        This page shows your ownership share of medicine-related cost for active invested batches.
+                    {% endif %}
+                </p>
+            </div>
+        </div>
 
-    {% if not is_admin %}
-        <p>Your medicine cost share for invested active batches.</p>
-    {% endif %}
-</div>
-
-<div class="container">
-
-    <div class="top-actions">
-
-        <a href="{% url 'finance_tracker' %}" class="btn">
-            ← Finance Tracker
-        </a>
-
-        {% if is_admin %}
-            <a href="{% url 'add_medicine_entry' %}" class="btn add-btn">
-                ➕ Add Medicine
+        <div class="resource-actions">
+            <a href="{% url 'finance_tracker' %}" class="page-btn page-btn-secondary">
+                <i class="fa-solid fa-arrow-left"></i>
+                Finance Tracker
             </a>
-        {% endif %}
+            {% if is_admin %}
+                <a href="{% url 'add_medicine_entry' %}" class="page-btn page-btn-primary">
+                    <i class="fa-solid fa-plus"></i>
+                    Add Medicine
+                </a>
+            {% endif %}
+        </div>
+    </div>
 
+    <div class="summary-strip">
+        <div class="summary-card">
+            <div class="summary-label">Batches Listed</div>
+            <div class="summary-value">{{ medicine_groups|length }}</div>
+            <div class="summary-help">Active batches currently visible on this page.</div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Display Mode</div>
+            <div class="summary-value">{% if is_admin %}Full{% else %}Share{% endif %}</div>
+            <div class="summary-help">
+                {% if is_admin %}You are viewing full batch medicine totals.{% else %}You are viewing your proportional medicine share.{% endif %}
+            </div>
+        </div>
+        <div class="summary-card">
+            <div class="summary-label">Entry Details</div>
+            <div class="summary-value">Track</div>
+            <div class="summary-help">Medicine name, type, date, notes, and cost.</div>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <div>
+            <div class="toolbar-title">Batch-wise Medicine History</div>
+            <div class="toolbar-help">Quickly review medicine name, type, notes, and amount.</div>
+        </div>
+
+        <div class="search-wrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="pageSearch" class="search-input" placeholder="Search batch, medicine name, or notes...">
+        </div>
     </div>
 
     {% if medicine_groups %}
-
-        {% for group in medicine_groups %}
-
-            <div class="batch-card">
-
-                <div class="batch-title">
-
-                    <h3>
-                        {{ group.batch.shed.shed_type|title }}
-                        Batch #{{ group.batch.batch_number }}
-                    </h3>
-
-                    <div class="total-badge">
-                        {% if is_admin %}
-                            Total Medicine:
-                        {% else %}
-                            Your Medicine Share:
-                        {% endif %}
-                        Rs {{ group.total_medicine|floatformat:0 }}
-                    </div>
-
-                </div>
-
-                {% if group.medicine_entries %}
-
-                    {% for medicine in group.medicine_entries %}
-
-                        <div class="medicine-row">
-
-                            <div class="medicine-date">
-                                {{ medicine.entry_date|date:"d M Y" }}
+        <div id="cardContainer">
+            {% for group in medicine_groups %}
+                <section class="resource-card searchable-card" data-search="{{ group.batch.shed.shed_type|title }} batch {{ group.batch.batch_number }} {% for medicine in group.medicine_entries %} {{ medicine.medicine_name }} {{ medicine.medicine_type_display }} {{ medicine.notes|default:'' }} {% endfor %}">
+                    <div class="resource-card-head">
+                        <div>
+                            <h2 class="resource-card-title">{{ group.batch.shed.shed_type|title }} Batch #{{ group.batch.batch_number }}</h2>
+                            <div class="resource-card-meta">
+                                <span class="mini-badge"><i class="fa-regular fa-calendar"></i> {{ group.batch.start_date|date:"d M Y" }}</span>
+                                <span class="mini-badge"><i class="fa-solid fa-list"></i> {{ group.medicine_entries|length }} entries</span>
                             </div>
-
-                            <div>
-
-                                <div class="medicine-name">
-                                    {{ medicine.medicine_name }}
-                                </div>
-
-                                <div class="medicine-meta">
-                                    <span class="medicine-type type-{{ medicine.medicine_type }}">
-                                        {{ medicine.medicine_type_display }}
-                                    </span>
-                                </div>
-
-                                <div class="desc">
-                                    {{ medicine.notes|default:"No notes" }}
-                                </div>
-
-                            </div>
-
-                            <div class="amount">
-                                Rs {{ medicine.amount|floatformat:0 }}
-                            </div>
-
                         </div>
-
-                    {% endfor %}
-
-                {% else %}
-
-                    <div class="empty">
-                        No medicine entries for this batch.
+                        <div class="total-badge">
+                            <i class="fa-solid fa-sack-dollar"></i>
+                            {% if is_admin %}Total Medicine{% else %}Your Medicine Share{% endif %}: Rs {{ group.total_medicine|floatformat:0 }}
+                        </div>
                     </div>
 
-                {% endif %}
-
-            </div>
-
-        {% endfor %}
-
-    {% else %}
-
-        <div class="batch-card">
-            <p>No active batches found.</p>
+                    <div class="entry-list">
+                        {% if group.medicine_entries %}
+                            {% for medicine in group.medicine_entries %}
+                                <div class="entry-row">
+                                    <div class="entry-date">{{ medicine.entry_date|date:"d M Y" }}</div>
+                                    <div>
+                                        <div class="entry-title">{{ medicine.medicine_name }}</div>
+                                        <div class="meta-row">
+                                            <span class="type-pill type-{{ medicine.medicine_type }}">{{ medicine.medicine_type_display }}</span>
+                                        </div>
+                                        <div class="entry-note {% if not medicine.notes %}is-empty{% endif %}">{{ medicine.notes|default:"No notes added" }}</div>
+                                    </div>
+                                    <div class="entry-amount">Rs {{ medicine.amount|floatformat:0 }}</div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state">No medicine entries have been recorded for this batch yet.</div>
+                        {% endif %}
+                    </div>
+                </section>
+            {% endfor %}
         </div>
-
+        <div class="no-results" id="noResults">No matching medicine records were found.</div>
+    {% else %}
+        <div class="empty-state">No active batches found.</div>
     {% endif %}
-
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const searchInput = document.getElementById('pageSearch');
+    const cards = Array.from(document.querySelectorAll('.searchable-card'));
+    const noResults = document.getElementById('noResults');
+
+    if (!searchInput || !cards.length) return;
+
+    function runSearch() {
+        const term = searchInput.value.trim().toLowerCase();
+        let visibleCount = 0;
+        cards.forEach(function (card) {
+            const haystack = (card.dataset.search || '').toLowerCase();
+            const match = term === '' || haystack.includes(term);
+            card.style.display = match ? '' : 'none';
+            if (match) visibleCount += 1;
+        });
+        if (noResults) noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+    }
+
+    searchInput.addEventListener('input', runSearch);
+})();
+</script>
 {% endblock %}
