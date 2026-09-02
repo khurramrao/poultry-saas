@@ -18,6 +18,7 @@ from api.models.sales import ChickCostEntry, Expense
 
 ZERO = Decimal("0.00")
 MONEY = Decimal("0.01")
+ACCOUNT_TOLERANCE = Decimal("0.50")
 
 
 def _money(value):
@@ -103,6 +104,15 @@ def _account_snapshot(allocation):
     total_paid = _money(total_paid)
 
     raw_balance = _money(shares["total_cost"] - total_paid)
+
+    # The UI displays financial figures rounded to whole rupees.
+    # Ignore sub-50-paisa differences for account status so a screen
+    # showing Cost Rs 57,934 / Paid Rs 57,934 / Credit Rs 0 does not
+    # incorrectly say "Credit" or "Outstanding". Exact payment
+    # records and cost calculations are still preserved to the paisa.
+    if abs(raw_balance) < ACCOUNT_TOLERANCE:
+        raw_balance = ZERO
+
     outstanding = max(raw_balance, ZERO)
     credit = max(-raw_balance, ZERO)
 
