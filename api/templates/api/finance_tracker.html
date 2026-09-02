@@ -345,6 +345,23 @@
         font-size:19px;
     }
 
+    .cost-per-live-bird-stat{
+        background:#fff9ed;
+        border-color:#f0dfb8;
+    }
+
+    .cost-per-live-bird-stat strong{
+        color:#a96600;
+    }
+
+    .cost-per-live-bird-stat small{
+        display:block;
+        margin-top:4px;
+        color:#8a7a5d;
+        font-size:10px;
+        line-height:1.35;
+    }
+
     .money-stat strong{
         display:block;
         margin-top:5px;
@@ -919,7 +936,7 @@
             padding:10px;
         }
 
-        .batch-birds-grid .cost-per-chick-stat{
+        .batch-birds-grid .cost-per-live-bird-stat{
             grid-column:1 / -1;
         }
 
@@ -1126,9 +1143,12 @@
                             {% if is_admin %}{{ row.current_birds|intcomma }}{% else %}{{ row.current_user_owner.current_birds|intcomma }}{% endif %}
                         </strong>
                     </div>
-                    <div class="mini-stat cost-per-chick-stat">
-                        <span>Cost / Chick</span>
-                        <strong>Rs {{ row.cost_per_chick|floatformat:2|intcomma }}</strong>
+                    <div class="mini-stat cost-per-live-bird-stat">
+                        <span>Cost / Live Bird</span>
+                        <strong>
+                            Rs {% if is_admin %}{{ row.cost_per_live_bird|floatformat:2|intcomma }}{% else %}{{ row.current_user_owner.cost_per_live_bird|floatformat:2|intcomma }}{% endif %}
+                        </strong>
+                        <small>Remaining COGS ÷ current birds</small>
                     </div>
                 </div>
 

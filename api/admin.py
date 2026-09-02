@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from api.models import InvestorProfile, InvestorAllocation, BatchCost, FeedEntry, MedicineEntry, UserProfile
+from api.models import InvestorProfile, InvestorAllocation, InvestorAccountPayment, BatchCost, FeedEntry, MedicineEntry, UserProfile
 from api.models.sensor import (
     Shed,
     Device,
@@ -177,6 +177,27 @@ class RelayChannelAdmin(admin.ModelAdmin):
         "device",
         "channel_number",
     )
+
+
+@admin.register(InvestorAccountPayment)
+class InvestorAccountPaymentAdmin(admin.ModelAdmin):
+    list_display = (
+        "payment_date",
+        "allocation",
+        "amount",
+        "payment_method",
+        "reference",
+        "recorded_by",
+    )
+    list_filter = ("payment_method", "payment_date")
+    search_fields = (
+        "allocation__investor__user__username",
+        "allocation__investor__user__first_name",
+        "allocation__investor__user__last_name",
+        "allocation__batch__batch_number",
+        "reference",
+    )
+    ordering = ("-payment_date", "-id")
 
 
 

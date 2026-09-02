@@ -164,3 +164,60 @@ class UserActivityLog(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.event_type} - {self.timestamp}"
+
+class InvestorAccountPayment(models.Model):
+    PAYMENT_METHOD_CHOICES = [
+        ("cash", "Cash"),
+        ("bank_transfer", "Bank Transfer"),
+        ("cheque", "Cheque"),
+        ("other", "Other"),
+    ]
+
+    allocation = models.ForeignKey(
+        InvestorAllocation,
+        on_delete=models.CASCADE,
+        related_name="account_payments",
+    )
+
+    payment_date = models.DateField(default=timezone.localdate)
+
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+    )
+
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default="bank_transfer",
+    )
+
+    reference = models.CharField(
+        max_length=120,
+        blank=True,
+    )
+
+    notes = models.TextField(blank=True)
+
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_investor_account_payments",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-payment_date", "-id"]
+        verbose_name = "Investor Account Payment"
+        verbose_name_plural = "Investor Account Payments"
+
+    def __str__(self):
+        return (
+            f"{self.allocation.investor.user.username} - "
+            f"Batch {self.allocation.batch.batch_number} - "
+            f"Rs {self.amount}"
+        )

@@ -339,14 +339,6 @@ def finance_tracker(request):
             + total_expenses
         )
 
-        # Purchase cost per chick for this batch only.
-        # This intentionally excludes carriage, feed, medicine and expenses.
-        cost_per_chick = zero_money
-        if batch_start_birds > 0:
-            cost_per_chick = money(
-                chick_cost / Decimal(batch_start_birds)
-            )
-
         # -----------------------------------------------------
         # REALIZED POSITION
         # -----------------------------------------------------
@@ -383,6 +375,20 @@ def finance_tracker(request):
             total_cogs - batch_locked_cogs_total,
             zero_money,
         )
+
+        # Current cost carried by each live bird.
+        #
+        # Before any sale:
+        #   Total COGS / current live birds
+        #
+        # After sales have started, already-locked sale COGS is removed
+        # first so sold birds are not charged again to the remaining flock.
+        cost_per_live_bird = zero_money
+        if current_birds > 0:
+            cost_per_live_bird = money(
+                remaining_cogs / Decimal(current_birds)
+            )
+
         remaining_expenses = zero_money
 
         # -----------------------------------------------------
@@ -518,6 +524,13 @@ def finance_tracker(request):
                 owner["recorded_cogs"] - owner["locked_cogs"],
                 zero_money,
             )
+
+            owner["cost_per_live_bird"] = zero_money
+            if owner["current_birds"] > 0:
+                owner["cost_per_live_bird"] = money(
+                    owner["remaining_cogs"]
+                    / Decimal(owner["current_birds"])
+                )
 
             owner["realized_expenses"] = zero_money
             owner["remaining_expenses"] = zero_money
@@ -665,7 +678,7 @@ def finance_tracker(request):
             "average_sale_weight": average_sale_weight,
             "average_sale_rate": average_sale_rate,
             "chick_cost": chick_cost,
-            "cost_per_chick": cost_per_chick,
+            "cost_per_live_bird": cost_per_live_bird,
             "carriage_cost": carriage_cost,
             "feed_cost": feed_cost,
             "feed_history": feed_history,

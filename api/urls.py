@@ -1,5 +1,5 @@
 from django.urls import path
-from api.views import sensor, camera, sales, logs, finance_tracker
+from api.views import sensor, camera, sales, logs, finance_tracker, investor_accounts
 
 
 urlpatterns = [
@@ -51,6 +51,9 @@ path(
     path("meat-sales/<int:batch_id>/", sales.meat_sale_detail, name="meat_sale_detail"),
     path("daily-log/", logs.daily_log, name="daily_log"),
     path("finance-tracker/", finance_tracker.finance_tracker, name="finance_tracker"),
+    path("investor-accounts/", investor_accounts.investor_accounts, name="investor_accounts"),
+    path("investor-accounts/<int:allocation_id>/", investor_accounts.investor_account_detail, name="investor_account_detail"),
+    path("investor-accounts/<int:allocation_id>/payment/", investor_accounts.record_investor_account_payment, name="record_investor_account_payment"),
     path("add-sale/", finance_tracker.add_sale_record, name="add_sale_record"),
     path("feed-list/", finance_tracker.feed_list, name="feed_list"),
     path("add-feed/", finance_tracker.add_feed_entry, name="add_feed_entry"),

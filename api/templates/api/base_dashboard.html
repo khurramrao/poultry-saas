@@ -686,6 +686,14 @@
                 <span>Finance Tracker</span>
             </a>
 
+            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile %}
+            <a href="{% url 'investor_accounts' %}"
+               class="{% if request.resolver_match.url_name == 'investor_accounts' or request.resolver_match.url_name == 'investor_account_detail' or request.resolver_match.url_name == 'record_investor_account_payment' %}active{% endif %}">
+                <i class="fa-solid fa-wallet"></i>
+                <span>Investor Accounts</span>
+            </a>
+            {% endif %}
+
             <a href="{% url 'feed_list' %}"
                class="{% if request.resolver_match.url_name == 'feed_list' or request.resolver_match.url_name == 'add_feed_entry' %}active{% endif %}">
                 <i class="fa-solid fa-bucket"></i>

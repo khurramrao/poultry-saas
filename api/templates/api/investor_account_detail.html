@@ -1,0 +1,102 @@
+{% extends "api/base_dashboard.html" %}
+{% load humanize %}
+
+{% block title %}Investor Account Statement{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-page{max-width:1450px;margin:0 auto}.account-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:21px 23px;margin-bottom:17px;border:1px solid #dfe8f3;border-radius:18px;background:linear-gradient(135deg,#fff,#f7fbff);box-shadow:0 8px 24px rgba(17,53,90,.06)}.head-main{display:flex;gap:13px}.head-icon{width:52px;height:52px;min-width:52px;border-radius:15px;display:flex;align-items:center;justify-content:center;background:#eaf6ff;color:#1768bd;font-size:22px}.account-header h1{margin:0 0 5px;color:#123d68;font-size:26px}.account-header p{margin:0;color:#6e7e91;font-size:13px}.head-actions{display:flex;gap:8px;flex-wrap:wrap}.btn{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 13px;border:0;border-radius:10px;text-decoration:none;font-size:12px;font-weight:900;cursor:pointer}.btn-secondary{background:#eaf1f8;color:#294861}.btn-primary{background:#0f4d80;color:#fff}.btn-green{background:#168646;color:#fff}
+    .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.kpi{padding:16px 17px;border:1px solid #e0e8f2;border-radius:15px;background:#fff;box-shadow:0 5px 16px rgba(16,47,79,.04)}.kpi label{display:block;font-size:10px;font-weight:900;text-transform:uppercase;color:#728296;margin-bottom:7px;letter-spacing:.05em}.kpi strong{display:block;font-size:23px;color:#123f6d}.kpi.paid strong{color:#158342}.kpi.due strong{color:#c4492f}.kpi.credit strong{color:#1765b2}.kpi small{display:block;margin-top:5px;color:#8794a4;font-size:10px}
+    .detail-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(310px,.55fr);gap:16px;align-items:start}.panel{background:#fff;border:1px solid #dfe7f1;border-radius:17px;overflow:hidden;box-shadow:0 6px 20px rgba(17,49,82,.05);margin-bottom:16px}.panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:16px 18px;border-bottom:1px solid #edf2f7;background:#fafcff}.panel-head h2{margin:0;color:#173d63;font-size:17px}.panel-head span{color:#7b899a;font-size:11px}.cost-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px}.cost-box{padding:12px;border:1px solid #e5ebf2;border-radius:11px;background:#fcfdff}.cost-box span{display:block;color:#748599;font-size:11px;margin-bottom:5px}.cost-box strong{display:block;color:#173e65;font-size:17px}.cost-box.total{background:#edf8f1;border-color:#d0ead8}.cost-box.total strong{color:#15733a}
+    .statement-wrap{overflow-x:auto}.statement{width:100%;border-collapse:collapse;min-width:850px}.statement th{padding:11px 12px;background:#f4f7fa;color:#52667d;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em}.statement td{padding:12px;border-top:1px solid #edf1f5;color:#28415b;font-size:12px;vertical-align:top}.statement .money{text-align:right;font-weight:800;white-space:nowrap}.statement .charge{color:#c14a32}.statement .payment{color:#158343}.statement .balance{color:#103f6c}.row-payment{background:#f5fbf7}.type-badge{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:900;background:#eef4fa;color:#45627e}.row-payment .type-badge{background:#e7f7ec;color:#17783d}.empty{padding:26px;text-align:center;color:#7a899a}
+    .payment-panel{position:sticky;top:82px}.payment-body{padding:17px}.form-group{margin-bottom:13px}.form-label{display:block;color:#30465d;font-size:12px;font-weight:800;margin-bottom:6px}.input,.select,.textarea{width:100%;box-sizing:border-box;border:1px solid #ccd8e5;border-radius:10px;background:#fff;color:#17324d;font-size:13px;outline:none}.input,.select{height:44px;padding:0 12px}.textarea{min-height:82px;padding:10px 12px;resize:vertical}.input:focus,.select:focus,.textarea:focus{border-color:#2874cd;box-shadow:0 0 0 3px rgba(40,116,205,.1)}.payment-note{padding:11px 12px;border-radius:10px;background:#eef6ff;border:1px solid #d7e9fb;color:#43637f;font-size:11px;line-height:1.5;margin-bottom:13px}.payment-submit{width:100%}.account-info{padding:16px}.info-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #edf1f5}.info-row:last-child{border-bottom:0}.info-row span{color:#718196;font-size:12px}.info-row strong{color:#183e63;font-size:12px;text-align:right}
+    @media print{.sidebar,.app-topbar,.head-actions,.payment-panel{display:none!important}.main-content{margin:0!important}.page-content{padding:0!important}.account-page{max-width:none}.detail-layout{display:block}.panel{box-shadow:none}.account-header{box-shadow:none}.statement{min-width:0;font-size:10px}}
+    @media(max-width:1050px){.detail-layout{grid-template-columns:1fr}.payment-panel{position:static}.kpis{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:700px){.account-header{flex-direction:column;padding:17px 15px}.head-actions{width:100%}.btn{width:100%}.account-header h1{font-size:22px}.kpis{grid-template-columns:1fr 1fr;gap:9px}.kpi{padding:13px}.kpi strong{font-size:20px}.cost-grid{grid-template-columns:1fr 1fr}.panel-head{align-items:flex-start;flex-direction:column}.statement-wrap{margin:0}.account-info,.payment-body,.cost-grid{padding:14px}}
+    @media(max-width:420px){.kpis,.cost-grid{grid-template-columns:1fr}.head-main{gap:9px}.head-icon{width:45px;height:45px;min-width:45px}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="account-page">
+    <div class="account-header">
+        <div class="head-main"><div class="head-icon"><i class="fa-regular fa-file-lines"></i></div><div><h1>{{ account.investor_name }} — Account Statement</h1><p>{{ account.batch.shed.shed_type|title }} Batch #{{ account.batch.batch_number }} · {{ account.share_percentage }}% ownership · {{ account.birds_owned|intcomma }} starting birds</p></div></div>
+        <div class="head-actions"><a href="{% url 'investor_accounts' %}" class="btn btn-secondary"><i class="fa-solid fa-arrow-left"></i> Accounts</a><a href="{% url 'finance_tracker' %}" class="btn btn-primary"><i class="fa-solid fa-chart-line"></i> Finance Tracker</a><button type="button" class="btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Statement</button></div>
+    </div>
+
+    <div class="kpis">
+        <div class="kpi"><label>Total Cost Share</label><strong>Rs {{ account.total_cost_share|floatformat:0|intcomma }}</strong><small>Current allocated share of all recorded batch costs.</small></div>
+        <div class="kpi paid"><label>Payments Received</label><strong>Rs {{ account.total_paid|floatformat:0|intcomma }}</strong><small>Payments credited to this batch account.</small></div>
+        {% if account.credit > 0 %}<div class="kpi credit"><label>Account Credit</label><strong>Rs {{ account.credit|floatformat:0|intcomma }}</strong><small>Advance paid above current costs.</small></div>{% else %}<div class="kpi due"><label>Outstanding</label><strong>Rs {{ account.outstanding|floatformat:0|intcomma }}</strong><small>Amount still payable to Admin.</small></div>{% endif %}
+        <div class="kpi"><label>Status</label><strong>{{ account.status_label }}</strong><small>Updates automatically as costs and payments change.</small></div>
+    </div>
+
+    <div class="detail-layout">
+        <div>
+            <section class="panel">
+                <div class="panel-head"><h2><i class="fa-solid fa-layer-group"></i> Cost Share Breakdown</h2><span>Based on starting-bird ownership share</span></div>
+                <div class="cost-grid">
+                    <div class="cost-box"><span>Chick Cost</span><strong>Rs {{ account.chick_cost_share|floatformat:0|intcomma }}</strong></div>
+                    <div class="cost-box"><span>Carriage</span><strong>Rs {{ account.carriage_cost_share|floatformat:0|intcomma }}</strong></div>
+                    <div class="cost-box"><span>Feed</span><strong>Rs {{ account.feed_cost_share|floatformat:0|intcomma }}</strong></div>
+                    <div class="cost-box"><span>Medicine</span><strong>Rs {{ account.medicine_cost_share|floatformat:0|intcomma }}</strong></div>
+                    <div class="cost-box"><span>All Expenses</span><strong>Rs {{ account.expense_cost_share|floatformat:0|intcomma }}</strong></div>
+                    <div class="cost-box total"><span>Total Cost Share</span><strong>Rs {{ account.total_cost_share|floatformat:0|intcomma }}</strong></div>
+                </div>
+            </section>
+
+            <section class="panel">
+                <div class="panel-head"><h2><i class="fa-solid fa-book"></i> Account Ledger</h2><span>Charges increase balance · payments reduce balance</span></div>
+                {% if statement_rows %}
+                    <div class="statement-wrap">
+                        <table class="statement">
+                            <thead><tr><th>Date</th><th>Type</th><th>Details</th><th style="text-align:right">Cost Share</th><th style="text-align:right">Payment</th><th style="text-align:right">Running Balance</th></tr></thead>
+                            <tbody>
+                                {% for row in statement_rows %}
+                                    <tr class="{% if row.entry_type == 'payment' %}row-payment{% endif %}">
+                                        <td>{{ row.date|date:"d M Y" }}</td>
+                                        <td><span class="type-badge">{{ row.category }}</span></td>
+                                        <td>{{ row.description }}</td>
+                                        <td class="money charge">{% if row.charge > 0 %}Rs {{ row.charge|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                                        <td class="money payment">{% if row.payment > 0 %}Rs {{ row.payment|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                                        <td class="money balance">Rs {{ row.running_balance|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}<div class="empty">No account activity has been recorded yet.</div>{% endif %}
+            </section>
+        </div>
+
+        <aside>
+            <section class="panel">
+                <div class="panel-head"><h2>Account Details</h2></div>
+                <div class="account-info">
+                    <div class="info-row"><span>Investor</span><strong>{{ account.investor_name }}</strong></div>
+                    <div class="info-row"><span>Batch</span><strong>{{ account.batch.shed.shed_type|title }} #{{ account.batch.batch_number }}</strong></div>
+                    <div class="info-row"><span>Starting Birds Owned</span><strong>{{ account.birds_owned|intcomma }}</strong></div>
+                    <div class="info-row"><span>Ownership Share</span><strong>{{ account.share_percentage }}%</strong></div>
+                    <div class="info-row"><span>Batch Started</span><strong>{{ account.batch.start_date|date:"d M Y" }}</strong></div>
+                </div>
+            </section>
+
+            {% if is_admin %}
+            <section class="panel payment-panel">
+                <div class="panel-head"><h2><i class="fa-solid fa-money-check-dollar"></i> Record Investor Payment</h2></div>
+                <form method="post" action="{% url 'record_investor_account_payment' account.allocation.id %}" class="payment-body">
+                    {% csrf_token %}
+                    <div class="payment-note">Record money received from this investor. Partial payments are allowed. If they pay in advance, the account will show a credit until future costs are added.</div>
+                    <div class="form-group"><label class="form-label">Payment Date</label><input class="input" type="date" name="payment_date" value="{{ today }}" required></div>
+                    <div class="form-group"><label class="form-label">Amount (Rs)</label><input class="input" type="number" name="amount" min="0.01" step="0.01" placeholder="Enter amount received" required></div>
+                    <div class="form-group"><label class="form-label">Payment Method</label><select class="select" name="payment_method">{% for value,label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label class="form-label">Reference</label><input class="input" type="text" name="reference" placeholder="Bank reference, cheque no., etc."></div>
+                    <div class="form-group"><label class="form-label">Notes</label><textarea class="textarea" name="notes" placeholder="Optional payment notes..."></textarea></div>
+                    <button class="btn btn-green payment-submit" type="submit"><i class="fa-solid fa-check"></i> Record Payment</button>
+                </form>
+            </section>
+            {% endif %}
+        </aside>
+    </div>
+</div>
+{% endblock %}
