@@ -667,6 +667,7 @@
                     <span>Sales</span>
                 </a>
 
+
                 <a href="#"
                    class="{% if request.resolver_match.url_name == 'vaccine_records' %}active{% endif %}">
                     <i class="fa-solid fa-syringe"></i>
@@ -680,6 +681,22 @@
 
             {% endif %}
 
+            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile %}
+            <a href="{% url 'egg_dashboard' %}"
+               class="{% if request.resolver_match.url_name == 'egg_dashboard' or request.resolver_match.url_name == 'add_egg_production' or request.resolver_match.url_name == 'add_egg_sale' %}active{% endif %}">
+                <i class="fa-solid fa-egg"></i>
+                <span>Egg Management</span>
+            </a>
+            {% endif %}
+
+            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile %}
+            <a href="{% url 'goat_dashboard' %}"
+               class="{% if request.resolver_match.url_name == 'goat_dashboard' or request.resolver_match.url_name == 'add_goat' or request.resolver_match.url_name == 'goat_detail' or request.resolver_match.url_name == 'add_goat_weight' or request.resolver_match.url_name == 'goat_costs' or request.resolver_match.url_name == 'add_goat_cost' or request.resolver_match.url_name == 'goat_finance' or request.resolver_match.url_name == 'add_goat_sale' %}active{% endif %}">
+                <i class="fa-solid fa-paw"></i>
+                <span>Goat Farm</span>
+            </a>
+            {% endif %}
+
             <a href="{% url 'finance_tracker' %}"
                class="{% if request.resolver_match.url_name == 'finance_tracker' %}active{% endif %}">
                 <i class="fa-regular fa-money-bill-1"></i>
@@ -688,7 +705,7 @@
 
             {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile %}
             <a href="{% url 'investor_accounts' %}"
-               class="{% if request.resolver_match.url_name == 'investor_accounts' or request.resolver_match.url_name == 'investor_account_detail' or request.resolver_match.url_name == 'record_investor_account_payment' %}active{% endif %}">
+               class="{% if request.resolver_match.url_name == 'investor_accounts' or request.resolver_match.url_name == 'investor_account_detail' or request.resolver_match.url_name == 'record_investor_account_payment' or request.resolver_match.url_name == 'goat_accounts' or request.resolver_match.url_name == 'goat_account_detail' or request.resolver_match.url_name == 'record_goat_account_payment' %}active{% endif %}">
                 <i class="fa-solid fa-wallet"></i>
                 <span>Investor Accounts</span>
             </a>

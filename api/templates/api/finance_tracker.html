@@ -83,6 +83,41 @@
         color:#fff;
     }
 
+    .finance-module-tabs{
+        display:inline-flex;
+        align-items:center;
+        gap:6px;
+        padding:5px;
+        margin-bottom:14px;
+        border:1px solid #dbe5ef;
+        border-radius:12px;
+        background:#eef3f8;
+    }
+
+    .finance-module-tab{
+        min-height:38px;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap:7px;
+        padding:0 15px;
+        border-radius:9px;
+        color:#52687e;
+        text-decoration:none;
+        font-size:12px;
+        font-weight:850;
+    }
+
+    .finance-module-tab.active{
+        background:#fff;
+        color:#123f6c;
+        box-shadow:0 2px 8px rgba(20,55,90,.09);
+    }
+
+    .finance-module-tab.goat-tab i{
+        color:#168146;
+    }
+
     .finance-actions{
         display:flex;
         flex-wrap:wrap;
@@ -120,7 +155,7 @@
 
     .overview-grid{
         display:grid;
-        grid-template-columns:repeat(5,minmax(0,1fr));
+        grid-template-columns:repeat(6,minmax(0,1fr));
         gap:12px;
         margin-bottom:13px;
     }
@@ -319,6 +354,12 @@
         margin-bottom:16px;
     }
 
+    /* Layer batches intentionally omit the separate Bird Sale ROI card.
+       Four bird-sale figures stay balanced in one row on desktop. */
+    .batch-money-grid.layer-bird-money-grid{
+        grid-template-columns:repeat(4,minmax(0,1fr));
+    }
+
     .mini-stat,
     .money-stat{
         min-width:0;
@@ -386,6 +427,101 @@
 
     .money-stat.roi strong{
         color:#1765bd;
+    }
+
+    .layer-finance-panel{
+        margin:0 0 16px;
+        padding:14px;
+        border:1px solid #d8e9dd;
+        border-radius:13px;
+        background:linear-gradient(135deg,#f8fffa,#f2fbf5);
+    }
+
+    .layer-finance-head{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:12px;
+        margin-bottom:11px;
+    }
+
+    .layer-finance-title{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        color:#155b35;
+        font-size:13px;
+        font-weight:900;
+    }
+
+    .layer-finance-title i{
+        color:#169447;
+    }
+
+    .layer-finance-note{
+        color:#678072;
+        font-size:10px;
+        line-height:1.4;
+        text-align:right;
+    }
+
+    .layer-finance-grid{
+        display:grid;
+        grid-template-columns:repeat(6,minmax(0,1fr));
+        gap:8px;
+    }
+
+    .layer-stat{
+        min-width:0;
+        padding:11px 12px;
+        border:1px solid #dceae1;
+        border-radius:10px;
+        background:#fff;
+    }
+
+    .layer-stat span{
+        display:block;
+        color:#718579;
+        font-size:9px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.025em;
+    }
+
+    .layer-stat strong{
+        display:block;
+        margin-top:5px;
+        color:#174c30;
+        font-size:16px;
+        font-weight:900;
+        white-space:nowrap;
+    }
+
+    .layer-stat.profit{
+        background:#eaf8ef;
+        border-color:#cbe7d5;
+    }
+
+    .layer-stat.profit strong{
+        color:#12763b;
+    }
+
+    .layer-stat.roi{
+        background:#eef6ff;
+        border-color:#d6e6f8;
+    }
+
+    .layer-stat.roi strong{
+        color:#1765bd;
+    }
+
+    .layer-stat.stock{
+        background:#fff9ed;
+        border-color:#f0dfb8;
+    }
+
+    .layer-stat.stock strong{
+        color:#a96600;
     }
 
     .section-title-row{
@@ -824,6 +960,14 @@
         .batch-money-grid{
             grid-template-columns:repeat(3,minmax(0,1fr));
         }
+
+        .batch-money-grid.layer-bird-money-grid{
+            grid-template-columns:repeat(2,minmax(0,1fr));
+        }
+
+        .layer-finance-grid{
+            grid-template-columns:repeat(3,minmax(0,1fr));
+        }
     }
 
     @media(max-width:900px){
@@ -857,6 +1001,18 @@
             grid-template-columns:repeat(2,minmax(0,1fr));
         }
 
+        .layer-finance-grid{
+            grid-template-columns:repeat(2,minmax(0,1fr));
+        }
+
+        .layer-finance-head{
+            flex-direction:column;
+        }
+
+        .layer-finance-note{
+            text-align:left;
+        }
+
         .owner-table-wrap{
             display:none;
         }
@@ -880,6 +1036,18 @@
 
         .finance-heading h1{
             font-size:22px;
+        }
+
+        .finance-module-tabs{
+            display:grid;
+            grid-template-columns:1fr 1fr;
+            width:100%;
+            box-sizing:border-box;
+        }
+
+        .finance-module-tab{
+            min-width:0;
+            padding:0 9px;
         }
 
         .finance-actions{
@@ -931,6 +1099,10 @@
             grid-column:1 / -1;
         }
 
+        .batch-money-grid.layer-bird-money-grid .money-stat:last-child{
+            grid-column:auto;
+        }
+
         .mini-stat,
         .money-stat{
             padding:10px;
@@ -977,13 +1149,13 @@
             </div>
             <div>
                 <h1>
-                    {% if is_admin %}Finance Tracker{% else %}My Finance Portfolio{% endif %}
+                    {% if is_admin %}Poultry Finance Tracker{% else %}My Poultry Finance{% endif %}
                 </h1>
                 <p>
                     {% if is_admin %}
-                        Batch profitability, realized results and owner-by-owner financial performance.
+                        Poultry batch profitability, egg revenue, realized results and owner-by-owner financial performance.
                     {% else %}
-                        Your ownership, realized revenue, costs and profit across your farm batches.
+                        Your poultry ownership, revenue, costs and profit across your invested batches.
                     {% endif %}
                 </p>
             </div>
@@ -996,6 +1168,15 @@
         </nav>
     </header>
 
+    <nav class="finance-module-tabs" aria-label="Finance area">
+        <a href="{% url 'finance_tracker' %}" class="finance-module-tab active">
+            <i class="fa-solid fa-egg"></i> Poultry Finance
+        </a>
+        <a href="{% url 'goat_finance' %}" class="finance-module-tab goat-tab">
+            <i class="fa-solid fa-paw"></i> Goat Finance
+        </a>
+    </nav>
+
     <div class="finance-actions">
         {% if is_admin %}
             <a href="{% url 'add_sale_record' %}" class="finance-action primary">
@@ -1005,6 +1186,9 @@
                 <i class="fa-solid fa-egg"></i> Chick Cost
             </a>
         {% endif %}
+        <a href="{% url 'egg_dashboard' %}" class="finance-action">
+            <i class="fa-solid fa-egg"></i> Eggs
+        </a>
         <a href="{% url 'feed_list' %}" class="finance-action">
             <i class="fa-solid fa-wheat-awn"></i> Feed
         </a>
@@ -1022,10 +1206,19 @@
         <article class="overview-card">
             <div class="overview-top">
                 <div class="overview-icon"><i class="fa-solid fa-coins"></i></div>
-                <div class="overview-label">Net Sales</div>
+                <div class="overview-label">Net Bird Sales</div>
             </div>
             <div class="overview-value">Rs {{ overview.net_sales|floatformat:0|intcomma }}</div>
-            <div class="overview-note">Sales after discounts</div>
+            <div class="overview-note">Bird sales after discounts</div>
+        </article>
+
+        <article class="overview-card profit">
+            <div class="overview-top">
+                <div class="overview-icon"><i class="fa-solid fa-egg"></i></div>
+                <div class="overview-label">Egg Net Sales</div>
+            </div>
+            <div class="overview-value">Rs {{ overview.egg_sales|floatformat:0|intcomma }}</div>
+            <div class="overview-note">Layer egg sales after discounts</div>
         </article>
 
         <article class="overview-card">
@@ -1049,23 +1242,23 @@
         <article class="overview-card profit">
             <div class="overview-top">
                 <div class="overview-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
-                <div class="overview-label">Realized Profit</div>
+                <div class="overview-label">Realized Bird Profit</div>
             </div>
             <div class="overview-value {% if overview.net_income < 0 %}money-negative{% endif %}">
                 Rs {{ overview.net_income|floatformat:0|intcomma }}
             </div>
-            <div class="overview-note">Net sales less realized COGS</div>
+            <div class="overview-note">Bird sales less realized COGS</div>
         </article>
 
         <article class="overview-card">
             <div class="overview-top">
                 <div class="overview-icon"><i class="fa-solid fa-percent"></i></div>
-                <div class="overview-label">Realized ROI</div>
+                <div class="overview-label">Overall Bird Sale ROI</div>
             </div>
             <div class="overview-value {% if overview.roi < 0 %}money-negative{% endif %}">
                 {{ overview.roi|floatformat:1 }}%
             </div>
-            <div class="overview-note">Net income ÷ realized investment</div>
+            <div class="overview-note">Bird sales only; egg revenue is excluded</div>
         </article>
     </section>
 
@@ -1096,7 +1289,7 @@
         <article class="batch-finance-card" id="batch-{{ row.batch.id }}">
             <div class="batch-head">
                 <div>
-                    <div class="batch-kicker">{{ row.batch.shed.name }} · {{ row.batch.batch_type|title }} Batch</div>
+                    <div class="batch-kicker">{{ row.batch.shed.name }} · {% if row.is_layer_batch %}Layer{% else %}{{ row.batch.batch_type|title }}{% endif %} Batch</div>
                     <h2 class="batch-title">Batch #{{ row.batch.batch_number }}</h2>
                     <div class="batch-meta">
                         <span><i class="fa-regular fa-calendar"></i> Started {{ row.batch.start_date|date:"M d, Y" }}</span>
@@ -1152,9 +1345,9 @@
                     </div>
                 </div>
 
-                <div class="batch-money-grid">
+                <div class="batch-money-grid{% if row.is_layer_batch %} layer-bird-money-grid{% endif %}">
                     <div class="money-stat">
-                        <span>Net Sales</span>
+                        <span>{% if row.is_layer_batch %}Net Bird Sales{% else %}Net Sales{% endif %}</span>
                         <strong>
                             Rs {% if is_admin %}{{ row.total_sales_revenue|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.revenue|floatformat:0|intcomma }}{% endif %}
                         </strong>
@@ -1172,20 +1365,69 @@
                         </strong>
                     </div>
                     <div class="money-stat net">
-                        <span>Realized Profit</span>
+                        <span>{% if row.is_layer_batch %}Realized Bird Profit{% else %}Realized Profit{% endif %}</span>
                         {% if is_admin %}
                             <strong class="{% if row.batch_net_income < 0 %}money-negative{% endif %}">Rs {{ row.batch_net_income|floatformat:0|intcomma }}</strong>
                         {% else %}
                             <strong class="{% if row.current_user_owner.net_income < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.net_income|floatformat:0|intcomma }}</strong>
                         {% endif %}
                     </div>
-                    <div class="money-stat roi">
-                        <span>Realized ROI</span>
-                        <strong>
-                            {% if is_admin %}{{ row.batch_roi|floatformat:1 }}{% else %}{{ row.current_user_owner.roi|floatformat:1 }}{% endif %}%
-                        </strong>
-                    </div>
+                    {% if not row.is_layer_batch %}
+                        <div class="money-stat roi">
+                            <span>Realized ROI</span>
+                            <strong>
+                                {% if is_admin %}{{ row.batch_roi|floatformat:1 }}{% else %}{{ row.current_user_owner.roi|floatformat:1 }}{% endif %}%
+                            </strong>
+                        </div>
+                    {% endif %}
                 </div>
+
+                {% if row.is_layer_batch %}
+                    <section class="layer-finance-panel">
+                        <div class="layer-finance-head">
+                            <div class="layer-finance-title">
+                                <i class="fa-solid fa-egg"></i>
+                                Layer Finance Position
+                            </div>
+                            <div class="layer-finance-note">
+                                Overall layer result uses bird revenue + egg revenue against all recorded batch COGS to date.
+                            </div>
+                        </div>
+
+                        <div class="layer-finance-grid">
+                            <div class="layer-stat">
+                                <span>Egg Net Sales</span>
+                                <strong>Rs {% if is_admin %}{{ row.egg_net_sales|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.egg_revenue|floatformat:0|intcomma }}{% endif %}</strong>
+                            </div>
+                            <div class="layer-stat">
+                                <span>Total Revenue</span>
+                                <strong>Rs {% if is_admin %}{{ row.total_batch_revenue|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.total_revenue|floatformat:0|intcomma }}{% endif %}</strong>
+                            </div>
+                            <div class="layer-stat">
+                                <span>Total COGS to Date</span>
+                                <strong>Rs {% if is_admin %}{{ row.total_cogs|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.recorded_cogs|floatformat:0|intcomma }}{% endif %}</strong>
+                            </div>
+                            <div class="layer-stat profit">
+                                <span>Profit / Loss to Date</span>
+                                {% if is_admin %}
+                                    <strong class="{% if row.layer_profit_to_date < 0 %}money-negative{% endif %}">Rs {{ row.layer_profit_to_date|floatformat:0|intcomma }}</strong>
+                                {% else %}
+                                    <strong class="{% if row.current_user_owner.layer_profit_to_date < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.layer_profit_to_date|floatformat:0|intcomma }}</strong>
+                                {% endif %}
+                            </div>
+                            <div class="layer-stat roi">
+                                <span>Overall Layer ROI</span>
+                                <strong class="{% if is_admin %}{% if row.layer_roi_to_date < 0 %}money-negative{% endif %}{% else %}{% if row.current_user_owner.layer_roi_to_date < 0 %}money-negative{% endif %}{% endif %}">
+                                    {% if is_admin %}{{ row.layer_roi_to_date|floatformat:1 }}{% else %}{{ row.current_user_owner.layer_roi_to_date|floatformat:1 }}{% endif %}%
+                                </strong>
+                            </div>
+                            <div class="layer-stat stock">
+                                <span>Egg Stock</span>
+                                <strong>{{ row.egg_stock|intcomma }}</strong>
+                            </div>
+                        </div>
+                    </section>
+                {% endif %}
 
                 <div class="section-title-row">
                     <h3 class="section-title">
@@ -1205,11 +1447,20 @@
                                 <th>Mort.</th>
                                 <th>Sold</th>
                                 <th>Current</th>
-                                <th>Revenue</th>
-                                <th>Realized COGS</th>
-                                <th>Total COGS Share</th>
-                                <th>Realized Profit</th>
-                                <th>ROI</th>
+                                {% if row.is_layer_batch %}
+                                    <th>Bird Revenue</th>
+                                    <th>Egg Revenue</th>
+                                    <th>Total Revenue</th>
+                                    <th>Total COGS Share</th>
+                                    <th>Profit / Loss</th>
+                                    <th>Layer ROI</th>
+                                {% else %}
+                                    <th>Revenue</th>
+                                    <th>Realized COGS</th>
+                                    <th>Total COGS Share</th>
+                                    <th>Realized Profit</th>
+                                    <th>ROI</th>
+                                {% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -1228,11 +1479,20 @@
                                     <td>{{ owner.mortality|intcomma }}</td>
                                     <td>{{ owner.sold|intcomma }}</td>
                                     <td>{{ owner.current_birds|intcomma }}</td>
-                                    <td>Rs {{ owner.revenue|floatformat:0|intcomma }}</td>
-                                    <td>Rs {{ owner.locked_cogs|floatformat:0|intcomma }}</td>
-                                    <td>Rs {{ owner.recorded_cogs|floatformat:0|intcomma }}</td>
-                                    <td class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</td>
-                                    <td class="{% if owner.roi < 0 %}money-negative{% else %}money-positive{% endif %}">{{ owner.roi|floatformat:1 }}%</td>
+                                    {% if row.is_layer_batch %}
+                                        <td>Rs {{ owner.revenue|floatformat:0|intcomma }}</td>
+                                        <td>Rs {{ owner.egg_revenue|floatformat:0|intcomma }}</td>
+                                        <td>Rs {{ owner.total_revenue|floatformat:0|intcomma }}</td>
+                                        <td>Rs {{ owner.recorded_cogs|floatformat:0|intcomma }}</td>
+                                        <td class="{% if owner.layer_profit_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.layer_profit_to_date|floatformat:0|intcomma }}</td>
+                                        <td class="{% if owner.layer_roi_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">{{ owner.layer_roi_to_date|floatformat:1 }}%</td>
+                                    {% else %}
+                                        <td>Rs {{ owner.revenue|floatformat:0|intcomma }}</td>
+                                        <td>Rs {{ owner.locked_cogs|floatformat:0|intcomma }}</td>
+                                        <td>Rs {{ owner.recorded_cogs|floatformat:0|intcomma }}</td>
+                                        <td class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</td>
+                                        <td class="{% if owner.roi < 0 %}money-negative{% else %}money-positive{% endif %}">{{ owner.roi|floatformat:1 }}%</td>
+                                    {% endif %}
                                 </tr>
                             {% endfor %}
                         </tbody>
@@ -1254,12 +1514,18 @@
                                 <div class="owner-mobile-metric"><span>Mortality</span><strong>{{ owner.mortality }}</strong></div>
                                 <div class="owner-mobile-metric"><span>Sold</span><strong>{{ owner.sold }}</strong></div>
                                 <div class="owner-mobile-metric"><span>Current</span><strong>{{ owner.current_birds }}</strong></div>
-                                <div class="owner-mobile-metric"><span>ROI</span><strong>{{ owner.roi|floatformat:1 }}%</strong></div>
+                                <div class="owner-mobile-metric"><span>{% if row.is_layer_batch %}Layer ROI{% else %}ROI{% endif %}</span><strong>{% if row.is_layer_batch %}{{ owner.layer_roi_to_date|floatformat:1 }}{% else %}{{ owner.roi|floatformat:1 }}{% endif %}%</strong></div>
                             </div>
 
                             <div class="owner-mobile-money">
-                                <div class="owner-mobile-metric"><span>Revenue</span><strong>Rs {{ owner.revenue|floatformat:0|intcomma }}</strong></div>
-                                <div class="owner-mobile-metric"><span>Realized Profit</span><strong class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</strong></div>
+                                {% if row.is_layer_batch %}
+                                    <div class="owner-mobile-metric"><span>Egg Revenue</span><strong>Rs {{ owner.egg_revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="owner-mobile-metric"><span>Total Revenue</span><strong>Rs {{ owner.total_revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="owner-mobile-metric"><span>Profit / Loss</span><strong class="{% if owner.layer_profit_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.layer_profit_to_date|floatformat:0|intcomma }}</strong></div>
+                                {% else %}
+                                    <div class="owner-mobile-metric"><span>Revenue</span><strong>Rs {{ owner.revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="owner-mobile-metric"><span>Realized Profit</span><strong class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</strong></div>
+                                {% endif %}
                             </div>
                         </div>
                     {% endfor %}
@@ -1350,12 +1616,20 @@
                                 <div class="detail-row total"><span>Total Recorded COGS Share</span><strong>Rs {{ owner.recorded_cogs|floatformat:0|intcomma }}</strong></div>
                                 <div class="detail-row"><span>Realized COGS</span><strong>Rs {{ owner.locked_cogs|floatformat:0|intcomma }}</strong></div>
                                 <div class="detail-row"><span>COGS Remaining in Live Birds</span><strong>Rs {{ owner.remaining_cogs|floatformat:0|intcomma }}</strong></div>
-                                <div class="detail-row"><span>Net Sales Revenue</span><strong>Rs {{ owner.revenue|floatformat:0|intcomma }}</strong></div>
-                                <div class="detail-row"><span>Discount Share</span><strong>Rs {{ owner.discount_share|floatformat:0|intcomma }}</strong></div>
-                                <div class="detail-row total"><span>Realized Profit</span><strong class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>{% if row.is_layer_batch %}Net Bird Sales Revenue{% else %}Net Sales Revenue{% endif %}</span><strong>Rs {{ owner.revenue|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>Bird Sale Discount Share</span><strong>Rs {{ owner.discount_share|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row total"><span>{% if row.is_layer_batch %}Realized Bird Profit{% else %}Realized Profit{% endif %}</span><strong class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</strong></div>
+
+                                {% if row.is_layer_batch %}
+                                    <div class="detail-row"><span>Egg Net Sales Share</span><strong>Rs {{ owner.egg_revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Egg Discount Share</span><strong>Rs {{ owner.egg_discount_share|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Total Revenue Share</span><strong>Rs {{ owner.total_revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Layer Profit / Loss to Date</span><strong class="{% if owner.layer_profit_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.layer_profit_to_date|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Overall Layer ROI</span><strong class="{% if owner.layer_roi_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">{{ owner.layer_roi_to_date|floatformat:1 }}%</strong></div>
+                                {% endif %}
 
                                 <div class="section-title-row">
-                                    <h4 class="section-title"><i class="fa-solid fa-cart-shopping"></i> Sale History</h4>
+                                    <h4 class="section-title"><i class="fa-solid fa-cart-shopping"></i> {% if row.is_layer_batch %}Bird Sale History{% else %}Sale History{% endif %}</h4>
                                 </div>
                                 {% for sale in owner.sale_history %}
                                     <details class="history-item">
@@ -1371,8 +1645,30 @@
                                         </div>
                                     </details>
                                 {% empty %}
-                                    <div class="section-help">No sales recorded yet.</div>
+                                    <div class="section-help">No bird sales recorded yet.</div>
                                 {% endfor %}
+
+                                {% if row.is_layer_batch %}
+                                    <div class="section-title-row">
+                                        <h4 class="section-title"><i class="fa-solid fa-egg"></i> Egg Sale History</h4>
+                                    </div>
+                                    {% for egg_sale in owner.egg_sale_history %}
+                                        <details class="history-item">
+                                            <summary>{{ egg_sale.sale_date|date:"M d, Y" }} · {{ egg_sale.eggs_sold|intcomma }} Eggs · Rs {{ egg_sale.net_revenue|floatformat:0|intcomma }}</summary>
+                                            <div class="history-body">
+                                                <div class="detail-row"><span>Buyer</span><strong>{{ egg_sale.buyer_name|default:"Not specified" }}</strong></div>
+                                                <div class="detail-row"><span>Rate / Egg</span><strong>Rs {{ egg_sale.rate_per_egg|floatformat:2 }}</strong></div>
+                                                <div class="detail-row"><span>Gross Revenue Share</span><strong>Rs {{ egg_sale.gross_revenue|floatformat:0|intcomma }}</strong></div>
+                                                <div class="detail-row"><span>Discount Share</span><strong>Rs {{ egg_sale.discount|floatformat:0|intcomma }}</strong></div>
+                                                <div class="detail-row"><span>Payment Method</span><strong>{{ egg_sale.payment_method }}</strong></div>
+                                                <div class="detail-row total"><span>Net Revenue Share</span><strong>Rs {{ egg_sale.net_revenue|floatformat:0|intcomma }}</strong></div>
+                                                {% if egg_sale.notes %}<div class="profit-formula"><strong>Notes:</strong> {{ egg_sale.notes|linebreaksbr }}</div>{% endif %}
+                                            </div>
+                                        </details>
+                                    {% empty %}
+                                        <div class="section-help">No egg sales recorded yet.</div>
+                                    {% endfor %}
+                                {% endif %}
                             </div>
                         </details>
                     {% endfor %}
@@ -1525,27 +1821,83 @@
                             </div>
                         </details>
 
+                        {% if row.is_layer_batch %}
+                            <details class="finance-detail">
+                                <summary>
+                                    <span>
+                                        <i class="fa-solid fa-egg"></i>
+                                        Layer Revenue &amp; Profit Position
+                                    </span>
+                                </summary>
+                                <div class="detail-body">
+                                    <div class="detail-row"><span>Eggs Collected</span><strong>{{ row.eggs_collected|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Damaged Eggs</span><strong>{{ row.damaged_eggs|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Usable Eggs Produced</span><strong>{{ row.usable_eggs|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Eggs Sold</span><strong>{{ row.eggs_sold|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Current Egg Stock</span><strong>{{ row.egg_stock|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Egg Gross Sales</span><strong>Rs {{ row.egg_gross_sales_revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Egg Discounts</span><strong class="money-negative">− Rs {{ row.egg_discount|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Egg Net Sales</span><strong>Rs {{ row.egg_net_sales|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Net Bird Sales</span><strong>Rs {{ row.total_sales_revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Total Layer Revenue</span><strong>Rs {{ row.total_batch_revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Total Recorded COGS</span><strong>Rs {{ row.total_cogs|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Layer Profit / Loss to Date</span><strong class="{% if row.layer_profit_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ row.layer_profit_to_date|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Overall Layer ROI</span><strong class="{% if row.layer_roi_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">{{ row.layer_roi_to_date|floatformat:1 }}%</strong></div>
+
+                                    <div class="profit-formula">
+                                        <strong>Layer formula:</strong>
+                                        Net Bird Sales + Net Egg Sales − Total Recorded COGS = Layer Profit / Loss to Date.
+                                    </div>
+
+                                    <details class="history-item" style="margin-top:12px;">
+                                        <summary>
+                                            <i class="fa-solid fa-egg"></i>
+                                            View Egg Sale History · {{ row.egg_sale_history|length }} sale{{ row.egg_sale_history|length|pluralize }}
+                                        </summary>
+                                        <div class="history-body">
+                                            {% for egg_sale in row.egg_sale_history %}
+                                                <details class="history-item">
+                                                    <summary>{{ egg_sale.sale_date|date:"M d, Y" }} · {{ egg_sale.eggs_sold|intcomma }} Eggs · Rs {{ egg_sale.total_amount|floatformat:0|intcomma }}</summary>
+                                                    <div class="history-body">
+                                                        <div class="detail-row"><span>Buyer</span><strong>{{ egg_sale.buyer_name|default:"Not specified" }}</strong></div>
+                                                        <div class="detail-row"><span>Rate / Egg</span><strong>Rs {{ egg_sale.rate_per_egg|floatformat:2 }}</strong></div>
+                                                        <div class="detail-row"><span>Gross Amount</span><strong>Rs {{ egg_sale.gross_amount|floatformat:0|intcomma }}</strong></div>
+                                                        <div class="detail-row"><span>Discount</span><strong>Rs {{ egg_sale.discount_amount|floatformat:0|intcomma }}</strong></div>
+                                                        <div class="detail-row"><span>Payment Method</span><strong>{{ egg_sale.payment_method }}</strong></div>
+                                                        <div class="detail-row total"><span>Net Egg Sale</span><strong>Rs {{ egg_sale.total_amount|floatformat:0|intcomma }}</strong></div>
+                                                        {% if egg_sale.notes %}<div class="profit-formula"><strong>Notes:</strong> {{ egg_sale.notes|linebreaksbr }}</div>{% endif %}
+                                                    </div>
+                                                </details>
+                                            {% empty %}
+                                                <div class="section-help">No egg sales recorded yet.</div>
+                                            {% endfor %}
+                                        </div>
+                                    </details>
+                                </div>
+                            </details>
+                        {% endif %}
+
                         <details class="finance-detail">
                             <summary>
                                 <span>
                                     <i class="fa-solid fa-chart-line"></i>
-                                    Sales &amp; Profit Position
+                                    {% if row.is_layer_batch %}Bird Sales &amp; Profit Position{% else %}Sales &amp; Profit Position{% endif %}
                                 </span>
                             </summary>
 
                             <div class="detail-body">
                                 <div class="detail-row">
-                                    <span>Gross Sales</span>
+                                    <span>{% if row.is_layer_batch %}Gross Bird Sales{% else %}Gross Sales{% endif %}</span>
                                     <strong>Rs {{ row.gross_sales_revenue|floatformat:0|intcomma }}</strong>
                                 </div>
 
                                 <div class="detail-row">
-                                    <span>Discount</span>
+                                    <span>{% if row.is_layer_batch %}Bird Sale Discount{% else %}Discount{% endif %}</span>
                                     <strong class="money-negative">− Rs {{ row.total_discount|floatformat:0|intcomma }}</strong>
                                 </div>
 
                                 <div class="detail-row total">
-                                    <span>Net Sales</span>
+                                    <span>{% if row.is_layer_batch %}Net Bird Sales{% else %}Net Sales{% endif %}</span>
                                     <strong>Rs {{ row.total_sales_revenue|floatformat:0|intcomma }}</strong>
                                 </div>
 
@@ -1555,29 +1907,31 @@
                                 </div>
 
                                 <div class="detail-row total">
-                                    <span>Realized Profit / Loss</span>
+                                    <span>{% if row.is_layer_batch %}Realized Bird Profit / Loss{% else %}Realized Profit / Loss{% endif %}</span>
                                     <strong class="{% if row.batch_net_income < 0 %}money-negative{% else %}money-positive{% endif %}">
                                         Rs {{ row.batch_net_income|floatformat:0|intcomma }}
                                     </strong>
                                 </div>
 
-                                <div class="detail-row">
-                                    <span>Realized ROI</span>
-                                    <strong class="{% if row.batch_roi < 0 %}money-negative{% else %}money-positive{% endif %}">
-                                        {{ row.batch_roi|floatformat:1 }}%
-                                    </strong>
-                                </div>
+                                {% if not row.is_layer_batch %}
+                                    <div class="detail-row">
+                                        <span>Realized ROI</span>
+                                        <strong class="{% if row.batch_roi < 0 %}money-negative{% else %}money-positive{% endif %}">
+                                            {{ row.batch_roi|floatformat:1 }}%
+                                        </strong>
+                                    </div>
+                                {% endif %}
 
                                 <div class="profit-formula">
                                     <strong>Profit formula:</strong>
-                                    Net Sales − Realized COGS = Realized Profit / Loss.
+                                    {% if row.is_layer_batch %}Net Bird Sales{% else %}Net Sales{% endif %} − Realized COGS = Realized Profit / Loss.
                                     All recorded expenses are already included inside COGS.
                                 </div>
 
                                 <details class="history-item" style="margin-top:12px;">
                                     <summary>
                                         <i class="fa-solid fa-cart-shopping"></i>
-                                        View Sale History · {{ row.sale_history|length }} sale{{ row.sale_history|length|pluralize }}
+                                        View {% if row.is_layer_batch %}Bird {% endif %}Sale History · {{ row.sale_history|length }} sale{{ row.sale_history|length|pluralize }}
                                     </summary>
                                     <div class="history-body">
                                         {% for sale in row.sale_history %}

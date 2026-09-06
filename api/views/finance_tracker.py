@@ -11,6 +11,7 @@ import math
 from api.models.sensor import Batch, MortalityRecord
 from api.models.sales import ChickCostEntry, SaleRecord, Expense
 from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
+from api.models.eggs import EggProductionEntry, EggSale
 
 from io import BytesIO
 from django.http import HttpResponse
@@ -170,6 +171,7 @@ def finance_tracker(request):
         "sold": 0,
         "current_birds": 0,
         "net_sales": zero_money,
+        "egg_sales": zero_money,
         "realized_cogs": zero_money,
         "realized_expenses": zero_money,
         "net_income": zero_money,
@@ -236,6 +238,84 @@ def finance_tracker(request):
             if total_sale_weight > 0
             else zero_money
         )
+
+        # -----------------------------------------------------
+        # EGG PRODUCTION + EGG SALES (LAYER SHED ONLY)
+        # -----------------------------------------------------
+
+        is_layer_batch = (
+            getattr(batch.shed, "shed_type", "") == "layer"
+        )
+
+        egg_sales_records = []
+        eggs_collected = 0
+        damaged_eggs = 0
+        usable_eggs = 0
+        eggs_sold = 0
+        egg_stock = 0
+        egg_gross_sales_revenue = zero_money
+        egg_discount = zero_money
+        egg_net_sales = zero_money
+        egg_sale_history = []
+
+        if is_layer_batch:
+            egg_production = EggProductionEntry.objects.filter(
+                batch=batch
+            ).aggregate(
+                collected=Sum("eggs_collected"),
+                damaged=Sum("damaged_eggs"),
+            )
+
+            eggs_collected = int(egg_production["collected"] or 0)
+            damaged_eggs = int(egg_production["damaged"] or 0)
+            usable_eggs = max(eggs_collected - damaged_eggs, 0)
+
+            egg_sales_records = list(
+                EggSale.objects.filter(batch=batch).order_by(
+                    "-sale_date",
+                    "-id",
+                )
+            )
+
+            eggs_sold = sum(
+                int(sale.eggs_sold or 0)
+                for sale in egg_sales_records
+            )
+            egg_stock = max(usable_eggs - eggs_sold, 0)
+
+            egg_gross_sales_revenue = money(
+                sum(
+                    (money(sale.gross_amount) for sale in egg_sales_records),
+                    zero_money,
+                )
+            )
+            egg_discount = money(
+                sum(
+                    (money(sale.discount_amount) for sale in egg_sales_records),
+                    zero_money,
+                )
+            )
+            egg_net_sales = money(
+                sum(
+                    (money(sale.total_amount) for sale in egg_sales_records),
+                    zero_money,
+                )
+            )
+
+            egg_sale_history = [
+                {
+                    "sale_date": sale.sale_date,
+                    "buyer_name": sale.buyer_name,
+                    "eggs_sold": int(sale.eggs_sold or 0),
+                    "rate_per_egg": money(sale.rate_per_egg),
+                    "gross_amount": money(sale.gross_amount),
+                    "discount_amount": money(sale.discount_amount),
+                    "total_amount": money(sale.total_amount),
+                    "payment_method": sale.get_payment_method_display(),
+                    "notes": sale.notes,
+                }
+                for sale in egg_sales_records
+            ]
 
         current_birds = max(
             batch_start_birds - total_mortality - total_sold,
@@ -338,6 +418,26 @@ def finance_tracker(request):
             + medicine_cost
             + total_expenses
         )
+
+        # -----------------------------------------------------
+        # LAYER FINANCIAL POSITION TO DATE
+        # -----------------------------------------------------
+
+        total_batch_revenue = money(
+            total_sales_revenue + egg_net_sales
+        )
+
+        layer_profit_to_date = money(
+            total_batch_revenue - total_cogs
+        )
+
+        layer_roi_to_date = Decimal("0.0")
+        if total_cogs > 0:
+            layer_roi_to_date = (
+                layer_profit_to_date
+                / total_cogs
+                * Decimal("100")
+            ).quantize(percent_unit)
 
         # -----------------------------------------------------
         # REALIZED POSITION
@@ -510,6 +610,22 @@ def finance_tracker(request):
                 ratio,
             )
 
+            owner["egg_gross_revenue"] = money_share(
+                egg_gross_sales_revenue,
+                ratio,
+            )
+            owner["egg_discount_share"] = money_share(
+                egg_discount,
+                ratio,
+            )
+            owner["egg_revenue"] = money_share(
+                egg_net_sales,
+                ratio,
+            )
+            owner["total_revenue"] = money(
+                owner["revenue"] + owner["egg_revenue"]
+            )
+
             owner["chick_cost"] = money_share(chick_cost, ratio)
             owner["carriage_cost"] = money_share(carriage_cost, ratio)
             owner["feed_cost"] = money_share(feed_cost, ratio)
@@ -551,9 +667,22 @@ def finance_tracker(request):
                     * Decimal("100")
                 ).quantize(percent_unit)
 
+            owner["layer_profit_to_date"] = money(
+                owner["total_revenue"] - owner["recorded_cogs"]
+            )
+            owner["layer_roi_to_date"] = Decimal("0.0")
+
+            if owner["recorded_cogs"] > 0:
+                owner["layer_roi_to_date"] = (
+                    owner["layer_profit_to_date"]
+                    / owner["recorded_cogs"]
+                    * Decimal("100")
+                ).quantize(percent_unit)
+
             # Owner-level histories.  Feed, medicine and every expense
             # show the owner's precise ownership share of each entry.
             owner["sale_history"] = []
+            owner["egg_sale_history"] = []
             owner["feed_history"] = [
                 {
                     "entry_date": entry["entry_date"],
@@ -610,6 +739,37 @@ def finance_tracker(request):
                     ),
                 })
 
+        if is_layer_batch:
+            for egg_sale in egg_sales_records:
+                per_sale_eggs = allocate_whole_count(
+                    int(egg_sale.eggs_sold or 0),
+                    all_owner_rows,
+                    batch_start_birds,
+                )
+
+                for index, owner in enumerate(all_owner_rows):
+                    ratio = owner["share_ratio"]
+                    owner["egg_sale_history"].append({
+                        "sale_date": egg_sale.sale_date,
+                        "buyer_name": egg_sale.buyer_name,
+                        "eggs_sold": per_sale_eggs[index],
+                        "rate_per_egg": money(egg_sale.rate_per_egg),
+                        "gross_revenue": money_share(
+                            egg_sale.gross_amount,
+                            ratio,
+                        ),
+                        "discount": money_share(
+                            egg_sale.discount_amount,
+                            ratio,
+                        ),
+                        "net_revenue": money_share(
+                            egg_sale.total_amount,
+                            ratio,
+                        ),
+                        "payment_method": egg_sale.get_payment_method_display(),
+                        "notes": egg_sale.notes,
+                    })
+
         # Investor login sees only that investor's ownership row. Admin sees all.
         if is_admin:
             visible_owner_rows = all_owner_rows
@@ -636,6 +796,7 @@ def finance_tracker(request):
             overview["sold"] += total_sold
             overview["current_birds"] += current_birds
             overview["net_sales"] += total_sales_revenue
+            overview["egg_sales"] += egg_net_sales
             overview["realized_cogs"] += batch_locked_cogs_total
             overview["net_income"] += batch_net_income
             overview["investment"] += batch_total_investment
@@ -647,6 +808,7 @@ def finance_tracker(request):
             overview["sold"] += current_user_owner["sold"]
             overview["current_birds"] += current_user_owner["current_birds"]
             overview["net_sales"] += current_user_owner["revenue"]
+            overview["egg_sales"] += current_user_owner["egg_revenue"]
             overview["realized_cogs"] += current_user_owner["locked_cogs"]
             overview["net_income"] += current_user_owner["net_income"]
             overview["investment"] += current_user_owner["investment"]
@@ -666,6 +828,7 @@ def finance_tracker(request):
             "batch": batch,
             "status_display": batch.get_status_display(),
             "status_key": batch.status,
+            "is_layer_batch": is_layer_batch,
             "current_birds": current_birds,
             "total_mortality": total_mortality,
             "total_sold": total_sold,
@@ -677,6 +840,18 @@ def finance_tracker(request):
             ),
             "average_sale_weight": average_sale_weight,
             "average_sale_rate": average_sale_rate,
+            "eggs_collected": eggs_collected,
+            "damaged_eggs": damaged_eggs,
+            "usable_eggs": usable_eggs,
+            "eggs_sold": eggs_sold,
+            "egg_stock": egg_stock,
+            "egg_gross_sales_revenue": egg_gross_sales_revenue,
+            "egg_discount": egg_discount,
+            "egg_net_sales": egg_net_sales,
+            "total_batch_revenue": total_batch_revenue,
+            "layer_profit_to_date": layer_profit_to_date,
+            "layer_roi_to_date": layer_roi_to_date,
+            "egg_sale_history": egg_sale_history,
             "chick_cost": chick_cost,
             "cost_per_live_bird": cost_per_live_bird,
             "carriage_cost": carriage_cost,
@@ -705,6 +880,7 @@ def finance_tracker(request):
         })
 
     overview["net_sales"] = money(overview["net_sales"])
+    overview["egg_sales"] = money(overview["egg_sales"])
     overview["realized_cogs"] = money(overview["realized_cogs"])
     overview["realized_expenses"] = money(overview["realized_expenses"])
     overview["net_income"] = money(overview["net_income"])

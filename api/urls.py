@@ -1,5 +1,5 @@
 from django.urls import path
-from api.views import sensor, camera, sales, logs, finance_tracker, investor_accounts
+from api.views import sensor, camera, sales, logs, finance_tracker, investor_accounts, eggs, goats
 
 
 urlpatterns = [
@@ -50,6 +50,20 @@ path(
     path("meat-sales/", sales.meat_sales_summary, name="meat_sales_summary"),
     path("meat-sales/<int:batch_id>/", sales.meat_sale_detail, name="meat_sale_detail"),
     path("daily-log/", logs.daily_log, name="daily_log"),
+    path("eggs/", eggs.egg_dashboard, name="egg_dashboard"),
+    path("eggs/production/add/", eggs.add_egg_production, name="add_egg_production"),
+    path("eggs/sales/add/", eggs.add_egg_sale, name="add_egg_sale"),
+    path("goats/", goats.goat_dashboard, name="goat_dashboard"),
+    path("goats/add/", goats.add_goat, name="add_goat"),
+    path("goats/<int:goat_id>/", goats.goat_detail, name="goat_detail"),
+    path("goats/<int:goat_id>/weight/add/", goats.add_goat_weight, name="add_goat_weight"),
+    path("goats/costs/", goats.goat_costs, name="goat_costs"),
+    path("goats/costs/add/<str:category>/", goats.add_goat_cost, name="add_goat_cost"),
+    path("goats/finance/", goats.goat_finance, name="goat_finance"),
+    path("goats/<int:goat_id>/sale/", goats.add_goat_sale, name="add_goat_sale"),
+    path("goat-accounts/", goats.goat_accounts, name="goat_accounts"),
+    path("goat-accounts/<int:owner_id>/", goats.goat_account_detail, name="goat_account_detail"),
+    path("goat-accounts/<int:owner_id>/payment/", goats.record_goat_account_payment, name="record_goat_account_payment"),
     path("finance-tracker/", finance_tracker.finance_tracker, name="finance_tracker"),
     path("investor-accounts/", investor_accounts.investor_accounts, name="investor_accounts"),
     path("investor-accounts/<int:allocation_id>/", investor_accounts.investor_account_detail, name="investor_account_detail"),

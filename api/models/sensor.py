@@ -12,6 +12,7 @@ class Shed(models.Model):
         choices=[
             ("meat", "Meat"),
             ("layer", "Layer"),
+            ("goat", "Goat"),
         ],
     )
 

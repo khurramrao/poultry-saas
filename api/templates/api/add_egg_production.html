@@ -1,0 +1,149 @@
+{% extends "api/base_dashboard.html" %}
+
+{% block title %}Add Egg Production | RayNoor Organic Farms{% endblock %}
+
+{% block extra_css %}
+<style>
+    .entry-page { max-width:980px; margin:0 auto; }
+    .entry-header {
+        display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+        padding:22px 24px; margin-bottom:18px;
+        border:1px solid #dfe8f3; border-radius:18px;
+        background:linear-gradient(135deg,#fff,#f7fbff);
+        box-shadow:0 8px 24px rgba(17,53,90,.06);
+    }
+    .entry-header-main { display:flex; gap:14px; align-items:flex-start; }
+    .entry-icon {
+        width:54px; height:54px; min-width:54px; border-radius:16px;
+        display:flex; align-items:center; justify-content:center;
+        background:#fff3cf; border:1px solid #f2dda2; color:#ae7100; font-size:23px;
+    }
+    .entry-header h1 { margin:0 0 6px; color:#133f69; font-size:27px; }
+    .entry-header p { margin:0; color:#6e7e91; font-size:14px; line-height:1.5; }
+    .back-btn, .save-btn {
+        min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px;
+        padding:0 16px; border:0; border-radius:12px; text-decoration:none; font-size:14px; font-weight:800;
+    }
+    .back-btn { background:#eaf1f8; color:#294964; }
+    .save-btn { background:#19944c; color:#fff; cursor:pointer; }
+    .layout { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr); gap:18px; align-items:start; }
+    .panel { background:#fff; border:1px solid #e0e8f2; border-radius:18px; overflow:hidden; box-shadow:0 7px 22px rgba(17,49,82,.05); }
+    .panel-body { padding:22px; }
+    .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .full { grid-column:1 / -1; }
+    label { display:block; margin-bottom:7px; color:#30465d; font-size:13px; font-weight:800; }
+    input, select, textarea {
+        width:100%; box-sizing:border-box; border:1px solid #ccd7e4; border-radius:12px; background:#fff; color:#17324d; outline:none; font-size:14px;
+    }
+    input, select { height:48px; padding:0 13px; }
+    textarea { min-height:120px; padding:12px 13px; resize:vertical; }
+    input:focus, select:focus, textarea:focus { border-color:#2876ce; box-shadow:0 0 0 3px rgba(40,118,206,.10); }
+    .help { margin-top:6px; color:#7b8999; font-size:11px; }
+    .actions { display:flex; justify-content:flex-end; gap:10px; padding:18px 22px 22px; border-top:1px solid #edf1f6; background:#fbfcfe; }
+    .summary-head { padding:18px 20px; background:linear-gradient(135deg,#0f4779,#0c3b68); color:#fff; }
+    .summary-head h3 { margin:0 0 5px; font-size:18px; }
+    .summary-head p { margin:0; color:#d9e8f6; font-size:12px; }
+    .summary-body { padding:16px 20px 20px; }
+    .summary-row { display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid #edf1f5; }
+    .summary-row:last-child { border-bottom:0; }
+    .summary-row span { color:#6a7a8d; font-size:13px; }
+    .summary-row strong { color:#173f67; font-size:14px; text-align:right; }
+    .usable-box { margin-top:14px; padding:15px; border:1px solid #caead5; background:#ecf9f1; border-radius:13px; }
+    .usable-box small { color:#50705d; font-weight:800; text-transform:uppercase; }
+    .usable-box div { margin-top:5px; color:#14753d; font-size:27px; font-weight:900; }
+    @media(max-width:900px){ .layout{grid-template-columns:1fr;} }
+    @media(max-width:650px){ .entry-header{flex-direction:column;padding:18px 16px;} .form-grid{grid-template-columns:1fr;} .full{grid-column:auto;} .panel-body,.summary-body{padding:16px;} .actions{padding:16px;flex-direction:column-reverse;} .back-btn,.save-btn{width:100%;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="entry-page">
+    <div class="entry-header">
+        <div class="entry-header-main">
+            <div class="entry-icon"><i class="fa-solid fa-egg"></i></div>
+            <div><h1>Add Egg Production</h1><p>Record daily egg collection and damaged eggs. Usable egg stock updates automatically.</p></div>
+        </div>
+        <a href="{% url 'egg_dashboard' %}" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Egg Dashboard</a>
+    </div>
+
+    <form method="post" id="productionForm">
+        {% csrf_token %}
+        <div class="layout">
+            <section class="panel">
+                <div class="panel-body">
+                    <div class="form-grid">
+                        <div class="full">
+                            <label for="batch_id">Layer Batch</label>
+                            <select name="batch_id" id="batch_id" required>
+                                <option value="">Select Layer Batch</option>
+                                {% for batch in batches %}
+                                    <option value="{{ batch.id }}" data-number="{{ batch.batch_number }}" data-shed="{{ batch.shed.name }}">{{ batch.shed.name }} · Batch #{{ batch.batch_number }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="production_date">Production Date</label>
+                            <input type="date" name="production_date" id="production_date" value="{% now 'Y-m-d' %}" required>
+                        </div>
+                        <div>
+                            <label for="eggs_collected">Eggs Collected</label>
+                            <input type="number" min="0" step="1" inputmode="numeric" name="eggs_collected" id="eggs_collected" placeholder="e.g. 250" required>
+                        </div>
+                        <div>
+                            <label for="damaged_eggs">Broken / Damaged</label>
+                            <input type="number" min="0" step="1" inputmode="numeric" name="damaged_eggs" id="damaged_eggs" value="0" required>
+                            <div class="help">Damaged eggs are removed from usable stock.</div>
+                        </div>
+                        <div class="full">
+                            <label for="notes">Notes</label>
+                            <textarea name="notes" id="notes" placeholder="Optional notes about collection quality, size, etc."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="actions">
+                    <a href="{% url 'egg_dashboard' %}" class="back-btn">Cancel</a>
+                    <button type="submit" class="save-btn"><i class="fa-solid fa-check"></i> Save Production</button>
+                </div>
+            </section>
+
+            <aside class="panel">
+                <div class="summary-head"><h3>Production Preview</h3><p>Check usable eggs before saving.</p></div>
+                <div class="summary-body">
+                    <div class="summary-row"><span>Selected Batch</span><strong id="summaryBatch">Not selected</strong></div>
+                    <div class="summary-row"><span>Collected</span><strong id="summaryCollected">0</strong></div>
+                    <div class="summary-row"><span>Damaged</span><strong id="summaryDamaged">0</strong></div>
+                    <div class="usable-box"><small>Usable Eggs Added to Stock</small><div id="summaryUsable">0</div></div>
+                </div>
+            </aside>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+    const batch=document.getElementById('batch_id');
+    const collected=document.getElementById('eggs_collected');
+    const damaged=document.getElementById('damaged_eggs');
+    const form=document.getElementById('productionForm');
+    const sBatch=document.getElementById('summaryBatch');
+    const sCollected=document.getElementById('summaryCollected');
+    const sDamaged=document.getElementById('summaryDamaged');
+    const sUsable=document.getElementById('summaryUsable');
+    function n(el){const v=parseInt(el.value||'0',10);return Number.isFinite(v)?Math.max(v,0):0;}
+    function update(){
+        const option=batch.options[batch.selectedIndex];
+        sBatch.textContent=option&&option.value ? (option.dataset.shed+' · Batch #'+option.dataset.number) : 'Not selected';
+        const c=n(collected), d=n(damaged);
+        sCollected.textContent=c.toLocaleString('en-PK');
+        sDamaged.textContent=d.toLocaleString('en-PK');
+        sUsable.textContent=Math.max(c-d,0).toLocaleString('en-PK');
+        damaged.setCustomValidity(d>c?'Damaged eggs cannot exceed eggs collected.':'');
+    }
+    [batch,collected,damaged].forEach(el=>{el.addEventListener('input',update);el.addEventListener('change',update);});
+    form.addEventListener('submit',function(){update();});
+    update();
+})();
+</script>
+{% endblock %}

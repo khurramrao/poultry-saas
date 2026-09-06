@@ -3,3 +3,6 @@ from api.views import home
 from api.views import sales
 from api.views import logs
 from api.views import finance_tracker
+
+from api.views import eggs
+from api.views import goats

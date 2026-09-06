@@ -1,0 +1,189 @@
+{% extends "api/base_dashboard.html" %}
+
+{% block title %}Record Egg Sale | RayNoor Organic Farms{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sale-page { max-width:1040px; margin:0 auto; }
+    .sale-header {
+        display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+        padding:22px 24px; margin-bottom:18px; border:1px solid #dfe8f3; border-radius:18px;
+        background:linear-gradient(135deg,#fff,#f7fbff); box-shadow:0 8px 24px rgba(17,53,90,.06);
+    }
+    .sale-header-main { display:flex; gap:14px; align-items:flex-start; }
+    .sale-icon { width:54px; height:54px; min-width:54px; border-radius:16px; display:flex; align-items:center; justify-content:center; background:#eaf4ff; border:1px solid #cfe1f5; color:#176bc1; font-size:23px; }
+    .sale-header h1 { margin:0 0 6px; color:#133f69; font-size:27px; }
+    .sale-header p { margin:0; color:#6e7e91; font-size:14px; line-height:1.5; }
+    .back-btn,.save-btn { min-height:44px; display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:0 16px; border:0; border-radius:12px; text-decoration:none; font-size:14px; font-weight:800; }
+    .back-btn { background:#eaf1f8; color:#294964; }
+    .save-btn { background:#176bc1; color:#fff; cursor:pointer; }
+    .layout { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(310px,.7fr); gap:18px; align-items:start; }
+    .panel { background:#fff; border:1px solid #e0e8f2; border-radius:18px; overflow:hidden; box-shadow:0 7px 22px rgba(17,49,82,.05); }
+    .panel-body { padding:22px; }
+    .form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+    .full { grid-column:1 / -1; }
+    label { display:block; margin-bottom:7px; color:#30465d; font-size:13px; font-weight:800; }
+    input,select,textarea { width:100%; box-sizing:border-box; border:1px solid #ccd7e4; border-radius:12px; background:#fff; color:#17324d; outline:none; font-size:14px; }
+    input,select { height:48px; padding:0 13px; }
+    textarea { min-height:108px; padding:12px 13px; resize:vertical; }
+    input:focus,select:focus,textarea:focus { border-color:#2876ce; box-shadow:0 0 0 3px rgba(40,118,206,.10); }
+    .help { margin-top:6px; color:#7b8999; font-size:11px; }
+    .stock-box { display:none; margin-top:8px; padding:9px 11px; border-radius:10px; background:#f4f9ff; border:1px solid #d8e7f7; color:#356080; font-size:12px; }
+    .stock-box.show { display:block; }
+    .actions { display:flex; justify-content:flex-end; gap:10px; padding:18px 22px 22px; border-top:1px solid #edf1f6; background:#fbfcfe; }
+    .summary-head { padding:18px 20px; background:linear-gradient(135deg,#0f4779,#0c3b68); color:#fff; }
+    .summary-head h3 { margin:0 0 5px; font-size:18px; }
+    .summary-head p { margin:0; color:#d9e8f6; font-size:12px; }
+    .summary-body { padding:16px 20px 20px; }
+    .summary-row { display:flex; justify-content:space-between; gap:12px; padding:11px 0; border-bottom:1px solid #edf1f5; }
+    .summary-row span { color:#6a7a8d; font-size:13px; }
+    .summary-row strong { color:#173f67; font-size:14px; text-align:right; }
+    .summary-row.discount strong { color:#cf4438; }
+    .final-box { margin-top:14px; padding:16px; border-radius:13px; background:#eaf8ef; border:1px solid #c9e8d4; }
+    .final-box small { color:#52725e; font-weight:900; text-transform:uppercase; }
+    .final-box div { margin-top:5px; color:#10743a; font-size:29px; font-weight:900; }
+    .warning { display:none; margin-top:12px; padding:10px 12px; border-radius:10px; background:#fff1ef; border:1px solid #f2cbc6; color:#a23b32; font-size:12px; }
+    .warning.show { display:block; }
+    .mobile-summary { display:none; grid-column:1 / -1; margin-top:2px; border:1px solid #c8dff6; border-radius:14px; overflow:hidden; background:#fff; }
+    .mobile-summary-title { padding:11px 13px; background:#eef6ff; color:#14558f; font-weight:900; font-size:13px; }
+    .mobile-row { display:flex; justify-content:space-between; gap:12px; padding:11px 13px; border-top:1px solid #edf2f6; font-size:13px; }
+    .mobile-row.final { background:#eaf8ef; color:#1c6037; font-weight:900; }
+    .mobile-row.final strong { color:#10743a; font-size:19px; }
+    @media(max-width:900px){ .layout{grid-template-columns:1fr;} .panel.summary-panel{display:none;} .mobile-summary{display:block;} }
+    @media(max-width:650px){ .sale-header{flex-direction:column;padding:18px 16px;} .form-grid{grid-template-columns:1fr;} .full{grid-column:auto;} .panel-body{padding:16px;} .actions{padding:16px;flex-direction:column-reverse;} .back-btn,.save-btn{width:100%;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sale-page">
+    <div class="sale-header">
+        <div class="sale-header-main">
+            <div class="sale-icon"><i class="fa-solid fa-cart-shopping"></i></div>
+            <div><h1>Record Egg Sale</h1><p>Sell only from available egg stock. Sale amount and discounted amount update live while you type.</p></div>
+        </div>
+        <a href="{% url 'egg_dashboard' %}" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Egg Dashboard</a>
+    </div>
+
+    <form method="post" id="eggSaleForm">
+        {% csrf_token %}
+        <div class="layout">
+            <section class="panel">
+                <div class="panel-body">
+                    <div class="form-grid">
+                        <div class="full">
+                            <label for="batch_id">Layer Batch</label>
+                            <select name="batch_id" id="batch_id" required>
+                                <option value="">Select Layer Batch</option>
+                                {% for batch in batches %}
+                                    <option value="{{ batch.id }}" data-stock="{{ batch.current_egg_stock }}" data-number="{{ batch.batch_number }}" data-shed="{{ batch.shed.name }}">{{ batch.shed.name }} · Batch #{{ batch.batch_number }} · {{ batch.current_egg_stock }} eggs available</option>
+                                {% endfor %}
+                            </select>
+                            <div class="stock-box" id="stockBox"></div>
+                        </div>
+                        <div>
+                            <label for="sale_date">Sale Date</label>
+                            <input type="date" name="sale_date" id="sale_date" value="{% now 'Y-m-d' %}" required>
+                        </div>
+                        <div>
+                            <label for="buyer_name">Buyer / Customer</label>
+                            <input type="text" name="buyer_name" id="buyer_name" placeholder="Optional buyer name">
+                        </div>
+                        <div>
+                            <label for="eggs_sold">Egg Quantity</label>
+                            <input type="number" min="1" step="1" inputmode="numeric" name="eggs_sold" id="eggs_sold" placeholder="e.g. 500" required>
+                        </div>
+                        <div>
+                            <label for="rate_per_egg">Rate Per Egg (Rs)</label>
+                            <input type="number" min="0.01" step="0.01" inputmode="decimal" name="rate_per_egg" id="rate_per_egg" placeholder="e.g. 27" required>
+                        </div>
+                        <div>
+                            <label for="discount_amount">Discount (Rs)</label>
+                            <input type="number" min="0" step="0.01" inputmode="decimal" name="discount_amount" id="discount_amount" value="0">
+                            <div class="help">Enter rupee amount, not percentage.</div>
+                        </div>
+                        <div>
+                            <label for="payment_method">Payment Method</label>
+                            <select name="payment_method" id="payment_method" required>
+                                <option value="cash">Cash</option>
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="credit">Credit</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mobile-summary">
+                            <div class="mobile-summary-title"><i class="fa-solid fa-calculator"></i> Sale Calculation</div>
+                            <div class="mobile-row"><span>Gross Egg Sale</span><strong id="mGross">Rs 0.00</strong></div>
+                            <div class="mobile-row"><span>Discount</span><strong id="mDiscount">− Rs 0.00</strong></div>
+                            <div class="mobile-row final"><span>Final Sale Amount</span><strong id="mFinal">Rs 0.00</strong></div>
+                        </div>
+
+                        <div class="full">
+                            <label for="notes">Notes</label>
+                            <textarea name="notes" id="notes" placeholder="Optional sale notes..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="actions">
+                    <a href="{% url 'egg_dashboard' %}" class="back-btn">Cancel</a>
+                    <button type="submit" class="save-btn"><i class="fa-solid fa-check"></i> Save Egg Sale</button>
+                </div>
+            </section>
+
+            <aside class="panel summary-panel">
+                <div class="summary-head"><h3>Live Sale Summary</h3><p>Confirm stock and final amount before saving.</p></div>
+                <div class="summary-body">
+                    <div class="summary-row"><span>Available Stock</span><strong id="summaryStock">0 eggs</strong></div>
+                    <div class="summary-row"><span>Eggs Sold</span><strong id="summaryQty">0</strong></div>
+                    <div class="summary-row"><span>Rate / Egg</span><strong id="summaryRate">Rs 0.00</strong></div>
+                    <div class="summary-row"><span>Gross Sale</span><strong id="summaryGross">Rs 0.00</strong></div>
+                    <div class="summary-row discount"><span>Discount</span><strong id="summaryDiscount">− Rs 0.00</strong></div>
+                    <div class="final-box"><small>Final Sale Amount</small><div id="summaryFinal">Rs 0.00</div></div>
+                    <div class="warning" id="warningBox"></div>
+                </div>
+            </aside>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+    const batch=document.getElementById('batch_id');
+    const qty=document.getElementById('eggs_sold');
+    const rate=document.getElementById('rate_per_egg');
+    const discount=document.getElementById('discount_amount');
+    const form=document.getElementById('eggSaleForm');
+    const stockBox=document.getElementById('stockBox');
+    const warning=document.getElementById('warningBox');
+    const summaryStock=document.getElementById('summaryStock');
+    const summaryQty=document.getElementById('summaryQty');
+    const summaryRate=document.getElementById('summaryRate');
+    const summaryGross=document.getElementById('summaryGross');
+    const summaryDiscount=document.getElementById('summaryDiscount');
+    const summaryFinal=document.getElementById('summaryFinal');
+    const mGross=document.getElementById('mGross');
+    const mDiscount=document.getElementById('mDiscount');
+    const mFinal=document.getElementById('mFinal');
+    function num(el){const v=parseFloat(el.value||'0');return Number.isFinite(v)?Math.max(v,0):0;}
+    function money(v){return 'Rs '+v.toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2});}
+    function stock(){const o=batch.options[batch.selectedIndex];return o&&o.value?parseInt(o.dataset.stock||'0',10):0;}
+    function update(){
+        const s=stock(), q=Math.floor(num(qty)), r=num(rate), d=num(discount), g=q*r, f=Math.max(g-d,0);
+        summaryStock.textContent=s.toLocaleString('en-PK')+' eggs';
+        summaryQty.textContent=q.toLocaleString('en-PK');
+        summaryRate.textContent=money(r); summaryGross.textContent=money(g); summaryDiscount.textContent='− '+money(d); summaryFinal.textContent=money(f);
+        mGross.textContent=money(g); mDiscount.textContent='− '+money(d); mFinal.textContent=money(f);
+        const o=batch.options[batch.selectedIndex];
+        if(o&&o.value){stockBox.classList.add('show');stockBox.textContent=s.toLocaleString('en-PK')+' eggs currently available for sale.';} else {stockBox.classList.remove('show');}
+        let msg='';
+        if(q>s && batch.value){msg='Only '+s.toLocaleString('en-PK')+' eggs are available in this batch.'; qty.setCustomValidity(msg);} else {qty.setCustomValidity('');}
+        if(d>g && d>0){msg='Discount cannot exceed the gross egg sale amount.'; discount.setCustomValidity(msg);} else {discount.setCustomValidity('');}
+        warning.textContent=msg; warning.classList.toggle('show',!!msg);
+    }
+    [batch,qty,rate,discount].forEach(el=>{el.addEventListener('input',update);el.addEventListener('change',update);});
+    form.addEventListener('submit',function(){update();}); update();
+})();
+</script>
+{% endblock %}

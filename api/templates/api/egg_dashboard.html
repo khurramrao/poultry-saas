@@ -1,0 +1,351 @@
+{% extends "api/base_dashboard.html" %}
+
+{% block title %}Egg Management | RayNoor Organic Farms{% endblock %}
+
+{% block extra_css %}
+<style>
+    .egg-page { max-width: 1240px; margin: 0 auto; }
+
+    .egg-header {
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:18px;
+        padding:22px 24px;
+        margin-bottom:18px;
+        border:1px solid #dfe8f3;
+        border-radius:18px;
+        background:linear-gradient(135deg,#ffffff,#f7fbff);
+        box-shadow:0 8px 24px rgba(17,53,90,.06);
+    }
+
+    .egg-header-main { display:flex; align-items:flex-start; gap:14px; }
+    .egg-icon {
+        width:56px; height:56px; min-width:56px;
+        display:flex; align-items:center; justify-content:center;
+        border-radius:17px;
+        background:linear-gradient(135deg,#fff7df,#ffefbc);
+        border:1px solid #f3dda1;
+        color:#b47400;
+        font-size:25px;
+    }
+    .egg-header h1 { margin:0 0 6px; color:#123f6c; font-size:28px; line-height:1.1; }
+    .egg-header p { margin:0; color:#6d7d90; font-size:14px; line-height:1.5; max-width:700px; }
+
+    .egg-actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .egg-btn {
+        min-height:44px;
+        display:inline-flex; align-items:center; justify-content:center; gap:8px;
+        padding:0 16px;
+        border:0; border-radius:12px;
+        text-decoration:none;
+        font-size:14px; font-weight:800;
+        transition:transform .15s ease, box-shadow .15s ease;
+    }
+    .egg-btn:hover { transform:translateY(-1px); }
+    .egg-btn-production { background:#1d9b51; color:#fff; box-shadow:0 7px 16px rgba(29,155,81,.16); }
+    .egg-btn-sale { background:#176bc1; color:#fff; box-shadow:0 7px 16px rgba(23,107,193,.16); }
+
+    .kpi-grid {
+        display:grid;
+        grid-template-columns:repeat(6,minmax(0,1fr));
+        gap:12px;
+        margin-bottom:18px;
+    }
+    .kpi-card {
+        min-width:0;
+        background:#fff;
+        border:1px solid #e0e8f2;
+        border-radius:16px;
+        padding:16px;
+        box-shadow:0 6px 18px rgba(17,49,82,.045);
+    }
+    .kpi-label {
+        color:#6d7d91; font-size:11px; font-weight:900;
+        letter-spacing:.05em; text-transform:uppercase;
+        margin-bottom:7px;
+    }
+    .kpi-value { color:#123f6c; font-size:24px; font-weight:900; line-height:1.05; }
+    .kpi-help { margin-top:6px; color:#8491a2; font-size:11px; line-height:1.35; }
+    .kpi-card.stock { background:#edf9f1; border-color:#cdebd7; }
+    .kpi-card.stock .kpi-value { color:#14753d; }
+    .kpi-card.sales { background:#edf5ff; border-color:#cfe1f5; }
+    .kpi-card.sales .kpi-value { color:#155eac; }
+
+    .section-heading {
+        display:flex; justify-content:space-between; align-items:center; gap:12px;
+        margin:20px 2px 12px;
+    }
+    .section-heading h2 { margin:0; color:#153f68; font-size:20px; }
+    .section-heading p { margin:4px 0 0; color:#7a8899; font-size:12px; }
+
+    .batch-card {
+        background:#fff;
+        border:1px solid #dfe8f2;
+        border-radius:18px;
+        overflow:hidden;
+        box-shadow:0 7px 22px rgba(17,49,82,.05);
+        margin-bottom:18px;
+    }
+    .batch-head {
+        display:flex; justify-content:space-between; align-items:flex-start; gap:14px;
+        padding:18px 20px;
+        border-bottom:1px solid #edf2f6;
+    }
+    .batch-eyebrow {
+        color:#748499; font-size:11px; font-weight:900;
+        letter-spacing:.055em; text-transform:uppercase;
+        margin-bottom:5px;
+    }
+    .batch-title { margin:0; color:#123f6c; font-size:23px; }
+    .batch-meta { margin-top:7px; color:#76879b; font-size:12px; display:flex; flex-wrap:wrap; gap:12px; }
+    .status-pill {
+        display:inline-flex; align-items:center; gap:6px;
+        padding:7px 10px; border-radius:999px;
+        font-size:11px; font-weight:900; text-transform:uppercase;
+    }
+    .status-active { background:#e7f7ed; color:#148241; }
+    .status-closed { background:#eef2f7; color:#65758a; }
+    .owner-pill {
+        display:inline-flex; align-items:center; gap:6px;
+        margin-top:8px; padding:6px 9px; border-radius:999px;
+        background:#f1f6fc; color:#426784; font-size:11px; font-weight:800;
+    }
+
+    .batch-kpis {
+        display:grid;
+        grid-template-columns:repeat(6,minmax(0,1fr));
+        gap:10px;
+        padding:14px 20px 18px;
+    }
+    .batch-kpi {
+        border:1px solid #e2e9f2; border-radius:13px;
+        padding:12px 13px; background:#fbfdff;
+    }
+    .batch-kpi-label { color:#758499; font-size:10px; font-weight:900; letter-spacing:.04em; text-transform:uppercase; }
+    .batch-kpi-value { margin-top:5px; color:#123e68; font-size:19px; font-weight:900; }
+    .batch-kpi.highlight { background:#ecf9f1; border-color:#caead5; }
+    .batch-kpi.highlight .batch-kpi-value { color:#14753d; }
+
+    .history-grid {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:16px;
+        padding:0 20px 20px;
+    }
+    .history-panel {
+        border:1px solid #e1e9f2;
+        border-radius:15px;
+        overflow:hidden;
+        background:#fff;
+    }
+    .history-head {
+        display:flex; justify-content:space-between; align-items:center; gap:10px;
+        padding:13px 14px;
+        background:#f7faff;
+        border-bottom:1px solid #e8eef5;
+    }
+    .history-head strong { color:#173f68; font-size:14px; }
+    .history-head span { color:#7c8a9a; font-size:11px; }
+    .history-body { padding:4px 14px 10px; }
+    .history-row {
+        display:grid;
+        grid-template-columns:105px minmax(0,1fr) auto;
+        gap:10px;
+        align-items:center;
+        padding:10px 0;
+        border-bottom:1px solid #edf2f6;
+        font-size:12px;
+    }
+    .history-row:last-child { border-bottom:0; }
+    .history-date { color:#62758b; white-space:nowrap; }
+    .history-main { color:#284863; font-weight:700; }
+    .history-sub { color:#8390a0; font-size:11px; margin-top:2px; font-weight:500; }
+    .history-amount { color:#135fae; font-weight:900; white-space:nowrap; text-align:right; }
+    .history-count { color:#177540; font-weight:900; white-space:nowrap; text-align:right; }
+    .empty { padding:18px 5px; text-align:center; color:#8793a2; font-size:12px; }
+
+    @media(max-width:1100px) {
+        .kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .batch-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    }
+    @media(max-width:800px) {
+        .egg-header { flex-direction:column; align-items:stretch; padding:18px 16px; }
+        .egg-actions { width:100%; }
+        .egg-btn { flex:1; }
+        .history-grid { grid-template-columns:1fr; padding-left:14px; padding-right:14px; }
+        .batch-head { padding:16px 14px; }
+        .batch-kpis { padding-left:14px; padding-right:14px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+        .kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+    @media(max-width:500px) {
+        .egg-header h1 { font-size:23px; }
+        .egg-icon { width:48px; height:48px; min-width:48px; font-size:21px; }
+        .egg-actions { flex-direction:column; }
+        .egg-btn { width:100%; }
+        .kpi-value { font-size:21px; }
+        .history-row { grid-template-columns:1fr auto; }
+        .history-date { grid-column:1 / -1; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="egg-page">
+    <section class="egg-header">
+        <div class="egg-header-main">
+            <div class="egg-icon"><i class="fa-solid fa-egg"></i></div>
+            <div>
+                <h1>Egg Management</h1>
+                <p>
+                    Track daily egg production, damaged eggs, live egg stock, and egg sales for Layer shed batches.
+                    {% if not is_admin %}Financial sales figures below are shown as your ownership share.{% endif %}
+                </p>
+            </div>
+        </div>
+
+        {% if is_admin %}
+        <div class="egg-actions">
+            <a class="egg-btn egg-btn-production" href="{% url 'add_egg_production' %}">
+                <i class="fa-solid fa-plus"></i> Add Production
+            </a>
+            <a class="egg-btn egg-btn-sale" href="{% url 'add_egg_sale' %}">
+                <i class="fa-solid fa-cart-shopping"></i> Record Egg Sale
+            </a>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-label">Eggs Collected</div>
+            <div class="kpi-value">{{ overview.collected }}</div>
+            <div class="kpi-help">All production entries.</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Damaged</div>
+            <div class="kpi-value">{{ overview.damaged }}</div>
+            <div class="kpi-help">Broken / damaged eggs.</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Usable Produced</div>
+            <div class="kpi-value">{{ overview.usable }}</div>
+            <div class="kpi-help">Collected minus damaged.</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Eggs Sold</div>
+            <div class="kpi-value">{{ overview.sold }}</div>
+            <div class="kpi-help">Total recorded sales quantity.</div>
+        </div>
+        <div class="kpi-card stock">
+            <div class="kpi-label">Current Egg Stock</div>
+            <div class="kpi-value">{{ overview.stock }}</div>
+            <div class="kpi-help">Usable eggs remaining for sale.</div>
+        </div>
+        <div class="kpi-card sales">
+            <div class="kpi-label">{% if is_admin %}Net Egg Sales{% else %}Your Egg Sales Share{% endif %}</div>
+            <div class="kpi-value">Rs {{ overview.net_sales|floatformat:0 }}</div>
+            <div class="kpi-help">Sales after discounts.</div>
+        </div>
+    </section>
+
+    <div class="section-heading">
+        <div>
+            <h2>Layer Batch Position</h2>
+            <p>Production and sales stay linked to the Layer batch so investor revenue can be allocated correctly.</p>
+        </div>
+    </div>
+
+    {% if batch_rows %}
+        {% for row in batch_rows %}
+        <section class="batch-card">
+            <div class="batch-head">
+                <div>
+                    <div class="batch-eyebrow">{{ row.batch.shed.name }}</div>
+                    <h3 class="batch-title">Layer Batch #{{ row.batch.batch_number }}</h3>
+                    <div class="batch-meta">
+                        <span><i class="fa-regular fa-calendar"></i> Started {{ row.batch.start_date|date:"d M Y" }}</span>
+                        <span><i class="fa-solid fa-dove"></i> {{ row.batch.bird_count_initial }} starting birds</span>
+                    </div>
+                    {% if not is_admin %}
+                        <div class="owner-pill">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            Your ownership: {{ row.ownership_percent }}%
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    {% if row.batch.is_active and row.batch.status == 'active' %}
+                        <span class="status-pill status-active"><i class="fa-solid fa-circle"></i> Active</span>
+                    {% else %}
+                        <span class="status-pill status-closed">Closed</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="batch-kpis">
+                <div class="batch-kpi"><div class="batch-kpi-label">Collected</div><div class="batch-kpi-value">{{ row.totals.collected }}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">Damaged</div><div class="batch-kpi-value">{{ row.totals.damaged }}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">Usable</div><div class="batch-kpi-value">{{ row.totals.usable }}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">Sold</div><div class="batch-kpi-value">{{ row.totals.sold }}</div></div>
+                <div class="batch-kpi highlight"><div class="batch-kpi-label">Current Stock</div><div class="batch-kpi-value">{{ row.totals.stock }}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">{% if is_admin %}Net Sales{% else %}Your Sales Share{% endif %}</div><div class="batch-kpi-value">Rs {% if is_admin %}{{ row.totals.net_sales|floatformat:0 }}{% else %}{{ row.egg_sales_share|floatformat:0 }}{% endif %}</div></div>
+            </div>
+
+            <div class="history-grid">
+                <div class="history-panel">
+                    <div class="history-head">
+                        <strong><i class="fa-solid fa-basket-shopping"></i> Production History</strong>
+                        <span>Latest 12 entries</span>
+                    </div>
+                    <div class="history-body">
+                        {% if row.production_entries %}
+                            {% for item in row.production_entries %}
+                            <div class="history-row">
+                                <div class="history-date">{{ item.production_date|date:"d M Y" }}</div>
+                                <div class="history-main">
+                                    {{ item.eggs_collected }} collected
+                                    <div class="history-sub">{{ item.damaged_eggs }} damaged{% if item.notes %} · {{ item.notes }}{% endif %}</div>
+                                </div>
+                                <div class="history-count">{{ item.usable_eggs }} usable</div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty">No egg production recorded yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="history-panel">
+                    <div class="history-head">
+                        <strong><i class="fa-solid fa-receipt"></i> Egg Sale History</strong>
+                        <span>Latest 12 entries</span>
+                    </div>
+                    <div class="history-body">
+                        {% if row.recent_sales %}
+                            {% for sale in row.recent_sales %}
+                            <div class="history-row">
+                                <div class="history-date">{{ sale.sale_date|date:"d M Y" }}</div>
+                                <div class="history-main">
+                                    {{ sale.eggs_sold }} eggs × Rs {{ sale.rate_per_egg|floatformat:2 }}
+                                    <div class="history-sub">{{ sale.buyer_name|default:"Buyer not specified" }}{% if sale.discount_amount %} · Discount Rs {{ sale.discount_amount|floatformat:0 }}{% endif %}</div>
+                                </div>
+                                <div class="history-amount">Rs {{ sale.display_amount|floatformat:0 }}</div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty">No egg sales recorded yet.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </section>
+        {% endfor %}
+    {% else %}
+        <section class="batch-card">
+            <div class="empty" style="padding:28px;">No Layer shed batches are available for this account.</div>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

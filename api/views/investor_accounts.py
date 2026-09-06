@@ -2,6 +2,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -14,6 +15,7 @@ from api.models.investors import (
     MedicineEntry,
 )
 from api.models.sales import ChickCostEntry, Expense
+from api.models.goats import Goat, GoatCostAllocation
 
 
 ZERO = Decimal("0.00")
@@ -155,6 +157,80 @@ def _account_snapshot(allocation):
         "status_label": status_label,
     }
 
+
+
+def _goat_account_snapshot(owner):
+    goats = list(
+        Goat.objects
+        .filter(owner=owner)
+        .select_related("owner", "shed")
+        .prefetch_related("weight_records")
+        .order_by("goat_code", "id")
+    )
+
+    purchase_cost = _money(sum((goat.purchase_cost or ZERO for goat in goats), ZERO))
+
+    allocations = GoatCostAllocation.objects.filter(owner_snapshot=owner)
+    feed_cost = _money(
+        allocations.filter(cost_entry__category="feed")
+        .aggregate(total=Sum("amount"))["total"] or ZERO
+    )
+    medicine_cost = _money(
+        allocations.filter(cost_entry__category="medicine")
+        .aggregate(total=Sum("amount"))["total"] or ZERO
+    )
+    expense_cost = _money(
+        allocations.filter(cost_entry__category="expense")
+        .aggregate(total=Sum("amount"))["total"] or ZERO
+    )
+
+    total_cost = _money(purchase_cost + feed_cost + medicine_cost + expense_cost)
+    total_paid = _money(
+        owner.goat_account_payments.aggregate(total=Sum("amount"))["total"]
+        or ZERO
+    )
+
+    raw_balance = _money(total_cost - total_paid)
+    if abs(raw_balance) < ACCOUNT_TOLERANCE:
+        raw_balance = ZERO
+
+    outstanding = _money(max(raw_balance, ZERO))
+    credit = _money(max(-raw_balance, ZERO))
+
+    if credit > ZERO:
+        status = "credit"
+        status_label = "Credit"
+    elif outstanding <= ZERO and total_cost > ZERO:
+        status = "paid"
+        status_label = "Paid"
+    elif total_paid > ZERO:
+        status = "partial"
+        status_label = "Partial"
+    elif total_cost > ZERO:
+        status = "unpaid"
+        status_label = "Unpaid"
+    else:
+        status = "no_cost"
+        status_label = "No Cost"
+
+    owner_name = owner.get_full_name().strip() or owner.username
+
+    return {
+        "owner": owner,
+        "owner_name": owner_name,
+        "goat_count": len(goats),
+        "active_goat_count": sum(1 for goat in goats if goat.status == "active"),
+        "purchase_cost": purchase_cost,
+        "feed_cost": feed_cost,
+        "medicine_cost": medicine_cost,
+        "expense_cost": expense_cost,
+        "total_cost": total_cost,
+        "total_paid": total_paid,
+        "outstanding": outstanding,
+        "credit": credit,
+        "status": status,
+        "status_label": status_label,
+    }
 
 def _authorized_allocation(request, allocation_id):
     allocation = get_object_or_404(
@@ -315,6 +391,9 @@ def investor_accounts(request):
         )
         return redirect("dashboard")
 
+    # ---------------------------------------------------------
+    # POULTRY ACCOUNTS - percentage ownership by batch
+    # ---------------------------------------------------------
     allocations = InvestorAllocation.objects.select_related(
         "batch__shed",
         "investor__user",
@@ -329,39 +408,99 @@ def investor_accounts(request):
         "investor__user__username",
     )
 
-    accounts = [_account_snapshot(item) for item in allocations]
+    poultry_accounts = [_account_snapshot(item) for item in allocations]
 
-    total_cost_share = _money(sum(
-        (item["total_cost_share"] for item in accounts),
+    poultry_total_cost = _money(sum(
+        (item["total_cost_share"] for item in poultry_accounts),
         ZERO,
     ))
-    total_paid = _money(sum(
-        (item["total_paid"] for item in accounts),
+    poultry_total_paid = _money(sum(
+        (item["total_paid"] for item in poultry_accounts),
         ZERO,
     ))
-    total_outstanding = _money(sum(
-        (item["outstanding"] for item in accounts),
+    poultry_total_outstanding = _money(sum(
+        (item["outstanding"] for item in poultry_accounts),
         ZERO,
     ))
-    total_credit = _money(sum(
-        (item["credit"] for item in accounts),
+    poultry_total_credit = _money(sum(
+        (item["credit"] for item in poultry_accounts),
         ZERO,
     ))
-    outstanding_accounts = sum(
-        1 for item in accounts if item["outstanding"] > ZERO
+
+    # ---------------------------------------------------------
+    # GOAT ACCOUNTS - individual goat ownership
+    # ---------------------------------------------------------
+    if is_admin:
+        goat_owners = (
+            User.objects
+            .filter(
+                investor_profile__isnull=False,
+                owned_goats__isnull=False,
+            )
+            .distinct()
+            .order_by("username")
+        )
+    else:
+        goat_owners = User.objects.filter(
+            pk=request.user.pk,
+            owned_goats__isnull=False,
+        )
+
+    goat_accounts = [_goat_account_snapshot(owner) for owner in goat_owners]
+
+    goat_total_cost = _money(sum(
+        (item["total_cost"] for item in goat_accounts),
+        ZERO,
+    ))
+    goat_total_paid = _money(sum(
+        (item["total_paid"] for item in goat_accounts),
+        ZERO,
+    ))
+    goat_total_outstanding = _money(sum(
+        (item["outstanding"] for item in goat_accounts),
+        ZERO,
+    ))
+    goat_total_credit = _money(sum(
+        (item["credit"] for item in goat_accounts),
+        ZERO,
+    ))
+
+    # Combined headline figures. Poultry and Goat balances remain
+    # separately auditable in their own account cards/statements.
+    total_cost_share = _money(poultry_total_cost + goat_total_cost)
+    total_paid = _money(poultry_total_paid + goat_total_paid)
+    total_outstanding = _money(
+        poultry_total_outstanding + goat_total_outstanding
+    )
+    total_credit = _money(poultry_total_credit + goat_total_credit)
+
+    outstanding_accounts = (
+        sum(1 for item in poultry_accounts if item["outstanding"] > ZERO)
+        + sum(1 for item in goat_accounts if item["outstanding"] > ZERO)
     )
 
     return render(
         request,
         "api/investor_accounts.html",
         {
-            "accounts": accounts,
+            # Backward-compatible alias used by older template code.
+            "accounts": poultry_accounts,
+            "poultry_accounts": poultry_accounts,
+            "goat_accounts": goat_accounts,
             "is_admin": is_admin,
             "total_cost_share": total_cost_share,
             "total_paid": total_paid,
             "total_outstanding": total_outstanding,
             "total_credit": total_credit,
             "outstanding_accounts": outstanding_accounts,
+            "poultry_total_cost": poultry_total_cost,
+            "poultry_total_paid": poultry_total_paid,
+            "poultry_total_outstanding": poultry_total_outstanding,
+            "poultry_total_credit": poultry_total_credit,
+            "goat_total_cost": goat_total_cost,
+            "goat_total_paid": goat_total_paid,
+            "goat_total_outstanding": goat_total_outstanding,
+            "goat_total_credit": goat_total_credit,
         },
     )
 

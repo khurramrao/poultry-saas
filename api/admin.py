@@ -13,6 +13,8 @@ from api.models.sensor import (
 )
 from api.models.temperature import TemperatureRule
 from api.models.sales import SaleRecord, Expense, ChickCostEntry
+from api.models.eggs import EggProductionEntry, EggSale
+from api.models.goats import Goat, GoatWeightRecord, GoatCostEntry, GoatCostAllocation, GoatSale, GoatAccountPayment
 
 
 
@@ -210,4 +212,98 @@ admin.site.register(InvestorProfile)
 admin.site.register(InvestorAllocation)
 
 
+
+
+
+@admin.register(EggProductionEntry)
+class EggProductionEntryAdmin(admin.ModelAdmin):
+    list_display = (
+        "production_date",
+        "batch",
+        "eggs_collected",
+        "damaged_eggs",
+        "usable_eggs",
+        "recorded_by",
+    )
+    list_filter = ("production_date", "batch")
+    search_fields = ("batch__batch_number", "notes")
+    ordering = ("-production_date", "-id")
+
+
+@admin.register(EggSale)
+class EggSaleAdmin(admin.ModelAdmin):
+    list_display = (
+        "sale_date",
+        "batch",
+        "buyer_name",
+        "eggs_sold",
+        "rate_per_egg",
+        "discount_amount",
+        "total_amount",
+        "payment_method",
+    )
+    list_filter = ("payment_method", "sale_date", "batch")
+    search_fields = ("batch__batch_number", "buyer_name", "notes")
+    ordering = ("-sale_date", "-id")
+
+
+@admin.register(Goat)
+class GoatAdmin(admin.ModelAdmin):
+    list_display = (
+        "goat_code",
+        "name",
+        "breed",
+        "sex",
+        "owner",
+        "shed",
+        "purchase_date",
+        "purchase_cost",
+        "status",
+    )
+    list_filter = ("status", "sex", "shed", "acquisition_type")
+    search_fields = (
+        "goat_code",
+        "name",
+        "breed",
+        "owner__username",
+        "owner__first_name",
+        "owner__last_name",
+    )
+    ordering = ("goat_code",)
+
+
+@admin.register(GoatWeightRecord)
+class GoatWeightRecordAdmin(admin.ModelAdmin):
+    list_display = ("record_date", "goat", "weight_kg", "recorded_by")
+    list_filter = ("record_date",)
+    search_fields = ("goat__goat_code", "goat__name")
+    ordering = ("-record_date", "-id")
+
+
+@admin.register(GoatCostEntry)
+class GoatCostEntryAdmin(admin.ModelAdmin):
+    list_display = ("entry_date", "category", "shed", "amount", "allocation_scope", "created_by")
+    list_filter = ("category", "allocation_scope", "shed", "entry_date")
+    search_fields = ("title", "notes")
+    ordering = ("-entry_date", "-id")
+
+
+@admin.register(GoatCostAllocation)
+class GoatCostAllocationAdmin(admin.ModelAdmin):
+    list_display = ("cost_entry", "goat", "owner_snapshot", "amount")
+    search_fields = ("goat__goat_code", "owner_snapshot__username", "cost_entry__title")
+
+
+@admin.register(GoatSale)
+class GoatSaleAdmin(admin.ModelAdmin):
+    list_display = ("sale_date", "goat", "sale_weight_kg", "rate_per_kg", "total_amount", "locked_total_cost")
+    list_filter = ("sale_date", "payment_method")
+    search_fields = ("goat__goat_code", "buyer_name")
+
+
+@admin.register(GoatAccountPayment)
+class GoatAccountPaymentAdmin(admin.ModelAdmin):
+    list_display = ("payment_date", "owner", "amount", "payment_method", "reference", "recorded_by")
+    list_filter = ("payment_method", "payment_date")
+    search_fields = ("owner__username", "owner__first_name", "owner__last_name", "reference")
 

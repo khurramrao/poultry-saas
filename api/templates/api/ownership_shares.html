@@ -1,598 +1,193 @@
 {% extends "api/base_dashboard.html" %}
 {% load humanize %}
 
-{% block title %}
-Ownership Shares | RayNoor Organic Farms
-{% endblock %}
+{% block title %}Ownership | RayNoor Organic Farms{% endblock %}
 
 {% block extra_css %}
 <style>
-*{
-            box-sizing:border-box;
-        }
+    .ownership-page{max-width:1450px;margin:0 auto}
+    .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:22px 24px;margin-bottom:16px;border:1px solid #dfe8f3;border-radius:18px;background:linear-gradient(135deg,#fff,#f8fbff);box-shadow:0 8px 24px rgba(17,53,90,.05)}
+    .head-main{display:flex;gap:14px;align-items:flex-start}.head-icon{width:54px;height:54px;min-width:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:#eaf5ff;color:#1767b8;border:1px solid #d2e6f8;font-size:22px}
+    .page-head h1{margin:0 0 6px;color:#123e69;font-size:28px}.page-head p{margin:0;color:#6b7c90;font-size:14px;line-height:1.5;max-width:760px}
+    .head-actions{display:flex;gap:9px;flex-wrap:wrap}.head-btn{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 14px;border-radius:11px;text-decoration:none;font-size:12px;font-weight:850;border:1px solid #d7e3ef;background:#fff;color:#244660}.head-btn.primary{background:#0f4d80;color:#fff;border-color:#0f4d80}
 
-        body{
-            margin:0;
-            font-family:Arial, sans-serif;
-            background:#f5f7fb;
-            color:#10233f;
-        }
+    .ownership-tabs{display:inline-flex;gap:6px;padding:5px;margin-bottom:18px;border:1px solid #dbe5ef;border-radius:13px;background:#eef3f8}.tab-btn{min-height:40px;padding:0 16px;border:0;border-radius:9px;background:transparent;color:#5d6e82;font-size:13px;font-weight:850;cursor:pointer}.tab-btn.active{background:#fff;color:#0e4c82;box-shadow:0 2px 8px rgba(25,63,100,.08)}
+    .tab-panel{display:none}.tab-panel.active{display:block}
 
-        .page{
-            max-width:1450px;
-            margin:auto;
-            padding:28px 22px;
-        }
+    .section-card{background:#fff;border:1px solid #e0e8f2;border-radius:17px;box-shadow:0 6px 20px rgba(17,49,82,.045);overflow:hidden;margin-bottom:18px}
+    .section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px;border-bottom:1px solid #edf2f6}.section-title{margin:0 0 5px;color:#113f6d;font-size:21px}.section-meta{font-size:12px;color:#748397}.status-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;font-size:10px;font-weight:900}.active-pill{background:#e7f7ed;color:#11783a}
+    .detail-btn{min-height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 11px;border:1px solid #cfe1f5;border-radius:9px;background:#f4f9ff;color:#135b9d;text-decoration:none;font-size:11px;font-weight:850}
 
-        .topbar{
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:15px;
-            margin-bottom:22px;
-        }
+    .metric-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;padding:14px 20px}.metric{padding:12px;border:1px solid #e7edf4;border-radius:11px;background:#fbfcfe}.metric-label{font-size:9px;color:#758397;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.metric-value{margin-top:5px;color:#123e69;font-size:18px;font-weight:900}.metric-value.green{color:#0f7a39}.metric-value.orange{color:#ad6500}.metric-value.red{color:#cf3333}
+    .cost-strip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;padding:0 20px 14px}.cost-box{padding:10px;border-radius:10px;background:#eef6ff;border:1px solid #dbeaf9}.cost-box span{display:block;color:#66788c;font-size:9px;font-weight:800;text-transform:uppercase}.cost-box strong{display:block;margin-top:4px;color:#174a7b;font-size:14px}
+    .table-title{padding:0 20px 9px;color:#123f6c;font-size:13px;font-weight:900}.table-wrap{margin:0 20px 18px;border:1px solid #e3eaf2;border-radius:11px;overflow-x:auto}.data-table{width:100%;min-width:1230px;border-collapse:collapse}.data-table th{background:#f4f7fa;color:#314860;font-size:10px;text-align:center;padding:10px 11px;white-space:nowrap}.data-table td{border-top:1px solid #e8edf3;padding:11px;font-size:11px;color:#1e3248;text-align:center;white-space:nowrap}.data-table th:first-child,.data-table td:first-child{text-align:left}.admin-row{background:#f8fbff}.owner-name{font-weight:900;color:#143f6a}.share-chip{display:inline-block;padding:5px 8px;border-radius:7px;background:#eaf3ff;color:#165ca8;font-weight:900}.money{color:#0b7a28;font-weight:850}.total-money{background:#f0fff4;color:#075b28;font-weight:950}
+    .note{margin:0 20px 18px;padding:11px 13px;border:1px solid #d9eaff;border-radius:11px;background:#eef6ff;color:#285d8f;font-size:11px;line-height:1.45}
 
-        .title-area h1{
-            margin:0;
-            font-size:28px;
-            color:#0b3f74;
-        }
+    .goat-summary{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:18px}.goat-kpi{background:#fff;border:1px solid #e0e8f2;border-radius:14px;padding:14px 15px;box-shadow:0 5px 16px rgba(17,49,82,.04)}.goat-kpi-label{font-size:9px;color:#748397;font-weight:900;text-transform:uppercase}.goat-kpi-value{margin-top:5px;color:#123f6c;font-size:19px;font-weight:900}.goat-kpi-value.green{color:#11783a}
+    .owner-card{background:#fff;border:1px solid #e0e8f2;border-radius:16px;margin-bottom:15px;overflow:hidden;box-shadow:0 6px 18px rgba(17,49,82,.04)}.owner-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid #edf2f6}.owner-title{font-size:18px;color:#123f6c;font-weight:900}.owner-sub{font-size:11px;color:#748397;margin-top:4px}.owner-actions{display:flex;gap:8px;flex-wrap:wrap}.owner-badge{display:inline-flex;align-items:center;padding:6px 9px;border-radius:999px;background:#eef6ff;color:#2162a0;font-size:9px;font-weight:900}.owner-badge.farm{background:#e7f7ed;color:#11783a}
+    .owner-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:9px;padding:13px 18px}.owner-metric{padding:9px 10px;border:1px solid #edf2f6;border-radius:9px;background:#fafcfe}.owner-metric span{display:block;font-size:8px;color:#7b8999;font-weight:900;text-transform:uppercase}.owner-metric strong{display:block;margin-top:4px;font-size:13px;color:#173b61}
+    .goat-table{min-width:1320px}.goat-code{color:#0b7a3a;font-weight:950}.goat-status{display:inline-flex;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:900}.goat-status.active{background:#e7f7ed;color:#11783a}.goat-status.sold{background:#eaf2ff;color:#1b62a8}.goat-status.deceased{background:#fdeaea;color:#b72d2d}.open-link{color:#1767b8;text-decoration:none;font-weight:850}
+    .empty{padding:28px;border:1px dashed #d6e1ec;border-radius:14px;background:#fff;color:#718095;text-align:center}
 
-        .title-area p{
-            margin:7px 0 0;
-            color:#64748b;
-            font-size:14px;
-        }
-
-        .back-btn{
-            display:inline-flex;
-            align-items:center;
-            gap:8px;
-            color:white;
-            text-decoration:none;
-            background:#073966;
-            padding:11px 15px;
-            border-radius:8px;
-            font-size:14px;
-            font-weight:bold;
-        }
-
-        .back-btn:hover{
-            background:#124a82;
-        }
-
-        .ownership-card{
-            background:white;
-            border:1px solid #e2eaf3;
-            border-radius:14px;
-            padding:16px;
-            margin-bottom:22px;
-            box-shadow:0 3px 12px rgba(26,57,88,0.04);
-        }
-
-        .batch-header{
-            display:flex;
-            align-items:center;
-            justify-content:space-between;
-            gap:12px;
-            margin-bottom:15px;
-        }
-
-        .batch-header h2{
-            margin:0;
-            color:#0b4b8c;
-            font-size:21px;
-        }
-
-        .batch-subtitle{
-            margin-top:5px;
-            color:#68778a;
-            font-size:13px;
-        }
-
-        .active-badge{
-            display:inline-flex;
-            align-items:center;
-            gap:6px;
-            color:#157c32;
-            background:#e5f7e7;
-            border-radius:16px;
-            padding:7px 11px;
-            font-size:12px;
-            font-weight:bold;
-            white-space:nowrap;
-        }
-
-        .active-dot{
-            color:#16a13c;
-            font-size:11px;
-        }
-
-        .summary-grid{
-            display:grid;
-            grid-template-columns:repeat(5, 1fr);
-            gap:12px;
-            margin-bottom:16px;
-        }
-
-        .summary-box{
-            text-align:center;
-            border:1px solid #e3eaf2;
-            border-radius:10px;
-            padding:14px 10px;
-            background:#fcfdff;
-        }
-
-        .summary-label{
-            font-size:12px;
-            color:#607087;
-            margin-bottom:7px;
-        }
-
-        .summary-value{
-            color:#0c4d88;
-            font-size:21px;
-            font-weight:bold;
-        }
-
-        .summary-value.danger{
-            color:#e33434;
-        }
-
-        .summary-value.orange{
-            color:#c87500;
-        }
-
-        .summary-value.money{
-            color:#0b7a28;
-        }
-
-        .cogs-summary{
-            display:grid;
-            grid-template-columns:repeat(5, 1fr);
-            gap:10px;
-            margin-bottom:16px;
-        }
-
-        .cogs-box{
-            background:#eef6ff;
-            border:1px solid #d9eaff;
-            border-radius:10px;
-            padding:12px;
-            text-align:center;
-        }
-
-        .cogs-label{
-            color:#52647a;
-            font-size:12px;
-            margin-bottom:6px;
-        }
-
-        .cogs-value{
-            color:#174a7b;
-            font-size:17px;
-            font-weight:800;
-        }
-
-        .table-title{
-            color:#0b4b8c;
-            font-size:16px;
-            font-weight:bold;
-            margin:2px 0 10px;
-        }
-
-        .table-wrap{
-            overflow-x:auto;
-            border:1px solid #e3eaf2;
-            border-radius:10px;
-        }
-
-        table{
-            width:100%;
-            min-width:1280px;
-            border-collapse:collapse;
-        }
-
-        th{
-            background:#f2f6fa;
-            color:#263b55;
-            font-size:13px;
-            text-align:center;
-            padding:11px 12px;
-            white-space:nowrap;
-        }
-
-        td{
-            border-top:1px solid #e8edf3;
-            padding:12px;
-            font-size:13px;
-            color:#1d2d41;
-            text-align:center;
-            white-space:nowrap;
-        }
-
-        td:first-child,
-        th:first-child{
-            text-align:left;
-        }
-
-        .owner-name{
-            font-weight:bold;
-        }
-
-        .admin-owner{
-            color:#0d4a87;
-        }
-
-        .investor-owner{
-            color:#3f536c;
-        }
-
-        .share-badge{
-            display:inline-block;
-            color:#165ca8;
-            background:#eaf3ff;
-            padding:5px 9px;
-            border-radius:6px;
-            font-size:12px;
-            font-weight:bold;
-        }
-
-        .current-value{
-            color:#157c32;
-            font-weight:bold;
-        }
-
-        .money-value{
-            color:#0b7a28;
-            font-weight:bold;
-        }
-
-        .total-cogs-value{
-            color:#064e1f;
-            font-weight:900;
-            background:#f0fff4;
-        }
-
-        .admin-row{
-            background:#f8fbff;
-        }
-
-        .empty-state{
-            background:white;
-            border:1px solid #e2eaf3;
-            border-radius:14px;
-            padding:45px 20px;
-            text-align:center;
-            color:#64748b;
-        }
-
-        .empty-state i{
-            color:#9eacc0;
-            font-size:35px;
-            margin-bottom:12px;
-        }
-
-        .note-card{
-            background:#eef6ff;
-            border:1px solid #d9eaff;
-            color:#174a7b;
-            padding:13px 15px;
-            border-radius:12px;
-            font-size:14px;
-            font-weight:700;
-            margin-top:10px;
-        }
-
-        .batch-actions{
-            display:flex;
-            align-items:center;
-            gap:9px;
-            flex-wrap:wrap;
-            justify-content:flex-end;
-        }
-
-        .finance-detail-btn{
-            display:inline-flex;
-            align-items:center;
-            gap:7px;
-            min-height:34px;
-            padding:0 11px;
-            border:1px solid #cfe1f5;
-            border-radius:9px;
-            background:#f4f9ff;
-            color:#135b9d;
-            text-decoration:none;
-            font-size:12px;
-            font-weight:800;
-        }
-
-        .finance-detail-btn:hover{
-            background:#eaf4ff;
-            border-color:#afd0ef;
-        }
-
-        @media(max-width:1000px){
-            .summary-grid{
-                grid-template-columns:repeat(2, 1fr);
-            }
-
-            .cogs-summary{
-                grid-template-columns:repeat(2, 1fr);
-            }
-        }
-
-        @media(max-width:800px){
-            .topbar{
-                align-items:flex-start;
-                flex-direction:column;
-            }
-
-            .back-btn{
-                width:100%;
-                justify-content:center;
-            }
-
-            .batch-header{
-                align-items:flex-start;
-                flex-direction:column;
-            }
-
-            .batch-actions{
-                width:100%;
-                justify-content:space-between;
-            }
-
-            .finance-detail-btn{
-                flex:1;
-                justify-content:center;
-            }
-        }
-
-        @media(max-width:430px){
-            .page{
-                padding:18px 12px;
-            }
-
-            .summary-grid,
-            .cogs-summary{
-                grid-template-columns:1fr;
-                gap:8px;
-            }
-
-            .summary-value{
-                font-size:18px;
-            }
-        }
+    @media(max-width:1100px){.metric-grid,.cost-strip,.owner-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.goat-summary{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:760px){.page-head,.section-head,.owner-card-head{flex-direction:column}.head-actions,.owner-actions{width:100%}.head-btn,.detail-btn{flex:1}.ownership-tabs{display:flex;width:100%}.tab-btn{flex:1}.goat-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.metric-grid,.cost-strip,.owner-metrics{grid-template-columns:1fr}.table-wrap{margin-left:12px;margin-right:12px}.metric-grid{padding-left:12px;padding-right:12px}.cost-strip{padding-left:12px;padding-right:12px}.owner-metrics{padding-left:12px;padding-right:12px}}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page">
-
-    <div class="topbar">
-        <div class="title-area">
-            <h1>
-                <i class="fa-solid fa-chart-pie"></i>
-                Ownership Shares
-            </h1>
-            <p>Live ownership and COGS breakdown for every active batch.</p>
+<div class="ownership-page">
+    <section class="page-head">
+        <div class="head-main">
+            <div class="head-icon"><i class="fa-solid fa-chart-pie"></i></div>
+            <div>
+                <h1>Farm Ownership</h1>
+                <p>Poultry is allocated by flock percentage. Goats are owned individually by RN ID, so each goat and its costs stay attached to one owner.</p>
+            </div>
         </div>
+        <div class="head-actions">
+            <a class="head-btn" href="{% url 'goat_dashboard' %}"><i class="fa-solid fa-paw"></i> Goat Farm</a>
+            <a class="head-btn primary" href="{% url 'investor_accounts' %}"><i class="fa-solid fa-wallet"></i> Investor Accounts</a>
+        </div>
+    </section>
 
-        <a href="{% url 'investor_accounts' %}" class="back-btn">
-            <i class="fa-solid fa-wallet"></i>
-            Investor Accounts
-        </a>
-
+    <div class="ownership-tabs">
+        <button type="button" class="tab-btn active" data-target="poultryOwnership"><i class="fa-solid fa-feather"></i> Poultry Ownership</button>
+        <button type="button" class="tab-btn" data-target="goatOwnership"><i class="fa-solid fa-paw"></i> Goat Ownership</button>
     </div>
 
-    {% for item in ownership_batches %}
-
-        <section class="ownership-card">
-
-            <div class="batch-header">
-                <div>
-                    <h2>
-                        {% if item.batch.batch_type %}
-                            {{ item.batch.batch_type|title }}
-                        {% else %}
-                            {{ item.batch.shed.shed_type|title }}
-                        {% endif %}
-                        Batch #{{ item.batch.batch_number }}
-                    </h2>
-
-                    <div class="batch-subtitle">
-                        Started: {{ item.batch.start_date|date:"d M Y" }}
-                        · {{ item.batch.shed.name }}
+    <div class="tab-panel active" id="poultryOwnership">
+        {% for item in ownership_batches %}
+            <section class="section-card">
+                <div class="section-head">
+                    <div>
+                        <h2 class="section-title">{{ item.batch.shed.shed_type|title }} Batch #{{ item.batch.batch_number }}</h2>
+                        <div class="section-meta">Started {{ item.batch.start_date|date:"d M Y" }} · {{ item.batch.shed.name }} · Percentage-based ownership</div>
+                    </div>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <a href="{% url 'finance_tracker' %}?status=active#batch-{{ item.batch.id }}" class="detail-btn"><i class="fa-solid fa-chart-line"></i> Finance Details</a>
+                        <span class="status-pill active-pill">● Active</span>
                     </div>
                 </div>
 
-                <div class="batch-actions">
-                    <a
-                        href="{% url 'finance_tracker' %}?status=active#batch-{{ item.batch.id }}"
-                        class="finance-detail-btn"
-                    >
-                        <i class="fa-solid fa-chart-line"></i>
-                        View Finance Details
-                    </a>
-
-                    <span class="active-badge">
-                        <span class="active-dot">●</span>
-                        Active
-                    </span>
-                </div>
-            </div>
-
-            <div class="summary-grid">
-                <div class="summary-box">
-                    <div class="summary-label">Total Start Birds</div>
-                    <div class="summary-value">
-                        {{ item.start_birds|intcomma }}
-                    </div>
+                <div class="metric-grid">
+                    <div class="metric"><div class="metric-label">Starting Birds</div><div class="metric-value">{{ item.start_birds|intcomma }}</div></div>
+                    <div class="metric"><div class="metric-label">Current Birds</div><div class="metric-value green">{{ item.current_birds|intcomma }}</div></div>
+                    <div class="metric"><div class="metric-label">Mortality</div><div class="metric-value red">{{ item.total_mortality|intcomma }}</div></div>
+                    <div class="metric"><div class="metric-label">Sold</div><div class="metric-value orange">{{ item.total_sold|intcomma }}</div></div>
+                    <div class="metric"><div class="metric-label">Total COGS</div><div class="metric-value green">Rs {{ item.total_cogs|floatformat:0|intcomma }}</div></div>
                 </div>
 
-                <div class="summary-box">
-                    <div class="summary-label">Current Birds</div>
-                    <div class="summary-value">
-                        {{ item.current_birds|intcomma }}
-                    </div>
+                <div class="cost-strip">
+                    <div class="cost-box"><span>Chicks</span><strong>Rs {{ item.chick_cost|floatformat:0|intcomma }}</strong></div>
+                    <div class="cost-box"><span>Carriage</span><strong>Rs {{ item.carriage_cost|floatformat:0|intcomma }}</strong></div>
+                    <div class="cost-box"><span>Feed</span><strong>Rs {{ item.feed_cost|floatformat:0|intcomma }}</strong></div>
+                    <div class="cost-box"><span>Medicine</span><strong>Rs {{ item.medicine_cost|floatformat:0|intcomma }}</strong></div>
+                    <div class="cost-box"><span>Expenses</span><strong>Rs {{ item.expense_cost|floatformat:0|intcomma }}</strong></div>
                 </div>
 
-                <div class="summary-box">
-                    <div class="summary-label">Total Mortality</div>
-                    <div class="summary-value danger">
-                        {{ item.total_mortality|intcomma }}
-                    </div>
+                <div class="table-title"><i class="fa-solid fa-users"></i> Ownership & Cost Share</div>
+                <div class="table-wrap">
+                    <table class="data-table">
+                        <thead><tr><th>Owner</th><th>Share</th><th>Start</th><th>Mortality</th><th>Sold</th><th>Current</th><th>Chicks</th><th>Carriage</th><th>Feed</th><th>Medicine</th><th>Expenses</th><th>Total Cost Share</th></tr></thead>
+                        <tbody>
+                            {% for owner in item.owners %}
+                                <tr class="{% if owner.is_admin %}admin-row{% endif %}">
+                                    <td class="owner-name">{% if owner.is_admin %}<i class="fa-solid fa-user-shield"></i>{% else %}<i class="fa-solid fa-user"></i>{% endif %} {{ owner.name }}</td>
+                                    <td><span class="share-chip">{{ owner.share_percentage|floatformat:1 }}%</span></td>
+                                    <td>{{ owner.start_birds|intcomma }}</td><td>{{ owner.mortality|intcomma }}</td><td>{{ owner.sold|intcomma }}</td><td>{{ owner.current|intcomma }}</td>
+                                    <td class="money">Rs {{ owner.chick_cost|floatformat:0|intcomma }}</td><td class="money">Rs {{ owner.carriage_cost|floatformat:0|intcomma }}</td><td class="money">Rs {{ owner.feed_cost|floatformat:0|intcomma }}</td><td class="money">Rs {{ owner.medicine_cost|floatformat:0|intcomma }}</td><td class="money">Rs {{ owner.expense_cost|floatformat:0|intcomma }}</td><td class="total-money">Rs {{ owner.total_cogs_share|floatformat:0|intcomma }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
+                <div class="note"><i class="fa-solid fa-circle-info"></i> Poultry costs are shared using each owner's starting-bird percentage. Mortality and sold birds are reconciled to whole birds.</div>
+            </section>
+        {% empty %}
+            <div class="empty">No active poultry ownership is available.</div>
+        {% endfor %}
+    </div>
 
-                <div class="summary-box">
-                    <div class="summary-label">Total Sold</div>
-                    <div class="summary-value orange">
-                        {{ item.total_sold|intcomma }}
-                    </div>
-                </div>
-
-                <div class="summary-box">
-                    <div class="summary-label">Total COGS</div>
-                    <div class="summary-value money">
-                        Rs {{ item.total_cogs|floatformat:0|intcomma }}
-                    </div>
-                </div>
-            </div>
-
-            <div class="cogs-summary">
-                <div class="cogs-box">
-                    <div class="cogs-label">Chick Cost</div>
-                    <div class="cogs-value">
-                        Rs {{ item.chick_cost|floatformat:0|intcomma }}
-                    </div>
-                </div>
-
-                <div class="cogs-box">
-                    <div class="cogs-label">Feed Cost</div>
-                    <div class="cogs-value">
-                        Rs {{ item.feed_cost|floatformat:0|intcomma }}
-                    </div>
-                </div>
-
-                <div class="cogs-box">
-                    <div class="cogs-label">Medicine Cost</div>
-                    <div class="cogs-value">
-                        Rs {{ item.medicine_cost|floatformat:0|intcomma }}
-                    </div>
-                </div>
-
-                <div class="cogs-box">
-                    <div class="cogs-label">All Expenses</div>
-                    <div class="cogs-value">
-                        Rs {{ item.expense_cost|floatformat:0|intcomma }}
-                    </div>
-                </div>
-
-                <div class="cogs-box">
-                    <div class="cogs-label">Carriage Cost</div>
-                    <div class="cogs-value">
-                        Rs {{ item.carriage_cost|floatformat:0|intcomma }}
-                    </div>
-                </div>
-            </div>
-
-            <div class="table-title">
-                <i class="fa-solid fa-users"></i>
-                Ownership & COGS Breakdown
-            </div>
-
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Owner</th>
-                            <th>Share</th>
-                            <th>Start</th>
-                            <th>Mortality</th>
-                            <th>Sold</th>
-                            <th>Current</th>
-                            <th>Chick</th>
-                            <th>Feed</th>
-                            <th>Medicine</th>
-                            <th>Expenses</th>
-                            <th>Carriage</th>
-                            <th>Total COGS Share</th>
-                        </tr>
-                    </thead>
-
-                    <tbody>
-                        {% for owner in item.owners %}
-                            <tr class="{% if owner.is_admin %}admin-row{% endif %}">
-                                <td class="owner-name {% if owner.is_admin %}admin-owner{% else %}investor-owner{% endif %}">
-                                    {% if owner.is_admin %}
-                                        <i class="fa-solid fa-user-shield"></i>
-                                    {% else %}
-                                        <i class="fa-solid fa-user"></i>
-                                    {% endif %}
-                                    {{ owner.name }}
-                                </td>
-
-                                <td>
-                                    <span class="share-badge">
-                                        {{ owner.share_percentage|floatformat:1 }}%
-                                    </span>
-                                </td>
-
-                                <td>{{ owner.start_birds|intcomma }}</td>
-                                <td>{{ owner.mortality|intcomma }}</td>
-                                <td>{{ owner.sold|intcomma }}</td>
-                                <td class="current-value">
-                                    {{ owner.current|intcomma }}
-                                </td>
-
-                                <td class="money-value">
-                                    Rs {{ owner.chick_cost|floatformat:0|intcomma }}
-                                </td>
-
-                                <td class="money-value">
-                                    Rs {{ owner.feed_cost|floatformat:0|intcomma }}
-                                </td>
-
-                                <td class="money-value">
-                                    Rs {{ owner.medicine_cost|floatformat:0|intcomma }}
-                                </td>
-
-                                <td class="money-value">
-                                    Rs {{ owner.expense_cost|floatformat:0|intcomma }}
-                                </td>
-
-                                <td class="money-value">
-                                    Rs {{ owner.carriage_cost|floatformat:0|intcomma }}
-                                </td>
-
-                                <td class="total-cogs-value">
-                                    Rs {{ owner.total_cogs_share|floatformat:0|intcomma }}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="note-card">
-                <i class="fa-solid fa-circle-info"></i>
-                Cost share is calculated from each owner’s bird ownership percentage.
-                All batch expenses are included in COGS. Open Finance Tracker for Feed, Medicine,
-                Expense and Sale transaction details.
-            </div>
-
-        </section>
-
-    {% empty %}
-
-        <div class="empty-state">
-            <i class="fa-solid fa-chart-pie"></i>
-            <h3>No Active Batch Ownership Found</h3>
-            <p>Create an active batch and investor allocation to see shares here.</p>
+    <div class="tab-panel" id="goatOwnership">
+        <div class="goat-summary">
+            <div class="goat-kpi"><div class="goat-kpi-label">Total Goats</div><div class="goat-kpi-value">{{ goat_total_count }}</div></div>
+            <div class="goat-kpi"><div class="goat-kpi-label">Active Goats</div><div class="goat-kpi-value green">{{ goat_active_count }}</div></div>
+            <div class="goat-kpi"><div class="goat-kpi-label">Farm / Admin Owned</div><div class="goat-kpi-value">{{ goat_farm_owned }}</div></div>
+            <div class="goat-kpi"><div class="goat-kpi-label">Investor Owned</div><div class="goat-kpi-value">{{ goat_investor_owned }}</div></div>
+            <div class="goat-kpi"><div class="goat-kpi-label">Live Weight</div><div class="goat-kpi-value">{{ goat_total_live_weight|floatformat:2 }} KG</div></div>
+            <div class="goat-kpi"><div class="goat-kpi-label">Total Goat Cost</div><div class="goat-kpi-value green">Rs {{ goat_total_cost|floatformat:0|intcomma }}</div></div>
         </div>
 
-    {% endfor %}
+        {% for owner in goat_owners %}
+            <section class="owner-card">
+                <div class="owner-card-head">
+                    <div>
+                        <div class="owner-title">{{ owner.name }}</div>
+                        <div class="owner-sub">Individual goat ownership · {{ owner.goat_count }} goat{{ owner.goat_count|pluralize }}</div>
+                    </div>
+                    <div class="owner-actions">
+                        {% if owner.is_admin %}<span class="owner-badge farm"><i class="fa-solid fa-house"></i> Farm / Admin</span>{% else %}<span class="owner-badge"><i class="fa-solid fa-user"></i> Investor</span>{% endif %}
+                        {% if owner.is_investor %}<a class="detail-btn" href="{% url 'goat_account_detail' owner.owner.id %}"><i class="fa-solid fa-wallet"></i> Goat Account</a>{% endif %}
+                        <a class="detail-btn" href="{% url 'goat_finance' %}"><i class="fa-solid fa-chart-line"></i> Goat Finance</a>
+                    </div>
+                </div>
 
+                <div class="owner-metrics">
+                    <div class="owner-metric"><span>Total Goats</span><strong>{{ owner.goat_count }}</strong></div>
+                    <div class="owner-metric"><span>Active</span><strong>{{ owner.active_count }}</strong></div>
+                    <div class="owner-metric"><span>Live Weight</span><strong>{{ owner.live_weight|floatformat:2 }} KG</strong></div>
+                    <div class="owner-metric"><span>Purchase Cost</span><strong>Rs {{ owner.purchase_cost|floatformat:0|intcomma }}</strong></div>
+                    <div class="owner-metric"><span>Total Cost</span><strong>Rs {{ owner.total_cost|floatformat:0|intcomma }}</strong></div>
+                </div>
+
+                <div class="table-wrap">
+                    <table class="data-table goat-table">
+                        <thead><tr><th>Goat ID</th><th>Name</th><th>Breed</th><th>Sex</th><th>Shed</th><th>Status</th><th>Current Weight</th><th>Purchase</th><th>Feed</th><th>Medicine</th><th>Expenses</th><th>Total Cost</th><th></th></tr></thead>
+                        <tbody>
+                            {% for row in owner.goats %}
+                                <tr>
+                                    <td class="goat-code">{{ row.goat.goat_code }}</td>
+                                    <td>{{ row.goat.name|default:"—" }}</td>
+                                    <td>{{ row.goat.breed|default:"—" }}</td>
+                                    <td>{{ row.goat.get_sex_display }}</td>
+                                    <td>{{ row.goat.location_name }}</td>
+                                    <td><span class="goat-status {{ row.goat.status }}">{{ row.goat.get_status_display }}</span></td>
+                                    <td>{{ row.current_weight|floatformat:2 }} KG</td>
+                                    <td class="money">Rs {{ row.purchase_cost|floatformat:0|intcomma }}</td>
+                                    <td class="money">Rs {{ row.feed_cost|floatformat:0|intcomma }}</td>
+                                    <td class="money">Rs {{ row.medicine_cost|floatformat:0|intcomma }}</td>
+                                    <td class="money">Rs {{ row.expense_cost|floatformat:0|intcomma }}</td>
+                                    <td class="total-money">Rs {{ row.total_cost|floatformat:0|intcomma }}</td>
+                                    <td><a class="open-link" href="{% url 'goat_detail' row.goat.id %}">Open <i class="fa-solid fa-arrow-right"></i></a></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% empty %}
+            <div class="empty">No goats have been added yet.</div>
+        {% endfor %}
+
+        <div class="note"><i class="fa-solid fa-circle-info"></i> Goat ownership is individual, not percentage-based. Every feed, medicine and expense allocation stays attached to the selected RN goat and therefore to that goat's owner.</div>
+    </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function(){
+    const buttons=Array.from(document.querySelectorAll('.tab-btn'));
+    const panels=Array.from(document.querySelectorAll('.tab-panel'));
+    buttons.forEach(function(btn){
+        btn.addEventListener('click',function(){
+            buttons.forEach(function(item){item.classList.remove('active')});
+            panels.forEach(function(item){item.classList.remove('active')});
+            btn.classList.add('active');
+            const panel=document.getElementById(btn.dataset.target);
+            if(panel)panel.classList.add('active');
+        });
+    });
+})();
+</script>
 {% endblock %}

@@ -5,100 +5,168 @@
 
 {% block extra_css %}
 <style>
-    .investor-ledger-page{max-width:1450px;margin:0 auto;}
-    .ledger-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:22px 24px;margin-bottom:18px;border:1px solid #dfe8f3;border-radius:18px;background:linear-gradient(135deg,#fff,#f7fbff);box-shadow:0 8px 24px rgba(17,53,90,.06)}
-    .ledger-title-wrap{display:flex;gap:14px;align-items:flex-start}.ledger-icon{width:54px;height:54px;min-width:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:#eaf6ff;color:#1768bd;font-size:23px;border:1px solid #d3e7fa}
-    .ledger-header h1{margin:0 0 6px;color:#123d68;font-size:28px}.ledger-header p{margin:0;color:#6b7c90;font-size:14px;line-height:1.5;max-width:760px}
-    .header-actions{display:flex;gap:9px;flex-wrap:wrap}.action-btn{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;border-radius:11px;text-decoration:none;font-size:13px;font-weight:800}.action-secondary{background:#eaf1f8;color:#284763}.action-primary{background:#0f4d80;color:#fff}
-    .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.kpi-card{background:#fff;border:1px solid #e0e8f2;border-radius:16px;padding:17px 18px;box-shadow:0 6px 18px rgba(16,47,79,.05)}.kpi-label{font-size:11px;color:#718298;font-weight:900;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px}.kpi-value{font-size:25px;font-weight:900;color:#103f6d}.kpi-card.paid .kpi-value{color:#158342}.kpi-card.due .kpi-value{color:#c4492f}.kpi-card.credit .kpi-value{color:#1664b2}.kpi-help{font-size:11px;color:#8190a1;margin-top:6px;line-height:1.4}
-    .toolbar{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px}.toolbar h2{margin:0;color:#173b61;font-size:20px}.toolbar p{margin:4px 0 0;color:#7a8797;font-size:13px}.search-wrap{position:relative;width:min(100%,340px)}.search-wrap i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#7b899b}.search-input{width:100%;height:44px;border:1px solid #d5e0ec;border-radius:12px;padding:0 13px 0 39px;font-size:14px;outline:none;box-sizing:border-box;background:#fff}.search-input:focus{border-color:#2874cd;box-shadow:0 0 0 3px rgba(40,116,205,.1)}
-    .accounts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.account-card{background:#fff;border:1px solid #dfe7f1;border-radius:18px;overflow:hidden;box-shadow:0 7px 22px rgba(17,49,82,.05)}.account-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 19px;border-bottom:1px solid #edf2f7}.account-name{font-size:20px;font-weight:900;color:#123f6d;margin-bottom:4px}.account-batch{color:#718195;font-size:12px}.status-pill{display:inline-flex;padding:6px 10px;border-radius:999px;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.03em}.status-unpaid{background:#fff0ed;color:#c34b31}.status-partial{background:#fff7e6;color:#aa6a00}.status-paid{background:#eaf8ef;color:#187b3d}.status-credit{background:#eaf4ff;color:#1b65ad}.status-no_cost{background:#f1f4f7;color:#6d7b8b}
-    .ownership-strip{display:flex;gap:8px;flex-wrap:wrap;padding:12px 19px;background:#fafcff;border-bottom:1px solid #edf2f7}.ownership-chip{padding:6px 9px;border-radius:999px;background:#eef5fc;color:#42637e;font-size:11px;font-weight:800}
-    .money-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px 19px}.money-box{border:1px solid #e5ebf2;border-radius:12px;padding:12px;background:#fcfdff}.money-box .label{font-size:10px;color:#77889b;font-weight:900;text-transform:uppercase;margin-bottom:6px}.money-box .value{font-size:18px;color:#153f68;font-weight:900}.money-box.paid .value{color:#168344}.money-box.due .value{color:#c24831}.money-box.credit .value{color:#1766b4}
-    .cost-breakdown{padding:0 19px 16px}.cost-title{font-size:12px;color:#64778c;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}.cost-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.cost-item{background:#f6f9fc;border:1px solid #e7edf4;border-radius:10px;padding:9px}.cost-item span{display:block;font-size:10px;color:#718196;margin-bottom:4px}.cost-item strong{font-size:12px;color:#173d62}
-    .account-footer{display:flex;justify-content:flex-end;padding:14px 19px;background:#fbfcfe;border-top:1px solid #edf2f7}.view-btn{display:inline-flex;align-items:center;gap:8px;background:#0f4d80;color:#fff;text-decoration:none;padding:10px 14px;border-radius:10px;font-size:12px;font-weight:900}
-    .empty-state{padding:42px 20px;border:1px dashed #d6e1ec;border-radius:16px;background:#fff;text-align:center;color:#718196}.no-results{display:none;padding:18px;text-align:center;color:#718196;background:#fff;border:1px dashed #d6e1ec;border-radius:14px;margin-top:14px}
-    @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.accounts-grid{grid-template-columns:1fr}.cost-grid{grid-template-columns:repeat(3,1fr)}}
-    @media(max-width:760px){.ledger-header,.toolbar{flex-direction:column;align-items:stretch}.ledger-header{padding:18px 16px}.ledger-header h1{font-size:23px}.header-actions,.search-wrap{width:100%}.action-btn{width:100%}.kpi-grid{grid-template-columns:1fr 1fr;gap:10px}.kpi-card{padding:14px}.kpi-value{font-size:21px}.money-grid{grid-template-columns:1fr}.cost-grid{grid-template-columns:1fr 1fr}.account-head{padding:16px}.account-name{font-size:18px}}
-    @media(max-width:430px){.kpi-grid{grid-template-columns:1fr}.cost-grid{grid-template-columns:1fr}.ledger-title-wrap{gap:10px}.ledger-icon{width:46px;height:46px;min-width:46px}}
+    .accounts-page{max-width:1450px;margin:0 auto}
+    .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:22px 24px;margin-bottom:16px;border:1px solid #dfe8f3;border-radius:18px;background:linear-gradient(135deg,#fff,#f8fbff);box-shadow:0 8px 24px rgba(17,53,90,.05)}
+    .head-main{display:flex;gap:14px}.head-icon{width:54px;height:54px;min-width:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:#eaf6ff;color:#1768bd;border:1px solid #d3e7fa;font-size:23px}.page-head h1{margin:0 0 6px;color:#123d68;font-size:28px}.page-head p{margin:0;color:#6b7c90;font-size:14px;line-height:1.5;max-width:780px}
+    .head-actions{display:flex;gap:9px;flex-wrap:wrap}.head-btn{min-height:42px;display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:0 14px;border-radius:11px;text-decoration:none;font-size:12px;font-weight:850;border:1px solid #d7e3ef;background:#fff;color:#244660}.head-btn.primary{background:#0f4d80;color:#fff;border-color:#0f4d80}
+
+    .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}.kpi{background:#fff;border:1px solid #e0e8f2;border-radius:15px;padding:15px 17px;box-shadow:0 5px 16px rgba(17,49,82,.04)}.kpi-label{font-size:9px;color:#748397;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.kpi-value{margin-top:6px;color:#123f6c;font-size:22px;font-weight:900}.kpi-value.green{color:#11783a}.kpi-value.orange{color:#a96100}.kpi-help{margin-top:5px;color:#7d8999;font-size:10px;line-height:1.4}
+
+    .account-tabs{display:inline-flex;gap:6px;padding:5px;margin-bottom:16px;border:1px solid #dbe5ef;border-radius:13px;background:#eef3f8}.tab-btn{min-height:40px;padding:0 16px;border:0;border-radius:9px;background:transparent;color:#5d6e82;font-size:13px;font-weight:850;cursor:pointer}.tab-btn.active{background:#fff;color:#0e4c82;box-shadow:0 2px 8px rgba(25,63,100,.08)}.tab-panel{display:none}.tab-panel.active{display:block}
+
+    .section-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px}.section-bar h2{margin:0;color:#123f6c;font-size:20px}.section-bar p{margin:4px 0 0;color:#748397;font-size:11px}.section-totals{display:flex;gap:8px;flex-wrap:wrap}.mini-total{padding:8px 10px;border-radius:9px;background:#fff;border:1px solid #e0e8f2;color:#607388;font-size:10px;font-weight:800}.mini-total strong{color:#123f6c}
+    .search-wrap{position:relative;width:min(100%,330px)}.search-wrap i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#7a8999;font-size:12px}.search-input{width:100%;height:41px;border:1px solid #d6e1ec;border-radius:10px;padding:0 12px 0 36px;font-size:12px;outline:none;background:#fff}.search-input:focus{border-color:#2e78c8;box-shadow:0 0 0 3px rgba(46,120,200,.09)}
+
+    .accounts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.account-card{background:#fff;border:1px solid #e0e8f2;border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(17,49,82,.04)}.account-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:15px 16px;border-bottom:1px solid #edf2f6}.account-name{font-size:17px;color:#123f6c;font-weight:900}.account-meta{margin-top:4px;color:#748397;font-size:10px}.account-type{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:#eef6ff;color:#2462a1;font-size:8px;font-weight:900;margin-top:7px}.account-type.goat{background:#e8f7ed;color:#197940}
+    .status{padding:6px 9px;border-radius:999px;font-size:9px;font-weight:900}.status-paid{background:#e7f7ed;color:#11783a}.status-partial,.status-outstanding,.status-unpaid{background:#fff3df;color:#a96100}.status-credit{background:#eaf2ff;color:#1b62a8}.status-no_cost{background:#eef2f6;color:#66788d}
+    .account-body{padding:14px 16px}.money-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.money-box{padding:9px;border:1px solid #edf2f6;border-radius:10px;background:#fafcfe}.money-label{font-size:8px;color:#7c8999;font-weight:900;text-transform:uppercase}.money-value{margin-top:4px;color:#173b61;font-size:14px;font-weight:900}.money-box.paid .money-value{color:#11783a}.money-box.due .money-value{color:#aa6300}.money-box.credit .money-value{color:#1b62a8}
+    .breakdown{margin-top:11px;padding-top:11px;border-top:1px solid #edf2f6}.breakdown-title{font-size:10px;color:#4d6176;font-weight:900;margin-bottom:7px}.breakdown-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.break-item{padding:7px;border-radius:8px;background:#f6f9fc}.break-item span{display:block;font-size:7px;color:#8390a0;font-weight:900;text-transform:uppercase}.break-item strong{display:block;margin-top:3px;font-size:10px;color:#173b61}
+    .card-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}.small-note{font-size:9px;color:#7b8999}.view-btn{min-height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 11px;border-radius:9px;background:#0f4d80;color:#fff;text-decoration:none;font-size:10px;font-weight:900}
+    .empty{padding:25px;border:1px dashed #d6e1ec;border-radius:14px;background:#fff;color:#718095;text-align:center}.no-results{display:none;padding:20px;border:1px dashed #d6e1ec;border-radius:14px;background:#fff;color:#718095;text-align:center}
+
+    @media(max-width:1050px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.accounts-grid{grid-template-columns:1fr}.breakdown-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media(max-width:720px){.page-head,.section-bar{flex-direction:column;align-items:stretch}.head-actions{width:100%}.head-btn{flex:1}.account-tabs{display:flex;width:100%}.tab-btn{flex:1}.kpi-grid{grid-template-columns:1fr 1fr}.money-grid,.breakdown-grid{grid-template-columns:1fr}.card-foot{align-items:stretch;flex-direction:column}.view-btn{width:100%}.search-wrap{width:100%}}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="investor-ledger-page">
-    <div class="ledger-header">
-        <div class="ledger-title-wrap">
-            <div class="ledger-icon"><i class="fa-solid fa-wallet"></i></div>
+<div class="accounts-page">
+    <section class="page-head">
+        <div class="head-main">
+            <div class="head-icon"><i class="fa-solid fa-wallet"></i></div>
             <div>
                 <h1>{% if is_admin %}Investor Accounts{% else %}My Investor Account{% endif %}</h1>
-                <p>{% if is_admin %}Track each investor's cost share, payments received, and outstanding balance batch-wise.{% else %}View your own batch cost share, payments credited to your account, and current outstanding balance.{% endif %}</p>
+                <p>Poultry obligations are based on flock ownership percentage. Goat obligations come from the investor's individually owned RN goats and the costs allocated to those goats.</p>
             </div>
         </div>
-        <div class="header-actions">
-            <a href="{% url 'finance_tracker' %}" class="action-btn action-secondary"><i class="fa-solid fa-chart-line"></i> Finance Tracker</a>
-            {% if is_admin %}<a href="{% url 'ownership_shares' %}" class="action-btn action-primary"><i class="fa-solid fa-chart-pie"></i> Ownership Shares</a>{% endif %}
+        <div class="head-actions">
+            {% if is_admin %}<a class="head-btn" href="{% url 'ownership_shares' %}"><i class="fa-solid fa-chart-pie"></i> Ownership</a>{% endif %}
+            <a class="head-btn primary" href="{% url 'finance_tracker' %}"><i class="fa-solid fa-chart-line"></i> Finance Tracker</a>
         </div>
-    </div>
+    </section>
 
     <div class="kpi-grid">
-        <div class="kpi-card"><div class="kpi-label">{% if is_admin %}Investor Cost Share{% else %}My Cost Share{% endif %}</div><div class="kpi-value">Rs {{ total_cost_share|floatformat:0|intcomma }}</div><div class="kpi-help">Chicks + carriage + feed + medicine + all expenses.</div></div>
-        <div class="kpi-card paid"><div class="kpi-label">Payments Received</div><div class="kpi-value">Rs {{ total_paid|floatformat:0|intcomma }}</div><div class="kpi-help">Payments recorded against these investor accounts.</div></div>
-        <div class="kpi-card due"><div class="kpi-label">Outstanding Balance</div><div class="kpi-value">Rs {{ total_outstanding|floatformat:0|intcomma }}</div><div class="kpi-help">Amount still payable toward current cost share.</div></div>
-        <div class="kpi-card credit"><div class="kpi-label">{% if is_admin %}Outstanding Accounts{% else %}Account Credit{% endif %}</div><div class="kpi-value">{% if is_admin %}{{ outstanding_accounts }}{% else %}Rs {{ total_credit|floatformat:0|intcomma }}{% endif %}</div><div class="kpi-help">{% if is_admin %}Investor/batch accounts that still have a balance due.{% else %}Advance payment above current cost share, if any.{% endif %}</div></div>
+        <div class="kpi"><div class="kpi-label">Total Cost Charged</div><div class="kpi-value">Rs {{ total_cost_share|floatformat:0|intcomma }}</div><div class="kpi-help">Combined Poultry + Goat investor cost obligations.</div></div>
+        <div class="kpi"><div class="kpi-label">Payments Received</div><div class="kpi-value green">Rs {{ total_paid|floatformat:0|intcomma }}</div><div class="kpi-help">Payments recorded against both account types.</div></div>
+        <div class="kpi"><div class="kpi-label">Outstanding</div><div class="kpi-value orange">Rs {{ total_outstanding|floatformat:0|intcomma }}</div><div class="kpi-help">Amount currently payable across Poultry and Goat accounts.</div></div>
+        <div class="kpi"><div class="kpi-label">Account Credit</div><div class="kpi-value">Rs {{ total_credit|floatformat:0|intcomma }}</div><div class="kpi-help">Advance payments above current charges.</div></div>
     </div>
 
-    <div class="toolbar">
-        <div><h2>{% if is_admin %}Investor Account Register{% else %}My Batch Accounts{% endif %}</h2><p>Open an account for complete cost and payment history.</p></div>
-        <div class="search-wrap"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="accountSearch" class="search-input" placeholder="Search investor, batch, shed, status..."></div>
+    <div class="account-tabs">
+        <button type="button" class="tab-btn active" data-target="poultryAccounts"><i class="fa-solid fa-feather"></i> Poultry Accounts</button>
+        <button type="button" class="tab-btn" data-target="goatAccounts"><i class="fa-solid fa-paw"></i> Goat Accounts</button>
     </div>
 
-    {% if accounts %}
-        <div class="accounts-grid" id="accountsGrid">
-            {% for account in accounts %}
-                <article class="account-card searchable-account" data-search="{{ account.investor_name }} {{ account.batch.shed.shed_type }} batch {{ account.batch.batch_number }} {{ account.status_label }}">
-                    <div class="account-head">
-                        <div><div class="account-name">{{ account.investor_name }}</div><div class="account-batch">{{ account.batch.shed.shed_type|title }} Batch #{{ account.batch.batch_number }} · Started {{ account.batch.start_date|date:"d M Y" }}</div></div>
-                        <span class="status-pill status-{{ account.status }}">{{ account.status_label }}</span>
-                    </div>
-                    <div class="ownership-strip"><span class="ownership-chip">{{ account.share_percentage }}% Ownership</span><span class="ownership-chip">{{ account.birds_owned|intcomma }} Starting Birds</span></div>
-                    <div class="money-grid">
-                        <div class="money-box"><div class="label">Cost Share</div><div class="value">Rs {{ account.total_cost_share|floatformat:0|intcomma }}</div></div>
-                        <div class="money-box paid"><div class="label">Paid</div><div class="value">Rs {{ account.total_paid|floatformat:0|intcomma }}</div></div>
-                        {% if account.credit > 0 %}<div class="money-box credit"><div class="label">Credit</div><div class="value">Rs {{ account.credit|floatformat:0|intcomma }}</div></div>{% else %}<div class="money-box due"><div class="label">Outstanding</div><div class="value">Rs {{ account.outstanding|floatformat:0|intcomma }}</div></div>{% endif %}
-                    </div>
-                    <div class="cost-breakdown">
-                        <div class="cost-title">Cost Share Breakdown</div>
-                        <div class="cost-grid">
-                            <div class="cost-item"><span>Chicks</span><strong>Rs {{ account.chick_cost_share|floatformat:0|intcomma }}</strong></div>
-                            <div class="cost-item"><span>Carriage</span><strong>Rs {{ account.carriage_cost_share|floatformat:0|intcomma }}</strong></div>
-                            <div class="cost-item"><span>Feed</span><strong>Rs {{ account.feed_cost_share|floatformat:0|intcomma }}</strong></div>
-                            <div class="cost-item"><span>Medicine</span><strong>Rs {{ account.medicine_cost_share|floatformat:0|intcomma }}</strong></div>
-                            <div class="cost-item"><span>Expenses</span><strong>Rs {{ account.expense_cost_share|floatformat:0|intcomma }}</strong></div>
-                        </div>
-                    </div>
-                    <div class="account-footer"><a href="{% url 'investor_account_detail' account.allocation.id %}" class="view-btn"><i class="fa-regular fa-file-lines"></i> View Account Statement</a></div>
-                </article>
-            {% endfor %}
+    <div class="tab-panel active" id="poultryAccounts">
+        <div class="section-bar">
+            <div><h2>{% if is_admin %}Poultry Investor Accounts{% else %}My Poultry Accounts{% endif %}</h2><p>Each batch remains a separate percentage-based account and statement.</p></div>
+            <div class="section-totals">
+                <span class="mini-total">Cost <strong>Rs {{ poultry_total_cost|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">Paid <strong>Rs {{ poultry_total_paid|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">Due <strong>Rs {{ poultry_total_outstanding|floatformat:0|intcomma }}</strong></span>
+            </div>
         </div>
-        <div class="no-results" id="noResults">No matching investor accounts found.</div>
-    {% else %}
-        <div class="empty-state"><i class="fa-regular fa-folder-open"></i><br>No investor allocations are available yet.</div>
-    {% endif %}
+        <div class="search-wrap" style="margin-bottom:13px"><i class="fa-solid fa-magnifying-glass"></i><input id="poultrySearch" class="search-input" placeholder="Search investor, batch, shed, status..."></div>
+
+        {% if poultry_accounts %}
+            <div class="accounts-grid" id="poultryGrid">
+                {% for account in poultry_accounts %}
+                    <article class="account-card poultry-card" data-search="{{ account.investor_name }} {{ account.batch.shed.shed_type }} batch {{ account.batch.batch_number }} {{ account.status_label }}">
+                        <div class="account-head">
+                            <div>
+                                <div class="account-name">{{ account.investor_name }}</div>
+                                <div class="account-meta">{{ account.batch.shed.shed_type|title }} Batch #{{ account.batch.batch_number }} · {{ account.share_percentage }}% · {{ account.birds_owned|intcomma }} starting birds</div>
+                                <span class="account-type"><i class="fa-solid fa-feather"></i> Poultry</span>
+                            </div>
+                            <span class="status status-{{ account.status }}">{{ account.status_label }}</span>
+                        </div>
+                        <div class="account-body">
+                            <div class="money-grid">
+                                <div class="money-box"><div class="money-label">Cost Share</div><div class="money-value">Rs {{ account.total_cost_share|floatformat:0|intcomma }}</div></div>
+                                <div class="money-box paid"><div class="money-label">Paid</div><div class="money-value">Rs {{ account.total_paid|floatformat:0|intcomma }}</div></div>
+                                {% if account.credit > 0 %}<div class="money-box credit"><div class="money-label">Credit</div><div class="money-value">Rs {{ account.credit|floatformat:0|intcomma }}</div></div>{% else %}<div class="money-box due"><div class="money-label">Outstanding</div><div class="money-value">Rs {{ account.outstanding|floatformat:0|intcomma }}</div></div>{% endif %}
+                            </div>
+                            <div class="breakdown">
+                                <div class="breakdown-title">Cost Share Breakdown</div>
+                                <div class="breakdown-grid">
+                                    <div class="break-item"><span>Chicks</span><strong>Rs {{ account.chick_cost_share|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Carriage</span><strong>Rs {{ account.carriage_cost_share|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Feed</span><strong>Rs {{ account.feed_cost_share|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Medicine</span><strong>Rs {{ account.medicine_cost_share|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Expenses</span><strong>Rs {{ account.expense_cost_share|floatformat:0|intcomma }}</strong></div>
+                                </div>
+                            </div>
+                            <div class="card-foot"><span class="small-note">Open the statement to see every cost and payment entry.</span><a class="view-btn" href="{% url 'investor_account_detail' account.allocation.id %}"><i class="fa-regular fa-file-lines"></i> View Poultry Statement</a></div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+            <div class="no-results" id="poultryNoResults">No matching Poultry accounts found.</div>
+        {% else %}<div class="empty">No Poultry investor accounts are available.</div>{% endif %}
+    </div>
+
+    <div class="tab-panel" id="goatAccounts">
+        <div class="section-bar">
+            <div><h2>{% if is_admin %}Goat Investor Accounts{% else %}My Goat Account{% endif %}</h2><p>Goat charges are tied to individually owned RN goats, not to a herd percentage.</p></div>
+            <div class="section-totals">
+                <span class="mini-total">Cost <strong>Rs {{ goat_total_cost|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">Paid <strong>Rs {{ goat_total_paid|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">Due <strong>Rs {{ goat_total_outstanding|floatformat:0|intcomma }}</strong></span>
+            </div>
+        </div>
+        <div class="search-wrap" style="margin-bottom:13px"><i class="fa-solid fa-magnifying-glass"></i><input id="goatSearch" class="search-input" placeholder="Search investor or Goat account status..."></div>
+
+        {% if goat_accounts %}
+            <div class="accounts-grid" id="goatGrid">
+                {% for account in goat_accounts %}
+                    <article class="account-card goat-card" data-search="{{ account.owner_name }} {{ account.status_label }}">
+                        <div class="account-head">
+                            <div>
+                                <div class="account-name">{{ account.owner_name }}</div>
+                                <div class="account-meta">{{ account.goat_count }} goat{{ account.goat_count|pluralize }} · {{ account.active_goat_count }} active</div>
+                                <span class="account-type goat"><i class="fa-solid fa-paw"></i> Goat</span>
+                            </div>
+                            <span class="status status-{{ account.status }}">{{ account.status_label }}</span>
+                        </div>
+                        <div class="account-body">
+                            <div class="money-grid">
+                                <div class="money-box"><div class="money-label">Total Goat Cost</div><div class="money-value">Rs {{ account.total_cost|floatformat:0|intcomma }}</div></div>
+                                <div class="money-box paid"><div class="money-label">Paid</div><div class="money-value">Rs {{ account.total_paid|floatformat:0|intcomma }}</div></div>
+                                {% if account.credit > 0 %}<div class="money-box credit"><div class="money-label">Credit</div><div class="money-value">Rs {{ account.credit|floatformat:0|intcomma }}</div></div>{% else %}<div class="money-box due"><div class="money-label">Outstanding</div><div class="money-value">Rs {{ account.outstanding|floatformat:0|intcomma }}</div></div>{% endif %}
+                            </div>
+                            <div class="breakdown">
+                                <div class="breakdown-title">Goat Cost Breakdown</div>
+                                <div class="breakdown-grid">
+                                    <div class="break-item"><span>Purchase</span><strong>Rs {{ account.purchase_cost|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Feed</span><strong>Rs {{ account.feed_cost|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Medicine</span><strong>Rs {{ account.medicine_cost|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Expenses</span><strong>Rs {{ account.expense_cost|floatformat:0|intcomma }}</strong></div>
+                                </div>
+                            </div>
+                            <div class="card-foot"><span class="small-note">The Goat statement identifies the RN goat behind every cost allocation.</span><a class="view-btn" href="{% url 'goat_account_detail' account.owner.id %}"><i class="fa-regular fa-file-lines"></i> View Goat Statement</a></div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+            <div class="no-results" id="goatNoResults">No matching Goat accounts found.</div>
+        {% else %}<div class="empty">No investor-owned Goat accounts are available yet.</div>{% endif %}
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function(){
-    const input=document.getElementById('accountSearch');
-    const cards=Array.from(document.querySelectorAll('.searchable-account'));
-    const empty=document.getElementById('noResults');
-    if(!input||!cards.length)return;
-    input.addEventListener('input',function(){
-        const q=input.value.trim().toLowerCase();let shown=0;
-        cards.forEach(function(card){const ok=!q||(card.dataset.search||'').toLowerCase().includes(q);card.style.display=ok?'':'none';if(ok)shown++;});
-        if(empty)empty.style.display=shown?'none':'block';
-    });
+    const tabButtons=Array.from(document.querySelectorAll('.tab-btn'));
+    const panels=Array.from(document.querySelectorAll('.tab-panel'));
+    tabButtons.forEach(function(btn){btn.addEventListener('click',function(){tabButtons.forEach(function(x){x.classList.remove('active')});panels.forEach(function(x){x.classList.remove('active')});btn.classList.add('active');const panel=document.getElementById(btn.dataset.target);if(panel)panel.classList.add('active')})});
+
+    function bindSearch(inputId, cardSelector, emptyId){
+        const input=document.getElementById(inputId);const cards=Array.from(document.querySelectorAll(cardSelector));const empty=document.getElementById(emptyId);if(!input||!cards.length)return;
+        input.addEventListener('input',function(){const q=input.value.trim().toLowerCase();let shown=0;cards.forEach(function(card){const ok=!q||(card.dataset.search||'').toLowerCase().includes(q);card.style.display=ok?'':'none';if(ok)shown++});if(empty)empty.style.display=shown?'none':'block'});
+    }
+    bindSearch('poultrySearch','.poultry-card','poultryNoResults');
+    bindSearch('goatSearch','.goat-card','goatNoResults');
 })();
 </script>
 {% endblock %}

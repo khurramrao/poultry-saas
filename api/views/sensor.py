@@ -53,6 +53,12 @@ from api.models.sales import (
     ChickCostEntry,
     Expense,
 )
+from api.models.goats import (
+    Goat,
+    GoatAccountPayment,
+    GoatCostAllocation,
+    GoatSale,
+)
 from django.utils import timezone
 
 from django.utils.timesince import timesince
@@ -564,6 +570,49 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
         total_birds_in_shed = 0
         investor_has_birds_in_this_shed = False
 
+        # Goat Shed uses individual animals instead of poultry batches.
+        goat_rows = []
+        total_goats_in_shed = 0
+        total_goat_live_weight = Decimal("0.00")
+        total_goat_cost = Decimal("0.00")
+        investor_has_goats_in_this_shed = False
+
+        if shed.shed_type == "goat":
+            goat_qs = (
+                Goat.objects
+                .filter(shed=shed, status="active")
+                .select_related("owner", "shed")
+                .order_by("goat_code", "id")
+            )
+
+            if not is_admin:
+                goat_qs = goat_qs.filter(owner=request.user)
+
+            for goat in goat_qs:
+                investor_has_goats_in_this_shed = True
+                current_weight = goat.current_weight_kg or Decimal("0.00")
+                allocated_cost = (
+                    GoatCostAllocation.objects
+                    .filter(goat=goat)
+                    .aggregate(total=Sum("amount"))["total"]
+                    or Decimal("0.00")
+                )
+                goat_total_cost = Decimal(goat.purchase_cost or 0) + Decimal(allocated_cost or 0)
+                cost_per_kg = Decimal("0.00")
+                if current_weight and Decimal(current_weight) > 0:
+                    cost_per_kg = goat_total_cost / Decimal(current_weight)
+
+                goat_rows.append({
+                    "goat": goat,
+                    "current_weight": current_weight,
+                    "total_cost": goat_total_cost,
+                    "cost_per_kg": cost_per_kg,
+                })
+
+                total_goats_in_shed += 1
+                total_goat_live_weight += Decimal(current_weight or 0)
+                total_goat_cost += goat_total_cost
+
         for batch in active_batches:
             batch_summary = build_batch_summary(batch)
             batch_cost = BatchCost.objects.filter(batch=batch).first()
@@ -728,7 +777,11 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
 
             batch_summaries.append(batch_summary)
 
-        if not is_admin and not investor_has_birds_in_this_shed:
+        if (
+            not is_admin
+            and not investor_has_birds_in_this_shed
+            and not investor_has_goats_in_this_shed
+        ):
             continue
 
         farm_total_birds += total_birds_in_shed
@@ -752,7 +805,11 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
 
         temperature_status = "normal"
 
-        if latest and not device_offline and latest.temperature is not None:
+        if shed.shed_type == "goat":
+            # Goat shed currently displays the live sensor reading as monitoring
+            # rather than applying poultry age-based temperature rules.
+            temperature_status = "monitoring"
+        elif latest and not device_offline and latest.temperature is not None:
             if any("Temp High" in batch["alerts"] for batch in batch_summaries):
                 temperature_status = "high"
 
@@ -773,6 +830,10 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
             "latest_readings": latest_readings,
             "alerts": shed_alerts,
             "batches": batch_summaries,
+            "goats": goat_rows,
+            "total_goats_in_shed": total_goats_in_shed,
+            "total_goat_live_weight": total_goat_live_weight,
+            "total_goat_cost": total_goat_cost,
             "total_birds_in_shed": total_birds_in_shed,
             "last_update_display": format_last_update(latest.created_at) if latest else "No sensor data",
 
@@ -902,6 +963,58 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
     else:
         sold_percentage = 0
 
+    # --- GOAT FARM KPI ---
+    if is_admin:
+        goat_visible = Goat.objects.filter(status="active").select_related("owner", "shed")
+    elif hasattr(request.user, "investor_profile"):
+        goat_visible = Goat.objects.filter(status="active", owner=request.user).select_related("owner", "shed")
+    else:
+        goat_visible = Goat.objects.none()
+
+    goat_active_count = goat_visible.count()
+    goat_total_live_weight = Decimal("0.00")
+    goat_total_cost_kpi = Decimal("0.00")
+
+    for goat in goat_visible:
+        goat_total_live_weight += Decimal(goat.current_weight_kg or 0)
+        allocated = (
+            GoatCostAllocation.objects
+            .filter(goat=goat)
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+        goat_total_cost_kpi += Decimal(goat.purchase_cost or 0) + Decimal(allocated or 0)
+
+    goat_break_even_per_kg = Decimal("0.00")
+    if goat_total_live_weight > 0:
+        goat_break_even_per_kg = goat_total_cost_kpi / goat_total_live_weight
+
+    goat_sales_qs = GoatSale.objects.select_related("goat")
+    if not is_admin:
+        goat_sales_qs = goat_sales_qs.filter(goat__owner=request.user)
+    goat_sales_kpi = goat_sales_qs.aggregate(total=Sum("total_amount"))["total"] or Decimal("0.00")
+
+    goat_account_outstanding = Decimal("0.00")
+    if not is_admin and hasattr(request.user, "investor_profile"):
+        all_owner_goats = Goat.objects.filter(owner=request.user)
+        owner_purchase = all_owner_goats.aggregate(total=Sum("purchase_cost"))["total"] or Decimal("0.00")
+        owner_allocated = (
+            GoatCostAllocation.objects
+            .filter(owner_snapshot=request.user)
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+        owner_paid = (
+            GoatAccountPayment.objects
+            .filter(owner=request.user)
+            .aggregate(total=Sum("amount"))["total"]
+            or Decimal("0.00")
+        )
+        goat_account_outstanding = max(
+            Decimal(owner_purchase) + Decimal(owner_allocated) - Decimal(owner_paid),
+            Decimal("0.00"),
+        )
+
     # --- DAILY LOG NOTIFICATION COUNT ---
     if last_seen:
         mortality_count = MortalityRecord.objects.filter(
@@ -972,6 +1085,12 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
         "total_sold_kpi": total_sold_kpi,
         "sold_percentage": sold_percentage,
         "total_sales_kpi": total_sales_kpi,
+        "goat_active_count": goat_active_count,
+        "goat_total_live_weight": goat_total_live_weight,
+        "goat_total_cost_kpi": goat_total_cost_kpi,
+        "goat_break_even_per_kg": goat_break_even_per_kg,
+        "goat_sales_kpi": goat_sales_kpi,
+        "goat_account_outstanding": goat_account_outstanding,
         "user_profile": profile_obj,
         "outdoor_weather": outdoor_weather,
     })
@@ -1250,8 +1369,137 @@ def ownership_shares(request):
             "owners": owners,
         })
 
+    # =========================================================
+    # GOAT OWNERSHIP - individual animal ownership
+    # =========================================================
+    goats = list(
+        Goat.objects
+        .select_related("owner", "shed")
+        .prefetch_related("weight_records")
+        .order_by("owner__username", "goat_code", "id")
+    )
+
+    goat_cost_map = {}
+    if goats:
+        allocation_rows = (
+            GoatCostAllocation.objects
+            .filter(goat__in=goats)
+            .values("goat_id", "cost_entry__category")
+            .annotate(total=Sum("amount"))
+        )
+
+        for row in allocation_rows:
+            goat_id = row["goat_id"]
+            category = row["cost_entry__category"]
+            goat_cost_map.setdefault(
+                goat_id,
+                {
+                    "feed": Decimal("0.00"),
+                    "medicine": Decimal("0.00"),
+                    "expense": Decimal("0.00"),
+                },
+            )
+            if category in goat_cost_map[goat_id]:
+                goat_cost_map[goat_id][category] = (
+                    row["total"] or Decimal("0.00")
+                )
+
+    investor_user_ids = set(
+        InvestorProfile.objects.values_list("user_id", flat=True)
+    )
+
+    goat_owner_map = {}
+    goat_total_cost = Decimal("0.00")
+    goat_total_live_weight = Decimal("0.00")
+
+    for goat in goats:
+        costs = goat_cost_map.get(
+            goat.id,
+            {
+                "feed": Decimal("0.00"),
+                "medicine": Decimal("0.00"),
+                "expense": Decimal("0.00"),
+            },
+        )
+
+        purchase_cost = Decimal(goat.purchase_cost or 0)
+        feed_cost = Decimal(costs["feed"] or 0)
+        medicine_cost = Decimal(costs["medicine"] or 0)
+        expense_cost = Decimal(costs["expense"] or 0)
+        total_cost = (
+            purchase_cost
+            + feed_cost
+            + medicine_cost
+            + expense_cost
+        )
+
+        current_weight = Decimal(goat.current_weight_kg or 0)
+        if goat.status == "active":
+            goat_total_live_weight += current_weight
+        goat_total_cost += total_cost
+
+        owner = goat.owner
+        owner_name = owner.get_full_name().strip() or owner.username
+        owner_entry = goat_owner_map.setdefault(
+            owner.id,
+            {
+                "owner": owner,
+                "name": owner_name,
+                "is_admin": bool(owner.is_superuser or owner.is_staff),
+                "is_investor": owner.id in investor_user_ids,
+                "goats": [],
+                "goat_count": 0,
+                "active_count": 0,
+                "live_weight": Decimal("0.00"),
+                "purchase_cost": Decimal("0.00"),
+                "total_cost": Decimal("0.00"),
+            },
+        )
+
+        owner_entry["goat_count"] += 1
+        if goat.status == "active":
+            owner_entry["active_count"] += 1
+            owner_entry["live_weight"] += current_weight
+        owner_entry["purchase_cost"] += purchase_cost
+        owner_entry["total_cost"] += total_cost
+
+        owner_entry["goats"].append({
+            "goat": goat,
+            "current_weight": current_weight,
+            "purchase_cost": purchase_cost,
+            "feed_cost": feed_cost,
+            "medicine_cost": medicine_cost,
+            "expense_cost": expense_cost,
+            "total_cost": total_cost,
+        })
+
+    goat_owners = sorted(
+        goat_owner_map.values(),
+        key=lambda row: (not row["is_admin"], row["name"].lower()),
+    )
+
+    goat_active_count = sum(1 for goat in goats if goat.status == "active")
+    goat_farm_owned = sum(
+        1
+        for goat in goats
+        if goat.owner.is_superuser or goat.owner.is_staff
+    )
+    goat_investor_owned = sum(
+        1
+        for goat in goats
+        if goat.owner_id in investor_user_ids
+    )
+
     return render(request, "api/ownership_shares.html", {
         "ownership_batches": ownership_batches,
+        "goat_owners": goat_owners,
+        "goat_total_count": len(goats),
+        "goat_active_count": goat_active_count,
+        "goat_farm_owned": goat_farm_owned,
+        "goat_investor_owned": goat_investor_owned,
+        "goat_owner_count": len(goat_owners),
+        "goat_total_cost": goat_total_cost,
+        "goat_total_live_weight": goat_total_live_weight,
         "is_admin": True,
     })
 

@@ -4,6 +4,7 @@ class TemperatureRule(models.Model):
     SHED_TYPES = [
         ("meat", "Meat"),
         ("layer", "Layer"),
+        ("goat", "Goat"),
     ]
 
     shed_type = models.CharField(max_length=20, choices=SHED_TYPES)

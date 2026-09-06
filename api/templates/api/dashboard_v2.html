@@ -1246,6 +1246,22 @@
 .user-dropdown button:hover{
     background:#fff0f0;
 }
+
+        /* GOAT FARM OVERVIEW */
+        .goat-dashboard-overview{margin:16px 0 20px;padding:15px;border:1px solid #d4e9da;border-radius:16px;background:linear-gradient(135deg,#f5fcf7,#eef9f1);}
+        .goat-overview-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;}
+        .goat-overview-title{display:flex;align-items:center;gap:9px;color:#176b38;font-size:16px;font-weight:900;}
+        .goat-overview-link{display:inline-flex;align-items:center;gap:6px;padding:8px 11px;border-radius:9px;background:#16813e;color:#fff;text-decoration:none;font-size:11px;font-weight:800;}
+        .goat-overview-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px;}
+        .goat-overview-card{padding:11px 12px;border:1px solid #dcebe1;border-radius:11px;background:#fff;}
+        .goat-overview-label{font-size:9px;color:#718498;font-weight:900;text-transform:uppercase;letter-spacing:.03em;}
+        .goat-overview-value{margin-top:5px;color:#123f6c;font-size:17px;font-weight:900;}
+        .goat-icon{background:#e8f7ed!important;color:#187a3d!important;}
+        .goat-shed-title{color:#176b38!important;}
+        .goat-overview-inside-shed{margin:10px 0 20px;}
+        @media(max-width:1100px){.goat-overview-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+        @media(max-width:700px){.goat-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+        @media(max-width:500px){.goat-overview-head{align-items:flex-start;flex-direction:column;}.goat-overview-link{width:100%;justify-content:center;}.goat-overview-grid{grid-template-columns:1fr 1fr;}}
     </style>
 </head>
 <script>
@@ -1352,6 +1368,20 @@
                 <span>Settings</span>
             </a>
 {% endif %}
+
+            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile %}
+            <a href="{% url 'egg_dashboard' %}">
+                <i class="fa-solid fa-egg"></i>
+                <span>Egg Management</span>
+            </a>
+            {% endif %}
+
+            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile %}
+            <a href="{% url 'goat_dashboard' %}">
+                <i class="fa-solid fa-paw"></i>
+                <span>Goat Farm</span>
+            </a>
+            {% endif %}
 
             <a href="{% url 'finance_tracker' %}">
                 <i class="fa-regular fa-money-bill-1"></i>
@@ -1681,12 +1711,12 @@
 
                         <div class="shed-main">
 
-                            <div class="shed-icon {% if shed_kind == 'layer' %}layer-icon{% endif %}">
-                                <i class="fa-solid fa-warehouse"></i>
+                            <div class="shed-icon {% if shed_kind == 'layer' %}layer-icon{% elif shed_kind == 'goat' %}goat-icon{% endif %}">
+                                <i class="fa-solid {% if shed_kind == 'goat' %}fa-paw{% else %}fa-warehouse{% endif %}"></i>
                             </div>
 
                             <div>
-                                <h3 class="{% if shed_kind == 'layer' %}layer-shed-title{% endif %}">
+                                <h3 class="{% if shed_kind == 'layer' %}layer-shed-title{% elif shed_kind == 'goat' %}goat-shed-title{% endif %}">
                                     {{ row.shed.name }}
                                 </h3>
                                     <p>
@@ -1778,6 +1808,9 @@
 
                                 {% elif row.temperature_status == "no_rule" %}
                                     <span class="sensor-pill na-pill">No Temperature Rule</span>
+
+                                {% elif row.temperature_status == "monitoring" %}
+                                    <span class="sensor-pill normal-pill">Monitoring</span>
 
                                 {% else %}
                                     <span class="sensor-pill normal-pill">Normal</span>
@@ -2012,12 +2045,51 @@
  {% endif %}
 
                 </div>
-         {% if row.batches %}
+         {% if row.shed.shed_type == "goat" %}
+                {# Keep individual goat inventory on the dedicated Goat Farm page. #}
+                {% if goat_active_count > 0 or is_admin %}
+                <section class="goat-dashboard-overview goat-overview-inside-shed">
+                    <div class="goat-overview-head">
+                        <div class="goat-overview-title">
+                            <i class="fa-solid fa-paw"></i>
+                            Goat Farm Overview
+                        </div>
+                        <a class="goat-overview-link" href="{% url 'goat_dashboard' %}">
+                            Open Goat Farm
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </div>
+                    <div class="goat-overview-grid">
+                        <div class="goat-overview-card">
+                            <div class="goat-overview-label">{% if is_admin %}Active Goats{% else %}My Active Goats{% endif %}</div>
+                            <div class="goat-overview-value">{{ goat_active_count }}</div>
+                        </div>
+                        <div class="goat-overview-card">
+                            <div class="goat-overview-label">Male / Female</div>
+                            <div class="goat-overview-value">{{ goat_male_count }} / {{ goat_female_count }}</div>
+                        </div>
+                        <div class="goat-overview-card">
+                            <div class="goat-overview-label">Live Weight</div>
+                            <div class="goat-overview-value">{{ goat_total_live_weight|floatformat:2 }} KG</div>
+                        </div>
+                        <div class="goat-overview-card">
+                            <div class="goat-overview-label">Total Goat Cost</div>
+                            <div class="goat-overview-value">Rs {{ goat_total_cost_kpi|floatformat:0|intcomma }}</div>
+                        </div>
+                        <div class="goat-overview-card">
+                            <div class="goat-overview-label">Break-even / KG</div>
+                            <div class="goat-overview-value">Rs {{ goat_break_even_per_kg|floatformat:2|intcomma }}</div>
+                        </div>
+                        <div class="goat-overview-card">
+                            <div class="goat-overview-label">{% if is_admin %}Goat Sales{% else %}My Account Due{% endif %}</div>
+                            <div class="goat-overview-value">{% if is_admin %}Rs {{ goat_sales_kpi|floatformat:0|intcomma }}{% else %}Rs {{ goat_account_outstanding|floatformat:0|intcomma }}{% endif %}</div>
+                        </div>
+                    </div>
+                </section>
+                {% endif %}
+         {% elif row.batches %}
                 <div class="batch-table-wrap">
-                       <div class="batch-caption">Active Batches in  {{ row.shed.shed_type|title }} Shed</div>
-
-
-
+                    <div class="batch-caption">Active Batches in {{ row.shed.shed_type|title }} Shed</div>
                     <table class="batch-table">
                         <thead>
                             <tr>
@@ -2033,91 +2105,52 @@
                                 <th>Vaccine</th>
                             </tr>
                         </thead>
-                {% for batch_row in row.batches %}
                         <tbody>
+                        {% for batch_row in row.batches %}
                             <tr>
-                              <td class="batch-code">
-                                {{ batch_row.batch.batch_type|title }} Batch #{{ batch_row.batch.batch_number }}
-                            </td>
-
-                            <td>
-                                <span class="type-tag
-                                    {% if batch_row.batch.batch_type == 'layer' %}
-                                        layer-tag
-                                    {% else %}
-                                        meat-tag
-                                    {% endif %}">
-                                    {{ batch_row.batch.batch_type|title }}
-                                </span>
-                            </td>
-                                <td>{{ batch_row.batch.start_date }}</td>
+                                <td class="batch-code">{{ batch_row.batch.batch_type|title }} Batch #{{ batch_row.batch.batch_number }}</td>
                                 <td>
-                                    <div class="age-days">{{ batch_row.age_days }}</div>
-                                    <div class="age-weeks">({{ batch_row.age_weeks }} weeks)</div>
+                                    <span class="type-tag {% if batch_row.batch.batch_type == 'layer' %}layer-tag{% else %}meat-tag{% endif %}">
+                                        {{ batch_row.batch.batch_type|title }}
+                                    </span>
                                 </td>
-                                  {% if is_admin %}
-                                        <td>{{ batch_row.batch.bird_count_initial }}</td>
-                                        <td>{{ batch_row.current_birds }}</td>
-
-                                        <td class="danger-text">{{ batch_row.total_mortality }} ({{ batch_row.mortality_percent }}%)</td>
-                                        <td>{{ batch_row.display_sold }}</td>
-                                       <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
-                                 {% else %}
-                                        <td>{{ batch_row.initial_birds_allocated }}</td>
-                                        <td>{{ batch_row.current_birds }}</td>
-                                        <td class="danger-text">{{batch_row.display_mortality}} ({{ batch_row.display_mortality_percent|floatformat:2  }}%)</td>
-                                        <td>{{ batch_row.display_sold }}</td>
-                                      <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
+                                <td>{{ batch_row.batch.start_date }}</td>
+                                <td><div class="age-days">{{ batch_row.age_days }}</div><div class="age-weeks">({{ batch_row.age_weeks }} weeks)</div></td>
+                                {% if is_admin %}
+                                    <td>{{ batch_row.batch.bird_count_initial }}</td>
+                                    <td>{{ batch_row.current_birds }}</td>
+                                    <td class="danger-text">{{ batch_row.total_mortality }} ({{ batch_row.mortality_percent }}%)</td>
+                                    <td>{{ batch_row.display_sold }}</td>
+                                    <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
+                                {% else %}
+                                    <td>{{ batch_row.initial_birds_allocated }}</td>
+                                    <td>{{ batch_row.current_birds }}</td>
+                                    <td class="danger-text">{{ batch_row.display_mortality }} ({{ batch_row.display_mortality_percent|floatformat:2 }}%)</td>
+                                    <td>{{ batch_row.display_sold }}</td>
+                                    <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
                                 {% endif %}
-
-
- <td class="vaccine-cell">
-    <div class="vaccine-summary">
-
-        {% if batch_row.overdue_vaccines %}
-            <span class="vaccine-pill vaccine-overdue">
-                <i class="fa-solid fa-triangle-exclamation"></i>
-                {{ batch_row.overdue_vaccines|length }} Overdue
-            </span>
-
-        {% elif batch_row.due_today %}
-            <span class="vaccine-pill vaccine-today">
-                <i class="fa-solid fa-syringe"></i>
-                {{ batch_row.due_today|length }} Due Today
-            </span>
-
-        {% elif batch_row.due_tomorrow %}
-            <span class="vaccine-pill vaccine-tomorrow">
-                <i class="fa-regular fa-clock"></i>
-                {{ batch_row.due_tomorrow|length }} Tomorrow
-            </span>
-
-        {% else %}
-            <span class="vaccine-pill vaccine-ok">
-                <i class="fa-solid fa-circle-check"></i>
-                Up to Date
-            </span>
-        {% endif %}
-
-       <a href="{% url 'vaccine_records' batch_row.batch.id %}"
-   class="vaccine-view-btn"
-   title="View Vaccine Details">
-    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-</a>
-
-    </div>
-</td>
+                                <td class="vaccine-cell">
+                                    <div class="vaccine-summary">
+                                        {% if batch_row.overdue_vaccines %}
+                                            <span class="vaccine-pill vaccine-overdue"><i class="fa-solid fa-triangle-exclamation"></i>{{ batch_row.overdue_vaccines|length }} Overdue</span>
+                                        {% elif batch_row.due_today %}
+                                            <span class="vaccine-pill vaccine-today"><i class="fa-solid fa-syringe"></i>{{ batch_row.due_today|length }} Due Today</span>
+                                        {% elif batch_row.due_tomorrow %}
+                                            <span class="vaccine-pill vaccine-tomorrow"><i class="fa-regular fa-clock"></i>{{ batch_row.due_tomorrow|length }} Tomorrow</span>
+                                        {% else %}
+                                            <span class="vaccine-pill vaccine-ok"><i class="fa-solid fa-circle-check"></i>Up to Date</span>
+                                        {% endif %}
+                                        <a href="{% url 'vaccine_records' batch_row.batch.id %}" class="vaccine-view-btn" title="View Vaccine Details"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                                    </div>
+                                </td>
                             </tr>
+                        {% endfor %}
                         </tbody>
-                         {% endfor %}
                     </table>
-
-                       {% else %}
-                <p>No active batches in this shed.</p>
-            {% endif %}
-
-
                 </div>
+         {% else %}
+                <div class="batch-table-wrap"><p>No active batches in this shed.</p></div>
+         {% endif %}
                  {% endfor %}
 
 
