@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
@@ -47,6 +48,36 @@ class Goat(models.Model):
         User,
         on_delete=models.PROTECT,
         related_name="owned_goats",
+    )
+
+    # Pedigree. Registered parents are preferred because they allow the
+    # relationship checker to trace multiple generations. External text is
+    # available for purchased goats whose parents are known but not in RayNoor.
+    sire = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="sired_offspring",
+        null=True,
+        blank=True,
+        limit_choices_to={"sex": "male"},
+    )
+    dam = models.ForeignKey(
+        "self",
+        on_delete=models.PROTECT,
+        related_name="dam_offspring",
+        null=True,
+        blank=True,
+        limit_choices_to={"sex": "female"},
+    )
+    sire_external = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="Known sire identity when the sire is not registered in RayNoor.",
+    )
+    dam_external = models.CharField(
+        max_length=120,
+        blank=True,
+        help_text="Known dam identity when the dam is not registered in RayNoor.",
     )
 
     # Real farm Shed relation. The old label is retained for backward
@@ -153,8 +184,322 @@ class Goat(models.Model):
 
         return self.purchase_weight_kg
 
+    @property
+    def sire_display(self):
+        if self.sire_id:
+            return self.sire.display_name
+        return self.sire_external or "Unknown"
+
+    @property
+    def dam_display(self):
+        if self.dam_id:
+            return self.dam.display_name
+        return self.dam_external or "Unknown"
+
+    def clean(self):
+        errors = {}
+        if self.sire_id:
+            if self.pk and self.sire_id == self.pk:
+                errors["sire"] = "A goat cannot be its own sire."
+            elif self.sire.sex != "male":
+                errors["sire"] = "Sire must be a male goat."
+            elif self.pk and self.pk in goat_ancestor_map(self.sire, max_generations=8):
+                errors["sire"] = "This sire is a descendant of the goat and would create a pedigree cycle."
+        if self.dam_id:
+            if self.pk and self.dam_id == self.pk:
+                errors["dam"] = "A goat cannot be its own dam."
+            elif self.dam.sex != "female":
+                errors["dam"] = "Dam must be a female goat."
+            elif self.pk and self.pk in goat_ancestor_map(self.dam, max_generations=8):
+                errors["dam"] = "This dam is a descendant of the goat and would create a pedigree cycle."
+        if self.sire_id and self.dam_id and self.sire_id == self.dam_id:
+            errors["dam"] = "Sire and dam cannot be the same goat."
+        if errors:
+            raise ValidationError(errors)
+
     def __str__(self):
         return f"{self.display_name} - {self.owner_display_name}"
+
+
+def _normalise_parent_text(value):
+    return " ".join((value or "").strip().upper().split())
+
+
+def _parent_keys(goat):
+    keys = []
+    if goat.sire_id:
+        keys.append(("parent", _normalise_parent_text(goat.sire.goat_code)))
+    elif goat.sire_external:
+        keys.append(("parent", _normalise_parent_text(goat.sire_external)))
+
+    if goat.dam_id:
+        keys.append(("parent", _normalise_parent_text(goat.dam.goat_code)))
+    elif goat.dam_external:
+        keys.append(("parent", _normalise_parent_text(goat.dam_external)))
+    return [key for key in keys if key[1]]
+
+
+def _external_parent_matches(text, goat):
+    value = _normalise_parent_text(text)
+    if not value or goat is None:
+        return False
+    candidates = {
+        _normalise_parent_text(goat.goat_code),
+        _normalise_parent_text(goat.display_name),
+    }
+    if goat.name:
+        candidates.add(_normalise_parent_text(goat.name))
+    return value in candidates
+
+
+def goat_ancestor_map(goat, max_generations=4):
+    """Return registered ancestors as {goat_id: minimum_generation}."""
+    result = {}
+    queue = []
+    if goat.sire_id:
+        queue.append((goat.sire, 1))
+    if goat.dam_id:
+        queue.append((goat.dam, 1))
+
+    while queue:
+        ancestor, generation = queue.pop(0)
+        if ancestor is None or generation > max_generations:
+            continue
+        previous = result.get(ancestor.id)
+        if previous is not None and previous <= generation:
+            continue
+        result[ancestor.id] = generation
+        if generation < max_generations:
+            if ancestor.sire_id:
+                queue.append((ancestor.sire, generation + 1))
+            if ancestor.dam_id:
+                queue.append((ancestor.dam, generation + 1))
+    return result
+
+
+def _pedigree_complete(goat, depth=3, visited=None):
+    """Conservative completeness check for a green compatibility result."""
+    if depth <= 0:
+        return True
+    visited = set(visited or set())
+    if goat.id in visited:
+        return False
+    visited.add(goat.id)
+    if not goat.sire_id or not goat.dam_id:
+        return False
+    return _pedigree_complete(goat.sire, depth - 1, visited) and _pedigree_complete(goat.dam, depth - 1, visited)
+
+
+def check_goat_relationship(doe, buck, max_generations=4):
+    """
+    Classify mating risk from recorded pedigree.
+
+    Hard blocks: parent/child, full or half siblings, and any direct
+    ancestor/descendant found within the checked pedigree. Warnings cover
+    aunt/uncle relationships, first cousins, and other close common ancestry.
+    An incomplete pedigree is UNKNOWN rather than incorrectly marked safe.
+    """
+    result = {
+        "risk": "unknown",
+        "label": "Relationship Unknown",
+        "details": "Pedigree information is incomplete. Confirm family history before mating.",
+        "common_ancestors": [],
+    }
+
+    if doe is None or buck is None:
+        return result
+    if doe.id == buck.id:
+        return {
+            **result,
+            "risk": "blocked",
+            "label": "Same Goat — Blocked",
+            "details": "A goat cannot be paired with itself.",
+        }
+    if doe.sex != "female" or buck.sex != "male":
+        return {
+            **result,
+            "risk": "blocked",
+            "label": "Invalid Sex Pairing",
+            "details": "Select a female doe and a male buck.",
+        }
+
+    # Parent-child relationships.
+    if doe.sire_id == buck.id or _external_parent_matches(doe.sire_external, buck):
+        return {**result, "risk": "blocked", "label": "Father × Daughter — Blocked", "details": f"{buck.goat_code} is recorded as the sire of {doe.goat_code}."}
+    if buck.dam_id == doe.id or _external_parent_matches(buck.dam_external, doe):
+        return {**result, "risk": "blocked", "label": "Mother × Son — Blocked", "details": f"{doe.goat_code} is recorded as the dam of {buck.goat_code}."}
+
+    # Full/half sibling check including external first-generation identities.
+    doe_keys = set(_parent_keys(doe))
+    buck_keys = set(_parent_keys(buck))
+    shared_parent_keys = doe_keys & buck_keys
+    if shared_parent_keys:
+        # Both known parent identities match => full siblings. One => half siblings.
+        if len(shared_parent_keys) >= 2 and len(doe_keys) >= 2 and len(buck_keys) >= 2:
+            return {**result, "risk": "blocked", "label": "Full Brother × Sister — Blocked", "details": "The selected goats share both recorded parents."}
+        return {**result, "risk": "blocked", "label": "Half Brother × Sister — Blocked", "details": "The selected goats share a recorded sire or dam."}
+
+    doe_ancestors = goat_ancestor_map(doe, max_generations=max_generations)
+    buck_ancestors = goat_ancestor_map(buck, max_generations=max_generations)
+
+    # Any direct ancestor/descendant relationship found in the checked depth.
+    if buck.id in doe_ancestors:
+        generation = doe_ancestors[buck.id]
+        label = "Grandfather × Granddaughter — Blocked" if generation == 2 else "Direct Male Ancestor × Descendant — Blocked"
+        return {**result, "risk": "blocked", "label": label, "details": f"{buck.goat_code} is a generation-{generation} ancestor of {doe.goat_code}."}
+    if doe.id in buck_ancestors:
+        generation = buck_ancestors[doe.id]
+        label = "Grandmother × Grandson — Blocked" if generation == 2 else "Direct Female Ancestor × Descendant — Blocked"
+        return {**result, "risk": "blocked", "label": label, "details": f"{doe.goat_code} is a generation-{generation} ancestor of {buck.goat_code}."}
+
+    common_ids = set(doe_ancestors) & set(buck_ancestors)
+    if common_ids:
+        common = sorted(
+            ((ancestor_id, doe_ancestors[ancestor_id], buck_ancestors[ancestor_id]) for ancestor_id in common_ids),
+            key=lambda item: (item[1] + item[2], max(item[1], item[2]), item[0]),
+        )
+        ancestor_id, doe_gen, buck_gen = common[0]
+        ancestor = Goat.objects.filter(pk=ancestor_id).first()
+        ancestor_name = ancestor.display_name if ancestor else f"Goat #{ancestor_id}"
+
+        if sorted((doe_gen, buck_gen)) == [1, 2]:
+            label = "Aunt/Uncle × Niece/Nephew — Warning"
+        elif doe_gen == 2 and buck_gen == 2:
+            label = "First Cousins — Warning"
+        else:
+            label = "Close Common Ancestor — Warning"
+
+        return {
+            **result,
+            "risk": "warning",
+            "label": label,
+            "details": f"Both goats descend from {ancestor_name}. Relationship distances: {doe_gen} and {buck_gen} generations.",
+            "common_ancestors": [item[0] for item in common],
+        }
+
+    if _pedigree_complete(doe, depth=3) and _pedigree_complete(buck, depth=3):
+        return {
+            **result,
+            "risk": "safe",
+            "label": "Suitable — No Close Relationship Found",
+            "details": "No shared or direct ancestor was found within three fully recorded generations.",
+        }
+
+    return result
+
+
+class GoatBreedingRecord(models.Model):
+    STATUS_CHOICES = [
+        ("mated", "Mated"),
+        ("pregnant", "Pregnant"),
+        ("kidded", "Kidded"),
+        ("failed", "Not Pregnant / Failed"),
+        ("cancelled", "Cancelled"),
+    ]
+
+    RISK_CHOICES = [
+        ("safe", "Suitable"),
+        ("warning", "Warning"),
+        ("unknown", "Unknown"),
+    ]
+
+    doe = models.ForeignKey(
+        Goat,
+        on_delete=models.PROTECT,
+        related_name="breeding_records_as_doe",
+        limit_choices_to={"sex": "female"},
+    )
+    buck = models.ForeignKey(
+        Goat,
+        on_delete=models.PROTECT,
+        related_name="breeding_records_as_buck",
+        limit_choices_to={"sex": "male"},
+    )
+    mating_date = models.DateField(default=timezone.localdate)
+    expected_kidding_date = models.DateField(blank=True, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="mated")
+    relationship_risk = models.CharField(max_length=20, choices=RISK_CHOICES, default="unknown")
+    relationship_label = models.CharField(max_length=180, blank=True)
+    relationship_details = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_goat_breeding_records",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-mating_date", "-id"]
+        verbose_name = "Goat Breeding Record"
+        verbose_name_plural = "Goat Breeding Records"
+
+    def clean(self):
+        errors = {}
+        if self.doe_id and self.doe.sex != "female":
+            errors["doe"] = "Doe must be female."
+        if self.buck_id and self.buck.sex != "male":
+            errors["buck"] = "Buck must be male."
+        if self.doe_id and self.buck_id:
+            check = check_goat_relationship(self.doe, self.buck)
+            if check["risk"] == "blocked":
+                errors["buck"] = check["label"]
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        if self.doe_id and self.buck_id:
+            check = check_goat_relationship(self.doe, self.buck)
+            if check["risk"] == "blocked":
+                raise ValidationError({"buck": check["label"]})
+            self.relationship_risk = check["risk"]
+            self.relationship_label = check["label"]
+            self.relationship_details = check["details"]
+        if self.mating_date and not self.expected_kidding_date:
+            from datetime import timedelta
+            self.expected_kidding_date = self.mating_date + timedelta(days=150)
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.doe.goat_code} × {self.buck.goat_code} - {self.mating_date}"
+
+
+class GoatKiddingRecord(models.Model):
+    breeding_record = models.OneToOneField(
+        GoatBreedingRecord,
+        on_delete=models.PROTECT,
+        related_name="kidding_record",
+    )
+    kidding_date = models.DateField(default=timezone.localdate)
+    kids = models.ManyToManyField(
+        Goat,
+        related_name="kidding_events",
+        blank=True,
+    )
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_goat_kiddings",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-kidding_date", "-id"]
+        verbose_name = "Goat Kidding Record"
+        verbose_name_plural = "Goat Kidding Records"
+
+    @property
+    def kid_count(self):
+        return self.kids.count()
+
+    def __str__(self):
+        return f"Kidding {self.breeding_record.doe.goat_code} - {self.kidding_date}"
 
 
 class GoatWeightRecord(models.Model):

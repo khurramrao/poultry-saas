@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q, Sum
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST, require_http_methods
@@ -17,6 +18,10 @@ from api.models.goats import (
     GoatCostEntry,
     GoatSale,
     GoatWeightRecord,
+    GoatBreedingRecord,
+    GoatKiddingRecord,
+    check_goat_relationship,
+    goat_ancestor_map,
 )
 from api.models.sensor import Device, SensorData, Shed
 
@@ -384,6 +389,8 @@ def add_goat(request):
 
     owners = _goat_owner_choices()
     sheds = _goat_sheds()
+    sire_choices = Goat.objects.filter(sex="male").order_by("goat_code", "id")
+    dam_choices = Goat.objects.filter(sex="female").order_by("goat_code", "id")
 
     if request.method == "POST":
         owner = get_object_or_404(owners, pk=request.POST.get("owner_id"))
@@ -396,6 +403,19 @@ def add_goat(request):
         purchase_date = request.POST.get("purchase_date") or timezone.localdate()
         date_of_birth = request.POST.get("date_of_birth") or None
         notes = (request.POST.get("notes") or "").strip()
+        sire_id = request.POST.get("sire_id") or None
+        dam_id = request.POST.get("dam_id") or None
+        sire_external = (request.POST.get("sire_external") or "").strip()
+        dam_external = (request.POST.get("dam_external") or "").strip()
+
+        sire = None
+        dam = None
+        if sire_id:
+            sire = get_object_or_404(Goat, pk=sire_id, sex="male")
+            sire_external = ""
+        if dam_id:
+            dam = get_object_or_404(Goat, pk=dam_id, sex="female")
+            dam_external = ""
 
         try:
             purchase_cost = _money(request.POST.get("purchase_cost") or "0.00")
@@ -406,6 +426,8 @@ def add_goat(request):
             return render(request, "api/add_goat.html", {
                 "owners": owners,
                 "sheds": sheds,
+                "sire_choices": sire_choices,
+                "dam_choices": dam_choices,
                 "today": timezone.localdate(),
             })
 
@@ -424,11 +446,22 @@ def add_goat(request):
             messages.error(request, "Weight must be greater than zero.")
             return redirect("add_goat")
 
+        if sire and date_of_birth and sire.date_of_birth and str(sire.date_of_birth) >= str(date_of_birth):
+            messages.error(request, "Sire date of birth must be before the goat's date of birth.")
+            return redirect("add_goat")
+        if dam and date_of_birth and dam.date_of_birth and str(dam.date_of_birth) >= str(date_of_birth):
+            messages.error(request, "Dam date of birth must be before the goat's date of birth.")
+            return redirect("add_goat")
+
         goat = Goat.objects.create(
             name=name,
             breed=breed,
             sex=sex,
             owner=owner,
+            sire=sire,
+            dam=dam,
+            sire_external=sire_external,
+            dam_external=dam_external,
             shed=shed,
             shed_label=shed.name,
             acquisition_type=acquisition_type,
@@ -456,6 +489,8 @@ def add_goat(request):
     return render(request, "api/add_goat.html", {
         "owners": owners,
         "sheds": sheds,
+        "sire_choices": sire_choices,
+        "dam_choices": dam_choices,
         "today": timezone.localdate(),
     })
 
@@ -463,7 +498,10 @@ def add_goat(request):
 @login_required
 def goat_detail(request, goat_id):
     goat = get_object_or_404(
-        Goat.objects.select_related("owner", "shed"),
+        Goat.objects.select_related(
+            "owner", "shed", "sire", "dam",
+            "sire__sire", "sire__dam", "dam__sire", "dam__dam",
+        ),
         pk=goat_id,
     )
 
@@ -483,6 +521,42 @@ def goat_detail(request, goat_id):
     current_weight = goat.current_weight_kg or ZERO
     weight_gain = current_weight - purchase_weight
 
+    full_siblings = Goat.objects.none()
+    half_siblings = Goat.objects.none()
+    if goat.sire_id and goat.dam_id:
+        full_siblings = Goat.objects.filter(
+            sire_id=goat.sire_id,
+            dam_id=goat.dam_id,
+        ).exclude(pk=goat.pk).order_by("goat_code")
+        half_siblings = Goat.objects.filter(
+            Q(sire_id=goat.sire_id) | Q(dam_id=goat.dam_id)
+        ).exclude(pk=goat.pk).exclude(
+            sire_id=goat.sire_id,
+            dam_id=goat.dam_id,
+        ).order_by("goat_code")
+    elif goat.sire_id:
+        half_siblings = Goat.objects.filter(sire_id=goat.sire_id).exclude(pk=goat.pk).order_by("goat_code")
+    elif goat.dam_id:
+        half_siblings = Goat.objects.filter(dam_id=goat.dam_id).exclude(pk=goat.pk).order_by("goat_code")
+
+    offspring = Goat.objects.filter(
+        Q(sire_id=goat.id) | Q(dam_id=goat.id)
+    ).order_by("goat_code")
+
+    if goat.sex == "female":
+        breeding_records = goat.breeding_records_as_doe.select_related("buck").all()
+    else:
+        breeding_records = goat.breeding_records_as_buck.select_related("doe").all()
+
+    pedigree = {
+        "sire": goat.sire,
+        "dam": goat.dam,
+        "paternal_grandsire": goat.sire.sire if goat.sire_id else None,
+        "paternal_granddam": goat.sire.dam if goat.sire_id else None,
+        "maternal_grandsire": goat.dam.sire if goat.dam_id else None,
+        "maternal_granddam": goat.dam.dam if goat.dam_id else None,
+    }
+
     return render(request, "api/goat_detail.html", {
         "goat": goat,
         "weight_records": weight_records,
@@ -490,6 +564,11 @@ def goat_detail(request, goat_id):
         "weight_gain": weight_gain,
         "finance": finance,
         "cost_allocations": cost_allocations,
+        "pedigree": pedigree,
+        "full_siblings": full_siblings,
+        "half_siblings": half_siblings,
+        "offspring": offspring,
+        "breeding_records": breeding_records,
         "is_admin": _is_admin(request.user),
     })
 
@@ -929,3 +1008,259 @@ def record_goat_account_payment(request, owner_id):
     owner_name = owner.get_full_name().strip() or owner.username
     messages.success(request, f"Goat account payment of Rs {amount:,.2f} recorded for {owner_name}.")
     return redirect("goat_account_detail", owner_id=owner.id)
+
+
+@login_required
+def goat_breeding_compatibility(request):
+    if not _is_admin(request.user):
+        return JsonResponse({"error": "Admin access required."}, status=403)
+
+    doe_id = request.GET.get("doe_id")
+    buck_id = request.GET.get("buck_id")
+    if not doe_id or not buck_id:
+        return JsonResponse({
+            "risk": "unknown",
+            "label": "Select Doe and Buck",
+            "details": "Choose both goats to check the relationship.",
+            "blocked": False,
+        })
+
+    doe = get_object_or_404(Goat, pk=doe_id, sex="female")
+    buck = get_object_or_404(Goat, pk=buck_id, sex="male")
+    check = check_goat_relationship(doe, buck)
+    return JsonResponse({
+        "risk": check["risk"],
+        "label": check["label"],
+        "details": check["details"],
+        "blocked": check["risk"] == "blocked",
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def goat_breeding(request):
+    if not _is_admin(request.user):
+        messages.error(request, "Only Admin can manage goat breeding.")
+        return redirect("goat_dashboard")
+
+    does = Goat.objects.filter(sex="female", status="active").select_related("sire", "dam").order_by("goat_code")
+    bucks = Goat.objects.filter(sex="male", status="active").select_related("sire", "dam").order_by("goat_code")
+
+    if request.method == "POST":
+        doe = get_object_or_404(does, pk=request.POST.get("doe_id"))
+        buck = get_object_or_404(bucks, pk=request.POST.get("buck_id"))
+        mating_date = request.POST.get("mating_date") or timezone.localdate()
+        notes = (request.POST.get("notes") or "").strip()
+        check = check_goat_relationship(doe, buck)
+
+        if check["risk"] == "blocked":
+            messages.error(request, f"Breeding blocked: {check['label']}")
+            return redirect("goat_breeding")
+
+        if check["risk"] in {"warning", "unknown"} and request.POST.get("acknowledge_risk") != "yes":
+            messages.error(request, "Please review and acknowledge the pedigree warning before saving this mating.")
+            return redirect("goat_breeding")
+
+        if GoatBreedingRecord.objects.filter(doe=doe, status__in=["mated", "pregnant"]).exists():
+            messages.error(request, f"{doe.goat_code} already has an active mating/pregnancy record.")
+            return redirect("goat_breeding")
+
+        record = GoatBreedingRecord(
+            doe=doe,
+            buck=buck,
+            mating_date=mating_date,
+            status="mated",
+            relationship_risk=check["risk"],
+            relationship_label=check["label"],
+            relationship_details=check["details"],
+            notes=notes,
+            created_by=request.user,
+        )
+        record.full_clean()
+        record.save()
+        messages.success(request, f"Breeding recorded: {doe.goat_code} × {buck.goat_code}.")
+        return redirect("goat_breeding")
+
+    records = (
+        GoatBreedingRecord.objects
+        .select_related("doe", "buck", "created_by")
+        .prefetch_related("kidding_record__kids")
+        .all()
+    )
+
+    return render(request, "api/goat_breeding.html", {
+        "does": does,
+        "bucks": bucks,
+        "records": records,
+        "today": timezone.localdate(),
+    })
+
+
+@login_required
+@require_POST
+def update_goat_breeding_status(request, breeding_id):
+    if not _is_admin(request.user):
+        messages.error(request, "Only Admin can update breeding records.")
+        return redirect("goat_dashboard")
+
+    record = get_object_or_404(GoatBreedingRecord, pk=breeding_id)
+    new_status = request.POST.get("status")
+    if new_status not in {"mated", "pregnant", "failed", "cancelled"}:
+        messages.error(request, "Invalid breeding status.")
+        return redirect("goat_breeding")
+
+    record.status = new_status
+    record.save(update_fields=["status", "updated_at"])
+    messages.success(request, f"Breeding status updated to {record.get_status_display()}.")
+    return redirect("goat_breeding")
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def record_goat_kidding(request, breeding_id):
+    if not _is_admin(request.user):
+        messages.error(request, "Only Admin can record kidding.")
+        return redirect("goat_dashboard")
+
+    breeding = get_object_or_404(
+        GoatBreedingRecord.objects.select_related("doe", "buck", "doe__shed", "doe__owner"),
+        pk=breeding_id,
+    )
+
+    if hasattr(breeding, "kidding_record"):
+        messages.info(request, "Kidding has already been recorded for this breeding.")
+        return redirect("goat_breeding")
+
+    owners = _goat_owner_choices()
+
+    if request.method == "POST":
+        try:
+            kid_count = int(request.POST.get("kid_count") or "1")
+        except ValueError:
+            kid_count = 1
+        if kid_count < 1 or kid_count > 5:
+            messages.error(request, "Kid count must be between 1 and 5.")
+            return redirect("record_goat_kidding", breeding_id=breeding.id)
+
+        kidding_date = request.POST.get("kidding_date") or timezone.localdate()
+        notes = (request.POST.get("notes") or "").strip()
+
+        created_kids = []
+        try:
+            with transaction.atomic():
+                kidding = GoatKiddingRecord.objects.create(
+                    breeding_record=breeding,
+                    kidding_date=kidding_date,
+                    notes=notes,
+                    recorded_by=request.user,
+                )
+
+                for index in range(1, kid_count + 1):
+                    sex = request.POST.get(f"kid_{index}_sex")
+                    if sex not in {"male", "female"}:
+                        raise ValueError(f"Select sex for Kid {index}.")
+
+                    owner_id = request.POST.get(f"kid_{index}_owner_id") or breeding.doe.owner_id
+                    owner = get_object_or_404(owners, pk=owner_id)
+                    name = (request.POST.get(f"kid_{index}_name") or "").strip()
+                    breed = (request.POST.get(f"kid_{index}_breed") or breeding.doe.breed or breeding.buck.breed or "").strip()
+                    weight_raw = request.POST.get(f"kid_{index}_weight")
+                    birth_weight = None
+                    if weight_raw:
+                        birth_weight = _money(weight_raw)
+                        if birth_weight <= ZERO:
+                            raise ValueError(f"Birth weight for Kid {index} must be greater than zero.")
+
+                    kid = Goat.objects.create(
+                        name=name,
+                        breed=breed,
+                        sex=sex,
+                        owner=owner,
+                        sire=breeding.buck,
+                        dam=breeding.doe,
+                        shed=breeding.doe.shed,
+                        shed_label=breeding.doe.location_name,
+                        acquisition_type="born_on_farm",
+                        purchase_date=kidding_date,
+                        date_of_birth=kidding_date,
+                        purchase_cost=ZERO,
+                        purchase_weight_kg=birth_weight,
+                        status="active",
+                        notes=f"Born from breeding {breeding.doe.goat_code} × {breeding.buck.goat_code}." + (f" {notes}" if notes else ""),
+                        created_by=request.user,
+                    )
+                    if birth_weight is not None:
+                        GoatWeightRecord.objects.create(
+                            goat=kid,
+                            record_date=kidding_date,
+                            weight_kg=birth_weight,
+                            notes="Birth weight",
+                            recorded_by=request.user,
+                        )
+                    kidding.kids.add(kid)
+                    created_kids.append(kid)
+
+                breeding.status = "kidded"
+                breeding.save(update_fields=["status", "updated_at"])
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            messages.error(request, str(exc))
+            return redirect("record_goat_kidding", breeding_id=breeding.id)
+
+        codes = ", ".join(kid.goat_code for kid in created_kids)
+        messages.success(request, f"Kidding recorded. New kids: {codes}.")
+        return redirect("goat_breeding")
+
+    return render(request, "api/goat_kidding.html", {
+        "breeding": breeding,
+        "owners": owners,
+        "today": timezone.localdate(),
+        "default_breed": breeding.doe.breed or breeding.buck.breed,
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_goat_pedigree(request, goat_id):
+    if not _is_admin(request.user):
+        messages.error(request, "Only Admin can edit goat pedigree.")
+        return redirect("goat_dashboard")
+
+    goat = get_object_or_404(Goat.objects.select_related("sire", "dam"), pk=goat_id)
+    sire_choices = Goat.objects.filter(sex="male").exclude(pk=goat.pk).order_by("goat_code")
+    dam_choices = Goat.objects.filter(sex="female").exclude(pk=goat.pk).order_by("goat_code")
+
+    if request.method == "POST":
+        sire_id = request.POST.get("sire_id") or None
+        dam_id = request.POST.get("dam_id") or None
+        sire_external = (request.POST.get("sire_external") or "").strip()
+        dam_external = (request.POST.get("dam_external") or "").strip()
+
+        sire = get_object_or_404(sire_choices, pk=sire_id) if sire_id else None
+        dam = get_object_or_404(dam_choices, pk=dam_id) if dam_id else None
+
+        if sire and goat.id in goat_ancestor_map(sire, max_generations=8):
+            messages.error(request, "That sire is a descendant of this goat and would create a pedigree cycle.")
+            return redirect("edit_goat_pedigree", goat_id=goat.id)
+        if dam and goat.id in goat_ancestor_map(dam, max_generations=8):
+            messages.error(request, "That dam is a descendant of this goat and would create a pedigree cycle.")
+            return redirect("edit_goat_pedigree", goat_id=goat.id)
+
+        goat.sire = sire
+        goat.dam = dam
+        goat.sire_external = "" if sire else sire_external
+        goat.dam_external = "" if dam else dam_external
+        try:
+            goat.full_clean()
+            goat.save(update_fields=["sire", "dam", "sire_external", "dam_external", "updated_at"])
+        except Exception as exc:
+            messages.error(request, f"Pedigree could not be saved: {exc}")
+            return redirect("edit_goat_pedigree", goat_id=goat.id)
+
+        messages.success(request, f"Pedigree updated for {goat.goat_code}.")
+        return redirect("goat_detail", goat_id=goat.id)
+
+    return render(request, "api/edit_goat_pedigree.html", {
+        "goat": goat,
+        "sire_choices": sire_choices,
+        "dam_choices": dam_choices,
+    })

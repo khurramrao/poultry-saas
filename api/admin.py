@@ -14,7 +14,7 @@ from api.models.sensor import (
 from api.models.temperature import TemperatureRule
 from api.models.sales import SaleRecord, Expense, ChickCostEntry
 from api.models.eggs import EggProductionEntry, EggSale
-from api.models.goats import Goat, GoatWeightRecord, GoatCostEntry, GoatCostAllocation, GoatSale, GoatAccountPayment
+from api.models.goats import Goat, GoatWeightRecord, GoatCostEntry, GoatCostAllocation, GoatSale, GoatAccountPayment, GoatBreedingRecord, GoatKiddingRecord
 
 
 
@@ -255,6 +255,8 @@ class GoatAdmin(admin.ModelAdmin):
         "breed",
         "sex",
         "owner",
+        "sire",
+        "dam",
         "shed",
         "purchase_date",
         "purchase_cost",
@@ -268,6 +270,10 @@ class GoatAdmin(admin.ModelAdmin):
         "owner__username",
         "owner__first_name",
         "owner__last_name",
+        "sire__goat_code",
+        "dam__goat_code",
+        "sire_external",
+        "dam_external",
     )
     ordering = ("goat_code",)
 
@@ -307,3 +313,43 @@ class GoatAccountPaymentAdmin(admin.ModelAdmin):
     list_filter = ("payment_method", "payment_date")
     search_fields = ("owner__username", "owner__first_name", "owner__last_name", "reference")
 
+
+
+@admin.register(GoatBreedingRecord)
+class GoatBreedingRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "mating_date",
+        "doe",
+        "buck",
+        "status",
+        "relationship_risk",
+        "expected_kidding_date",
+        "created_by",
+    )
+    list_filter = ("status", "relationship_risk", "mating_date")
+    search_fields = (
+        "doe__goat_code",
+        "doe__name",
+        "buck__goat_code",
+        "buck__name",
+        "relationship_label",
+    )
+    readonly_fields = ("relationship_risk", "relationship_label", "relationship_details")
+    ordering = ("-mating_date", "-id")
+
+
+@admin.register(GoatKiddingRecord)
+class GoatKiddingRecordAdmin(admin.ModelAdmin):
+    list_display = ("kidding_date", "breeding_record", "kid_count_display", "recorded_by")
+    list_filter = ("kidding_date",)
+    search_fields = (
+        "breeding_record__doe__goat_code",
+        "breeding_record__buck__goat_code",
+        "kids__goat_code",
+    )
+    filter_horizontal = ("kids",)
+    ordering = ("-kidding_date", "-id")
+
+    @admin.display(description="Kids")
+    def kid_count_display(self, obj):
+        return obj.kids.count()

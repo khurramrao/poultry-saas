@@ -10,4 +10,7 @@ from .goats import (
     GoatCostAllocation,
     GoatSale,
     GoatAccountPayment,
+    GoatBreedingRecord,
+    GoatKiddingRecord,
+    check_goat_relationship,
 )
