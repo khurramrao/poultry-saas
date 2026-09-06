@@ -1,0 +1,71 @@
+{% extends "api/base_dashboard.html" %}
+{% block title %}Edit Age & Dates | {{ goat.goat_code }}{% endblock %}
+{% block extra_css %}
+<style>
+.age-page{max-width:850px;margin:0 auto}
+.age-head,.age-panel{background:#fff;border:1px solid #dfe8f3;border-radius:17px;margin-bottom:16px;overflow:hidden}
+.age-head{padding:20px 22px;display:flex;justify-content:space-between;align-items:center;gap:14px}
+.age-head h1{margin:0 0 5px;color:#123f6c;font-size:24px}
+.age-head p{margin:0;color:#718095;font-size:13px;line-height:1.5}
+.age-body{padding:22px}.age-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
+.age-field label{display:block;margin-bottom:7px;font-size:13px;font-weight:800;color:#30485f}
+.date-input{width:100%;height:47px;box-sizing:border-box;padding:0 12px;border:1px solid #ccd7e4;border-radius:11px;background:#fff;color:#17314d;font-size:15px}
+.date-input:focus{outline:none;border-color:#2372d4;box-shadow:0 0 0 3px rgba(35,114,212,.11)}
+.age-help{margin-top:7px;color:#718095;font-size:12px;line-height:1.55}
+.age-check{display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid #dfe8f3;border-radius:12px;background:#f8fbff;margin-top:18px}
+.age-check input{width:18px;height:18px;flex:none;margin:1px 0 0}
+.age-check label{font-size:13px;font-weight:800;color:#30485f;cursor:pointer}
+.age-note{margin-top:18px;padding:13px 15px;border-radius:12px;background:#fff8e9;border:1px solid #f3dfb5;color:#785711;font-size:12px;line-height:1.65}
+.age-error{color:#b42318;font-size:12px;margin-top:6px}.age-errors{padding:12px 15px;margin-bottom:16px;background:#fff1f0;border:1px solid #f2c5c1;border-radius:11px;color:#a42d25;font-size:12px;line-height:1.5}
+.age-actions{display:flex;justify-content:flex-end;gap:10px;padding:17px 22px;border-top:1px solid #edf2f6;background:#fbfcfe}
+.age-btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;border:0;border-radius:11px;text-decoration:none;font-size:13px;font-weight:800;cursor:pointer}
+.age-btn.secondary{background:#eaf1f8;color:#274763}.age-btn.primary{background:#11823e;color:#fff}
+@media(max-width:650px){.age-head{flex-direction:column;align-items:stretch;padding:17px}.age-grid{grid-template-columns:1fr}.age-body{padding:17px}.age-actions{flex-direction:column-reverse;padding:17px}.age-btn{width:100%}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="age-page">
+  <section class="age-head">
+    <div>
+      <h1><i class="fa-regular fa-calendar"></i> Edit Age & Dates</h1>
+      <p>{{ goat.goat_code }}{% if goat.name %} · {{ goat.name }}{% endif %} — {{ goat.get_acquisition_type_display }}</p>
+    </div>
+    <a class="age-btn secondary" href="{% url 'goat_detail' goat.id %}"><i class="fa-solid fa-arrow-left"></i> Goat Detail</a>
+  </section>
+  <form method="post" class="age-panel">
+    {% csrf_token %}
+    <div class="age-body">
+      {% if form.non_field_errors %}<div class="age-errors">{{ form.non_field_errors }}</div>{% endif %}
+      <div class="age-grid">
+        <div class="age-field">
+          <label for="{{ form.purchase_date.id_for_label }}">Purchase / Entry Date</label>
+          {{ form.purchase_date }}
+          {% for error in form.purchase_date.errors %}<div class="age-error">{{ error }}</div>{% endfor %}
+          <div class="age-help">The date this goat entered RayNoor. Days on Farm is calculated from this date.</div>
+        </div>
+        <div class="age-field">
+          <label for="{{ form.date_of_birth.id_for_label }}">Date of Birth</label>
+          {{ form.date_of_birth }}
+          {% for error in form.date_of_birth.errors %}<div class="age-error">{{ error }}</div>{% endfor %}
+          <div class="age-help">Enter the actual birth date if known. Leave blank if unknown, or enter an informed estimate.</div>
+        </div>
+      </div>
+      <div class="age-check">
+        {{ form.date_of_birth_is_estimated }}
+        <div>
+          <label for="{{ form.date_of_birth_is_estimated.id_for_label }}">Date of birth is estimated</label>
+          {% for error in form.date_of_birth_is_estimated.errors %}<div class="age-error">{{ error }}</div>{% endfor %}
+          <div class="age-help">Tick this for an approximate birth date provided by the seller or estimated by a veterinarian.</div>
+        </div>
+      </div>
+      <div class="age-note">
+        <strong>For goats bought from the mandi:</strong> if their exact birth date is unknown, leave it blank or record an informed estimate. Do not use the purchase date as their birth date. For goats born at RayNoor, use the actual kidding date. These fields do not change ownership, cost, weight, or breeding history.
+      </div>
+    </div>
+    <div class="age-actions">
+      <a class="age-btn secondary" href="{% url 'goat_detail' goat.id %}">Cancel</a>
+      <button class="age-btn primary" type="submit"><i class="fa-solid fa-check"></i> Save Dates</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

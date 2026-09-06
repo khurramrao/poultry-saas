@@ -24,6 +24,7 @@ from api.models.goats import (
     goat_ancestor_map,
 )
 from api.models.sensor import Device, SensorData, Shed
+from api.services.goat_age import goat_age_context, parse_goat_dates
 
 
 ZERO = Decimal("0.00")
@@ -400,8 +401,13 @@ def add_goat(request):
         breed = (request.POST.get("breed") or "").strip()
         sex = request.POST.get("sex")
         acquisition_type = request.POST.get("acquisition_type") or "purchased"
-        purchase_date = request.POST.get("purchase_date") or timezone.localdate()
-        date_of_birth = request.POST.get("date_of_birth") or None
+        try:
+            purchase_date, date_of_birth, dob_is_estimated = parse_goat_dates(
+                request.POST, acquisition_type
+            )
+        except ValidationError as exc:
+            messages.error(request, str(exc))
+            return redirect("add_goat")
         notes = (request.POST.get("notes") or "").strip()
         sire_id = request.POST.get("sire_id") or None
         dam_id = request.POST.get("dam_id") or None
@@ -467,6 +473,7 @@ def add_goat(request):
             acquisition_type=acquisition_type,
             purchase_date=purchase_date,
             date_of_birth=date_of_birth,
+            date_of_birth_is_estimated=dob_is_estimated,
             purchase_cost=purchase_cost,
             purchase_weight_kg=purchase_weight,
             status="active",
@@ -559,6 +566,7 @@ def goat_detail(request, goat_id):
 
     return render(request, "api/goat_detail.html", {
         "goat": goat,
+        **goat_age_context(goat),
         "weight_records": weight_records,
         "current_weight": current_weight,
         "weight_gain": weight_gain,

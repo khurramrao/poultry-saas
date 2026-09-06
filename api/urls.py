@@ -1,5 +1,5 @@
 from django.urls import path
-from api.views import sensor, camera, sales, logs, finance_tracker, investor_accounts, eggs, goats
+from api.views import sensor, camera, sales, logs, finance_tracker, investor_accounts, eggs, goats, goat_age
 
 
 urlpatterns = [
@@ -58,6 +58,7 @@ path(
     path("goats/<int:goat_id>/", goats.goat_detail, name="goat_detail"),
     path("goats/<int:goat_id>/weight/add/", goats.add_goat_weight, name="add_goat_weight"),
     path("goats/<int:goat_id>/pedigree/", goats.edit_goat_pedigree, name="edit_goat_pedigree"),
+    path("goats/<int:goat_id>/dates/", goat_age.edit_goat_dates, name="edit_goat_dates"),
     path("goats/breeding/", goats.goat_breeding, name="goat_breeding"),
     path("goats/breeding/compatibility/", goats.goat_breeding_compatibility, name="goat_breeding_compatibility"),
     path("goats/breeding/<int:breeding_id>/status/", goats.update_goat_breeding_status, name="update_goat_breeding_status"),

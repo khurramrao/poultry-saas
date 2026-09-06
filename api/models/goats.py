@@ -105,6 +105,10 @@ class Goat(models.Model):
 
     purchase_date = models.DateField(default=timezone.localdate)
     date_of_birth = models.DateField(blank=True, null=True)
+    date_of_birth_is_estimated = models.BooleanField(
+        default=False,
+        help_text="Tick when the date of birth is estimated rather than known exactly.",
+    )
 
     purchase_cost = models.DecimalField(
         max_digits=12,
@@ -214,6 +218,28 @@ class Goat(models.Model):
                 errors["dam"] = "This dam is a descendant of the goat and would create a pedigree cycle."
         if self.sire_id and self.dam_id and self.sire_id == self.dam_id:
             errors["dam"] = "Sire and dam cannot be the same goat."
+        today = timezone.localdate()
+        if self.purchase_date and self.purchase_date > today:
+            errors["purchase_date"] = "Acquisition date cannot be in the future."
+        if self.date_of_birth and self.date_of_birth > today:
+            errors["date_of_birth"] = "Date of birth cannot be in the future."
+        if self.date_of_birth and self.purchase_date and self.date_of_birth > self.purchase_date:
+            errors["date_of_birth"] = "Date of birth cannot be after acquisition."
+        if self.date_of_birth_is_estimated and not self.date_of_birth:
+            errors["date_of_birth"] = "Enter an estimated date of birth or untick Estimated."
+        if self.acquisition_type == "born_on_farm":
+            if not self.date_of_birth:
+                errors["date_of_birth"] = "A farm-born goat requires a date of birth."
+            elif self.purchase_date and self.date_of_birth != self.purchase_date:
+                errors["purchase_date"] = "For a farm-born goat, entry date must match birth date."
+            if self.date_of_birth_is_estimated:
+                errors["date_of_birth_is_estimated"] = "A recorded farm birth must use its actual birth date."
+        if self.date_of_birth and self.sire_id and self.sire.date_of_birth:
+            if self.sire.date_of_birth >= self.date_of_birth:
+                errors["date_of_birth"] = "The goat must be born after its recorded father."
+        if self.date_of_birth and self.dam_id and self.dam.date_of_birth:
+            if self.dam.date_of_birth >= self.date_of_birth:
+                errors["date_of_birth"] = "The goat must be born after its recorded mother."
         if errors:
             raise ValidationError(errors)
 
