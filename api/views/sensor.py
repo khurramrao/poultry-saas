@@ -972,6 +972,9 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
         goat_visible = Goat.objects.none()
 
     goat_active_count = goat_visible.count()
+    goat_male_count = goat_visible.filter(sex="male").count()
+    goat_female_count = goat_visible.filter(sex="female").count()
+
     goat_total_live_weight = Decimal("0.00")
     goat_total_cost_kpi = Decimal("0.00")
 
@@ -1086,6 +1089,8 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
         "sold_percentage": sold_percentage,
         "total_sales_kpi": total_sales_kpi,
         "goat_active_count": goat_active_count,
+        "goat_male_count": goat_male_count,
+        "goat_female_count": goat_female_count,
         "goat_total_live_weight": goat_total_live_weight,
         "goat_total_cost_kpi": goat_total_cost_kpi,
         "goat_break_even_per_kg": goat_break_even_per_kg,
