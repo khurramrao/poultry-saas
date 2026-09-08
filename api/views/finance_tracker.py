@@ -7,6 +7,7 @@ from django.views.decorators.http import require_http_methods
 
 from decimal import Decimal
 import math
+import re
 
 from api.models.sensor import Batch, MortalityRecord
 from api.models.sales import ChickCostEntry, SaleRecord, Expense
@@ -35,6 +36,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
+from api.services.finance_reconciliation import build_finance_data, build_report_position
 from django.contrib.staticfiles import finders
 from reportlab.platypus import Image
 
@@ -43,869 +45,13 @@ from reportlab.platypus import Image
 
 
 @login_required
+@login_required
 def finance_tracker(request):
-    """
-    Finance tracker with reconciled whole-bird ownership allocation.
+    if not (request.user.is_superuser or request.user.is_staff or hasattr(request.user, "investor_profile")):
+        return redirect("dashboard")
+    context = build_finance_data(request.user, request.GET.get("status", "all"))
+    return render(request, "api/finance_tracker.html", context)
 
-    Financial values stay as Decimal values internally. The template rounds
-    money to whole rupees for display, while calculations retain paisa-level
-    precision.
-    """
-
-    is_admin = request.user.is_superuser or request.user.is_staff
-    status_filter = (request.GET.get("status") or "all").lower()
-
-    if status_filter not in {"all", "active", "closed"}:
-        status_filter = "all"
-
-    # =========================================================
-    # SMALL FINANCE HELPERS
-    # =========================================================
-
-    money_unit = Decimal("0.01")
-    percent_unit = Decimal("0.1")
-    zero_money = Decimal("0.00")
-
-    def money(value):
-        if value in (None, ""):
-            value = 0
-        return Decimal(value).quantize(money_unit)
-
-    def money_share(value, ratio):
-        return (money(value) * ratio).quantize(money_unit)
-
-    def percentage(ratio):
-        return (ratio * Decimal("100")).quantize(percent_unit)
-
-    def owner_ratio(start_birds, batch_start_birds):
-        if not batch_start_birds:
-            return Decimal("0")
-        return (
-            Decimal(start_birds)
-            / Decimal(batch_start_birds)
-        )
-
-    def allocate_whole_count(total_count, owners, batch_start_birds):
-        """
-        Allocate an integer bird count proportionally and reconcile the
-        remainder so the owner totals always equal the batch total.
-        """
-        total_count = int(total_count or 0)
-
-        if total_count <= 0 or batch_start_birds <= 0 or not owners:
-            return [0] * len(owners)
-
-        exact_values = []
-        allocated_values = []
-
-        for owner in owners:
-            exact_value = (
-                Decimal(total_count)
-                * Decimal(owner["start_birds"])
-                / Decimal(batch_start_birds)
-            )
-            exact_values.append(exact_value)
-            allocated_values.append(int(exact_value))
-
-        remaining = total_count - sum(allocated_values)
-
-        # Largest-remainder method. For exact ties, keep owner order stable
-        # (Admin/Farm is first, then investors by username).
-        allocation_order = sorted(
-            range(len(owners)),
-            key=lambda index: (
-                exact_values[index] - Decimal(allocated_values[index]),
-                owners[index]["start_birds"],
-                -index,
-            ),
-            reverse=True,
-        )
-
-        for index in allocation_order[:remaining]:
-            allocated_values[index] += 1
-
-        return allocated_values
-
-    # =========================================================
-    # GET BATCHES
-    # =========================================================
-
-    if is_admin:
-        batches = Batch.objects.all()
-    else:
-        if not hasattr(request.user, "investor_profile"):
-            return redirect("dashboard")
-
-        investor_batch_ids = InvestorAllocation.objects.filter(
-            investor=request.user.investor_profile
-        ).values_list("batch_id", flat=True)
-
-        batches = Batch.objects.filter(id__in=investor_batch_ids)
-
-    if status_filter == "active":
-        batches = batches.filter(
-            is_active=True,
-            status="active",
-        )
-    elif status_filter == "closed":
-        batches = batches.filter(
-            Q(is_active=False)
-            | Q(status__in=["sold", "closed"])
-        )
-
-    batches = batches.select_related("shed").order_by(
-        "-is_active",
-        "-start_date",
-        "-id",
-    )
-
-    finance_rows = []
-
-    # =========================================================
-    # PAGE OVERVIEW TOTALS
-    # =========================================================
-
-    overview = {
-        "starting_birds": 0,
-        "mortality": 0,
-        "sold": 0,
-        "current_birds": 0,
-        "net_sales": zero_money,
-        "egg_sales": zero_money,
-        "realized_cogs": zero_money,
-        "realized_expenses": zero_money,
-        "net_income": zero_money,
-        "investment": zero_money,
-        "recorded_cogs": zero_money,
-        "recorded_expenses": zero_money,
-        "active_batches": 0,
-    }
-
-    # =========================================================
-    # PROCESS EACH BATCH
-    # =========================================================
-
-    for batch in batches:
-        batch_start_birds = int(batch.bird_count_initial or 0)
-
-        # -----------------------------------------------------
-        # MORTALITY + SALES
-        # -----------------------------------------------------
-
-        total_mortality = int(
-            MortalityRecord.objects.filter(batch=batch).aggregate(
-                total=Sum("count")
-            )["total"]
-            or 0
-        )
-
-        sales_records = list(
-            SaleRecord.objects.filter(batch=batch).order_by(
-                "-sale_date",
-                "-id",
-            )
-        )
-
-        total_sold = sum(int(sale.birds_sold or 0) for sale in sales_records)
-
-        total_sales_revenue = sum(
-            (money(sale.total_amount) for sale in sales_records),
-            zero_money,
-        )
-        gross_sales_revenue = sum(
-            (money(sale.gross_amount) for sale in sales_records),
-            zero_money,
-        )
-        total_discount = sum(
-            (money(sale.discount_amount) for sale in sales_records),
-            zero_money,
-        )
-        total_sale_weight = sum(
-            (Decimal(sale.total_weight_kg or 0) for sale in sales_records),
-            Decimal("0"),
-        )
-
-        average_sale_weight = (
-            (total_sale_weight / Decimal(total_sold)).quantize(
-                Decimal("0.001")
-            )
-            if total_sold > 0
-            else Decimal("0.000")
-        )
-
-        average_sale_rate = (
-            (gross_sales_revenue / total_sale_weight).quantize(money_unit)
-            if total_sale_weight > 0
-            else zero_money
-        )
-
-        # -----------------------------------------------------
-        # EGG PRODUCTION + EGG SALES (LAYER SHED ONLY)
-        # -----------------------------------------------------
-
-        is_layer_batch = (
-            getattr(batch.shed, "shed_type", "") == "layer"
-        )
-
-        egg_sales_records = []
-        eggs_collected = 0
-        damaged_eggs = 0
-        usable_eggs = 0
-        eggs_sold = 0
-        egg_stock = 0
-        egg_gross_sales_revenue = zero_money
-        egg_discount = zero_money
-        egg_net_sales = zero_money
-        egg_sale_history = []
-
-        if is_layer_batch:
-            egg_production = EggProductionEntry.objects.filter(
-                batch=batch
-            ).aggregate(
-                collected=Sum("eggs_collected"),
-                damaged=Sum("damaged_eggs"),
-            )
-
-            eggs_collected = int(egg_production["collected"] or 0)
-            damaged_eggs = int(egg_production["damaged"] or 0)
-            usable_eggs = max(eggs_collected - damaged_eggs, 0)
-
-            egg_sales_records = list(
-                EggSale.objects.filter(batch=batch).order_by(
-                    "-sale_date",
-                    "-id",
-                )
-            )
-
-            eggs_sold = sum(
-                int(sale.eggs_sold or 0)
-                for sale in egg_sales_records
-            )
-            egg_stock = max(usable_eggs - eggs_sold, 0)
-
-            egg_gross_sales_revenue = money(
-                sum(
-                    (money(sale.gross_amount) for sale in egg_sales_records),
-                    zero_money,
-                )
-            )
-            egg_discount = money(
-                sum(
-                    (money(sale.discount_amount) for sale in egg_sales_records),
-                    zero_money,
-                )
-            )
-            egg_net_sales = money(
-                sum(
-                    (money(sale.total_amount) for sale in egg_sales_records),
-                    zero_money,
-                )
-            )
-
-            egg_sale_history = [
-                {
-                    "sale_date": sale.sale_date,
-                    "buyer_name": sale.buyer_name,
-                    "eggs_sold": int(sale.eggs_sold or 0),
-                    "rate_per_egg": money(sale.rate_per_egg),
-                    "gross_amount": money(sale.gross_amount),
-                    "discount_amount": money(sale.discount_amount),
-                    "total_amount": money(sale.total_amount),
-                    "payment_method": sale.get_payment_method_display(),
-                    "notes": sale.notes,
-                }
-                for sale in egg_sales_records
-            ]
-
-        current_birds = max(
-            batch_start_birds - total_mortality - total_sold,
-            0,
-        )
-
-        # -----------------------------------------------------
-        # ALL EXPENSES
-        # Every batch expense is part of COGS: fuel, labor, electricity,
-        # transport, maintenance, rent, internet, service charges, misc, etc.
-        # -----------------------------------------------------
-
-        expenses = Expense.objects.filter(batch=batch)
-
-        total_expenses = money(
-            expenses.aggregate(total=Sum("amount"))["total"] or 0
-        )
-
-        expense_history = [
-            {
-                "expense_date": expense.expense_date,
-                "category": expense.get_category_display(),
-                "description": expense.description,
-                "amount": money(expense.amount),
-            }
-            for expense in expenses.order_by(
-                "-expense_date",
-                "-id",
-            )
-        ]
-
-        # -----------------------------------------------------
-        # RECORDED COGS
-        # -----------------------------------------------------
-
-        chick_cost = money(
-            ChickCostEntry.objects.filter(batch=batch).aggregate(
-                total=Sum("chick_cost")
-            )["total"]
-            or 0
-        )
-        carriage_cost = money(
-            ChickCostEntry.objects.filter(batch=batch).aggregate(
-                total=Sum("carriage_cost")
-            )["total"]
-            or 0
-        )
-        feed_entries = list(
-            FeedEntry.objects.filter(batch=batch).order_by(
-                "-entry_date",
-                "-id",
-            )
-        )
-
-        feed_cost = money(
-            sum(
-                (money(entry.amount) for entry in feed_entries),
-                zero_money,
-            )
-        )
-
-        feed_history = [
-            {
-                "entry_date": entry.entry_date,
-                "amount": money(entry.amount),
-                "notes": entry.notes,
-            }
-            for entry in feed_entries
-        ]
-        medicine_entries = list(
-            MedicineEntry.objects.filter(batch=batch).order_by(
-                "-entry_date",
-                "-id",
-            )
-        )
-
-        medicine_cost = money(
-            sum(
-                (money(entry.amount) for entry in medicine_entries),
-                zero_money,
-            )
-        )
-
-        medicine_history = [
-            {
-                "entry_date": entry.entry_date,
-                "medicine_name": entry.medicine_name,
-                "medicine_type": entry.medicine_type,
-                "medicine_type_display": entry.get_medicine_type_display(),
-                "amount": money(entry.amount),
-                "notes": entry.notes,
-            }
-            for entry in medicine_entries
-        ]
-
-        total_cogs = money(
-            chick_cost
-            + carriage_cost
-            + feed_cost
-            + medicine_cost
-            + total_expenses
-        )
-
-        # -----------------------------------------------------
-        # LAYER FINANCIAL POSITION TO DATE
-        # -----------------------------------------------------
-
-        total_batch_revenue = money(
-            total_sales_revenue + egg_net_sales
-        )
-
-        layer_profit_to_date = money(
-            total_batch_revenue - total_cogs
-        )
-
-        layer_roi_to_date = Decimal("0.0")
-        if total_cogs > 0:
-            layer_roi_to_date = (
-                layer_profit_to_date
-                / total_cogs
-                * Decimal("100")
-            ).quantize(percent_unit)
-
-        # -----------------------------------------------------
-        # REALIZED POSITION
-        # -----------------------------------------------------
-
-        batch_locked_cogs_total = money(
-            sum(
-                (money(sale.cogs_allocated) for sale in sales_records),
-                zero_money,
-            )
-        )
-
-        # All expenses are now part of COGS.  Realized profit therefore
-        # subtracts only the COGS locked to birds at the time of each sale.
-        batch_realized_expenses = zero_money
-
-        batch_net_income = money(
-            total_sales_revenue
-            - batch_locked_cogs_total
-        )
-
-        batch_total_investment = money(
-            batch_locked_cogs_total
-        )
-
-        batch_roi = Decimal("0.0")
-        if batch_total_investment > 0:
-            batch_roi = (
-                batch_net_income
-                / batch_total_investment
-                * Decimal("100")
-            ).quantize(percent_unit)
-
-        remaining_cogs = max(
-            total_cogs - batch_locked_cogs_total,
-            zero_money,
-        )
-
-        # Current cost carried by each live bird.
-        #
-        # Before any sale:
-        #   Total COGS / current live birds
-        #
-        # After sales have started, already-locked sale COGS is removed
-        # first so sold birds are not charged again to the remaining flock.
-        cost_per_live_bird = zero_money
-        if current_birds > 0:
-            cost_per_live_bird = money(
-                remaining_cogs / Decimal(current_birds)
-            )
-
-        remaining_expenses = zero_money
-
-        # -----------------------------------------------------
-        # OWNERSHIP INPUTS
-        # -----------------------------------------------------
-
-        allocations = list(
-            InvestorAllocation.objects.filter(batch=batch)
-            .select_related("investor__user")
-            .order_by("investor__user__username", "id")
-        )
-
-        allocated_investor_birds = sum(
-            int(allocation.birds_owned or 0)
-            for allocation in allocations
-        )
-
-        admin_birds = max(
-            batch_start_birds - allocated_investor_birds,
-            0,
-        )
-
-        all_owner_rows = []
-
-        if admin_birds > 0:
-            all_owner_rows.append({
-                "kind": "admin",
-                "allocation_id": None,
-                "name": "Admin / Farm",
-                "start_birds": admin_birds,
-                "is_current_user": is_admin,
-            })
-
-        for allocation in allocations:
-            investor_user = allocation.investor.user
-            investor_name = (
-                investor_user.get_full_name().strip()
-                or investor_user.username
-            )
-
-            all_owner_rows.append({
-                "kind": "investor",
-                "allocation_id": allocation.id,
-                "investor_id": allocation.investor_id,
-                "name": investor_name,
-                "start_birds": int(allocation.birds_owned or 0),
-                "is_current_user": (
-                    not is_admin
-                    and hasattr(request.user, "investor_profile")
-                    and allocation.investor_id
-                    == request.user.investor_profile.id
-                ),
-            })
-
-        mortality_allocations = allocate_whole_count(
-            total_mortality,
-            all_owner_rows,
-            batch_start_birds,
-        )
-        sold_allocations = allocate_whole_count(
-            total_sold,
-            all_owner_rows,
-            batch_start_birds,
-        )
-
-        # -----------------------------------------------------
-        # BATCH SALE HISTORY (admin summary)
-        # -----------------------------------------------------
-
-        sale_history = []
-
-        for sale in sales_records:
-            sale_history.append({
-                "sale_date": sale.sale_date,
-                "birds_sold": int(sale.birds_sold or 0),
-                "total_weight_kg": sale.total_weight_kg,
-                "rate_per_kg": money(sale.rate_per_kg),
-                "gross_amount": money(sale.gross_amount),
-                "discount_amount": money(sale.discount_amount),
-                "total_amount": money(sale.total_amount),
-                "cogs_allocated": money(sale.cogs_allocated),
-                "gross_profit": money(
-                    money(sale.total_amount) - money(sale.cogs_allocated)
-                ),
-                "notes": sale.notes,
-            })
-
-        # -----------------------------------------------------
-        # OWNER FINANCE ROWS
-        # -----------------------------------------------------
-
-        for index, owner in enumerate(all_owner_rows):
-            ratio = owner_ratio(owner["start_birds"], batch_start_birds)
-
-            owner["share_ratio"] = ratio
-            owner["percentage"] = percentage(ratio)
-            owner["mortality"] = mortality_allocations[index]
-            owner["sold"] = sold_allocations[index]
-            owner["current_birds"] = max(
-                owner["start_birds"]
-                - owner["mortality"]
-                - owner["sold"],
-                0,
-            )
-            owner["weight_sold"] = (
-                total_sale_weight * ratio
-            ).quantize(Decimal("0.01"))
-
-            owner["gross_revenue"] = money_share(
-                gross_sales_revenue,
-                ratio,
-            )
-            owner["discount_share"] = money_share(
-                total_discount,
-                ratio,
-            )
-            owner["revenue"] = money_share(
-                total_sales_revenue,
-                ratio,
-            )
-
-            owner["egg_gross_revenue"] = money_share(
-                egg_gross_sales_revenue,
-                ratio,
-            )
-            owner["egg_discount_share"] = money_share(
-                egg_discount,
-                ratio,
-            )
-            owner["egg_revenue"] = money_share(
-                egg_net_sales,
-                ratio,
-            )
-            owner["total_revenue"] = money(
-                owner["revenue"] + owner["egg_revenue"]
-            )
-
-            owner["chick_cost"] = money_share(chick_cost, ratio)
-            owner["carriage_cost"] = money_share(carriage_cost, ratio)
-            owner["feed_cost"] = money_share(feed_cost, ratio)
-            owner["medicine_cost"] = money_share(medicine_cost, ratio)
-            owner["expense_share"] = money_share(total_expenses, ratio)
-            owner["recorded_cogs"] = money_share(total_cogs, ratio)
-            owner["locked_cogs"] = money_share(
-                batch_locked_cogs_total,
-                ratio,
-            )
-            owner["remaining_cogs"] = max(
-                owner["recorded_cogs"] - owner["locked_cogs"],
-                zero_money,
-            )
-
-            owner["cost_per_live_bird"] = zero_money
-            if owner["current_birds"] > 0:
-                owner["cost_per_live_bird"] = money(
-                    owner["remaining_cogs"]
-                    / Decimal(owner["current_birds"])
-                )
-
-            owner["realized_expenses"] = zero_money
-            owner["remaining_expenses"] = zero_money
-
-            owner["net_income"] = money(
-                owner["revenue"]
-                - owner["locked_cogs"]
-            )
-            owner["investment"] = money(
-                owner["locked_cogs"]
-            )
-            owner["roi"] = Decimal("0.0")
-
-            if owner["investment"] > 0:
-                owner["roi"] = (
-                    owner["net_income"]
-                    / owner["investment"]
-                    * Decimal("100")
-                ).quantize(percent_unit)
-
-            owner["layer_profit_to_date"] = money(
-                owner["total_revenue"] - owner["recorded_cogs"]
-            )
-            owner["layer_roi_to_date"] = Decimal("0.0")
-
-            if owner["recorded_cogs"] > 0:
-                owner["layer_roi_to_date"] = (
-                    owner["layer_profit_to_date"]
-                    / owner["recorded_cogs"]
-                    * Decimal("100")
-                ).quantize(percent_unit)
-
-            # Owner-level histories.  Feed, medicine and every expense
-            # show the owner's precise ownership share of each entry.
-            owner["sale_history"] = []
-            owner["egg_sale_history"] = []
-            owner["feed_history"] = [
-                {
-                    "entry_date": entry["entry_date"],
-                    "notes": entry["notes"],
-                    "amount": money_share(entry["amount"], ratio),
-                }
-                for entry in feed_history
-            ]
-            owner["medicine_history"] = [
-                {
-                    "entry_date": entry["entry_date"],
-                    "medicine_name": entry["medicine_name"],
-                    "medicine_type_display": entry["medicine_type_display"],
-                    "notes": entry["notes"],
-                    "amount": money_share(entry["amount"], ratio),
-                }
-                for entry in medicine_history
-            ]
-            owner["expense_history"] = [
-                {
-                    "expense_date": entry["expense_date"],
-                    "category": entry["category"],
-                    "description": entry["description"],
-                    "amount": money_share(entry["amount"], ratio),
-                }
-                for entry in expense_history
-            ]
-
-        for sale in sales_records:
-            per_sale_birds = allocate_whole_count(
-                int(sale.birds_sold or 0),
-                all_owner_rows,
-                batch_start_birds,
-            )
-
-            for index, owner in enumerate(all_owner_rows):
-                ratio = owner["share_ratio"]
-                owner_net_revenue = money_share(sale.total_amount, ratio)
-                owner_sale_cogs = money_share(sale.cogs_allocated, ratio)
-
-                owner["sale_history"].append({
-                    "sale_date": sale.sale_date,
-                    "birds_sold": per_sale_birds[index],
-                    "weight_sold": (
-                        Decimal(sale.total_weight_kg or 0) * ratio
-                    ).quantize(Decimal("0.01")),
-                    "rate_per_kg": money(sale.rate_per_kg),
-                    "gross_revenue": money_share(sale.gross_amount, ratio),
-                    "discount": money_share(sale.discount_amount, ratio),
-                    "net_revenue": owner_net_revenue,
-                    "locked_cogs": owner_sale_cogs,
-                    "sale_margin": money(
-                        owner_net_revenue - owner_sale_cogs
-                    ),
-                })
-
-        if is_layer_batch:
-            for egg_sale in egg_sales_records:
-                per_sale_eggs = allocate_whole_count(
-                    int(egg_sale.eggs_sold or 0),
-                    all_owner_rows,
-                    batch_start_birds,
-                )
-
-                for index, owner in enumerate(all_owner_rows):
-                    ratio = owner["share_ratio"]
-                    owner["egg_sale_history"].append({
-                        "sale_date": egg_sale.sale_date,
-                        "buyer_name": egg_sale.buyer_name,
-                        "eggs_sold": per_sale_eggs[index],
-                        "rate_per_egg": money(egg_sale.rate_per_egg),
-                        "gross_revenue": money_share(
-                            egg_sale.gross_amount,
-                            ratio,
-                        ),
-                        "discount": money_share(
-                            egg_sale.discount_amount,
-                            ratio,
-                        ),
-                        "net_revenue": money_share(
-                            egg_sale.total_amount,
-                            ratio,
-                        ),
-                        "payment_method": egg_sale.get_payment_method_display(),
-                        "notes": egg_sale.notes,
-                    })
-
-        # Investor login sees only that investor's ownership row. Admin sees all.
-        if is_admin:
-            visible_owner_rows = all_owner_rows
-        else:
-            visible_owner_rows = [
-                owner
-                for owner in all_owner_rows
-                if owner.get("is_current_user")
-            ]
-
-        current_user_owner = (
-            visible_owner_rows[0]
-            if not is_admin and visible_owner_rows
-            else None
-        )
-
-        # -----------------------------------------------------
-        # OVERVIEW TOTALS
-        # -----------------------------------------------------
-
-        if is_admin:
-            overview["starting_birds"] += batch_start_birds
-            overview["mortality"] += total_mortality
-            overview["sold"] += total_sold
-            overview["current_birds"] += current_birds
-            overview["net_sales"] += total_sales_revenue
-            overview["egg_sales"] += egg_net_sales
-            overview["realized_cogs"] += batch_locked_cogs_total
-            overview["net_income"] += batch_net_income
-            overview["investment"] += batch_total_investment
-            overview["recorded_cogs"] += total_cogs
-            overview["recorded_expenses"] += total_expenses
-        elif current_user_owner:
-            overview["starting_birds"] += current_user_owner["start_birds"]
-            overview["mortality"] += current_user_owner["mortality"]
-            overview["sold"] += current_user_owner["sold"]
-            overview["current_birds"] += current_user_owner["current_birds"]
-            overview["net_sales"] += current_user_owner["revenue"]
-            overview["egg_sales"] += current_user_owner["egg_revenue"]
-            overview["realized_cogs"] += current_user_owner["locked_cogs"]
-            overview["net_income"] += current_user_owner["net_income"]
-            overview["investment"] += current_user_owner["investment"]
-            overview["recorded_cogs"] += current_user_owner["recorded_cogs"]
-            overview["recorded_expenses"] += current_user_owner[
-                "expense_share"
-            ]
-
-        if batch.is_active and batch.status == "active":
-            overview["active_batches"] += 1
-
-        # -----------------------------------------------------
-        # SEND BATCH ROW
-        # -----------------------------------------------------
-
-        finance_rows.append({
-            "batch": batch,
-            "status_display": batch.get_status_display(),
-            "status_key": batch.status,
-            "is_layer_batch": is_layer_batch,
-            "current_birds": current_birds,
-            "total_mortality": total_mortality,
-            "total_sold": total_sold,
-            "gross_sales_revenue": gross_sales_revenue,
-            "total_discount": total_discount,
-            "total_sales_revenue": total_sales_revenue,
-            "total_sale_weight": total_sale_weight.quantize(
-                Decimal("0.01")
-            ),
-            "average_sale_weight": average_sale_weight,
-            "average_sale_rate": average_sale_rate,
-            "eggs_collected": eggs_collected,
-            "damaged_eggs": damaged_eggs,
-            "usable_eggs": usable_eggs,
-            "eggs_sold": eggs_sold,
-            "egg_stock": egg_stock,
-            "egg_gross_sales_revenue": egg_gross_sales_revenue,
-            "egg_discount": egg_discount,
-            "egg_net_sales": egg_net_sales,
-            "total_batch_revenue": total_batch_revenue,
-            "layer_profit_to_date": layer_profit_to_date,
-            "layer_roi_to_date": layer_roi_to_date,
-            "egg_sale_history": egg_sale_history,
-            "chick_cost": chick_cost,
-            "cost_per_live_bird": cost_per_live_bird,
-            "carriage_cost": carriage_cost,
-            "feed_cost": feed_cost,
-            "feed_history": feed_history,
-            "feed_purchase_count": len(feed_history),
-            "medicine_cost": medicine_cost,
-            "medicine_history": medicine_history,
-            "medicine_purchase_count": len(medicine_history),
-            "expense_cost": total_expenses,
-            "expense_history": expense_history,
-            "expense_count": len(expense_history),
-            "total_cogs": total_cogs,
-            "total_expenses": total_expenses,
-            "batch_locked_cogs_total": batch_locked_cogs_total,
-            "batch_realized_expenses": batch_realized_expenses,
-            "remaining_cogs": remaining_cogs,
-            "remaining_expenses": remaining_expenses,
-            "batch_net_income": batch_net_income,
-            "batch_total_investment": batch_total_investment,
-            "batch_roi": batch_roi,
-            "owner_rows": visible_owner_rows,
-            "all_owner_count": len(all_owner_rows),
-            "current_user_owner": current_user_owner,
-            "sale_history": sale_history,
-        })
-
-    overview["net_sales"] = money(overview["net_sales"])
-    overview["egg_sales"] = money(overview["egg_sales"])
-    overview["realized_cogs"] = money(overview["realized_cogs"])
-    overview["realized_expenses"] = money(overview["realized_expenses"])
-    overview["net_income"] = money(overview["net_income"])
-    overview["investment"] = money(overview["investment"])
-    overview["recorded_cogs"] = money(overview["recorded_cogs"])
-    overview["recorded_expenses"] = money(overview["recorded_expenses"])
-    overview["roi"] = Decimal("0.0")
-
-    if overview["investment"] > 0:
-        overview["roi"] = (
-            overview["net_income"]
-            / overview["investment"]
-            * Decimal("100")
-        ).quantize(percent_unit)
-
-    return render(
-        request,
-        "api/finance_tracker.html",
-        {
-            "finance_rows": finance_rows,
-            "is_admin": is_admin,
-            "overview": overview,
-            "status_filter": status_filter,
-        },
-    )
 
 def attach_current_birds(batches):
     for batch in batches:
@@ -1329,465 +475,48 @@ def add_chick_cost(request):
 
 
 @login_required
+@login_required
 def batch_report(request):
     is_admin = request.user.is_superuser or request.user.is_staff
-    investor_profile = getattr(request.user, "investor_profile", None)
-
-    if not is_admin and not investor_profile:
+    if not is_admin and not hasattr(request.user, "investor_profile"):
         return redirect("dashboard")
-
+    data = build_finance_data(request.user, "closed")
     report_rows = []
-
-    # Final report should show closed/sold batches only
-    closed_batches = Batch.objects.filter(
-        Q(is_active=False) | Q(status__in=["closed", "sold"])
-    ).select_related("shed").distinct().order_by(
-        "-end_date",
-        "-start_date",
-        "batch_number"
-    )
-
-    def money(value):
-        return float(value or 0)
-
-    def get_sale_total_amount(sale):
-        sale_total = getattr(sale, "total_amount", None)
-
-        if sale_total is not None:
-            return money(sale_total)
-
-        birds_sold = money(getattr(sale, "birds_sold", 0))
-        average_weight = money(getattr(sale, "average_weight_kg", 0))
-        rate = money(getattr(sale, "rate_per_kg", 0))
-
-        return birds_sold * average_weight * rate
-
-    def get_sale_locked_cogs(sale):
-        """
-        This checks common locked COGS field names.
-        Your existing SaleRecord may have one of these fields.
-        """
-        possible_fields = [
-            "locked_cogs",
-            "cogs_at_sale",
-            "total_cogs_at_sale",
-            "sold_cogs",
-            "sale_cogs",
-            "total_cost_at_sale",
-        ]
-
-        for field_name in possible_fields:
-            if hasattr(sale, field_name):
-                value = getattr(sale, field_name)
-                if value is not None:
-                    return money(value)
-
-        return 0
-
-    def get_batch_investor_reports(batch):
-        investor_reports = []
-
-        allocations = InvestorAllocation.objects.filter(
-            batch=batch
-        ).select_related(
-            "investor__user"
-        ).order_by(
-            "investor__user__username"
+    for row in data["finance_rows"]:
+        # The complete batch is shown once. Admin may inspect every owner;
+        # investors receive only their own owner row from the service.
+        row["report_owner_rows"] = row["owner_rows"]
+        row["report_position"] = build_report_position(
+            row, None if is_admin else row["current_user_owner"]
         )
-
-        for allocation in allocations:
-            investor_user = allocation.investor.user
-            investor_name = investor_user.get_full_name().strip() or investor_user.username
-
-            if batch.bird_count_initial > 0:
-                investor_share_ratio = allocation.birds_owned / batch.bird_count_initial
-            else:
-                investor_share_ratio = 0
-
-            investor_reports.append({
-                "allocation_id": allocation.id,
-                "name": investor_name,
-                "birds_owned": allocation.birds_owned,
-                "share_percentage": round(investor_share_ratio * 100, 2),
-            })
-
-        return investor_reports
-
-    def build_owner_inputs(batch):
-        allocations = list(
-            InvestorAllocation.objects.filter(
-                batch=batch
-            ).select_related("investor__user")
-        )
-
-        allocated_investor_birds = sum(
-            allocation.birds_owned for allocation in allocations
-        )
-
-        admin_start_birds = batch.bird_count_initial - allocated_investor_birds
-
-        owners = []
-
-        if admin_start_birds > 0:
-            owners.append({
-                "type": "admin",
-                "allocation_id": None,
-                "start_birds": admin_start_birds,
-            })
-
-        for allocation in allocations:
-            owners.append({
-                "type": "investor",
-                "allocation_id": allocation.id,
-                "start_birds": allocation.birds_owned,
-            })
-
-        return owners
-
-    def allocate_whole_count(batch, total_count, owners):
-        total_count = int(total_count or 0)
-
-        if total_count <= 0 or batch.bird_count_initial <= 0 or not owners:
-            return [0] * len(owners)
-
-        exact_values = []
-
-        for owner in owners:
-            exact_value = total_count * owner["start_birds"] / batch.bird_count_initial
-            exact_values.append(exact_value)
-
-        allocated_values = [int(value) for value in exact_values]
-
-        remaining_count = total_count - sum(allocated_values)
-
-        allocation_order = sorted(
-            range(len(owners)),
-            key=lambda index: (
-                exact_values[index] - allocated_values[index],
-                0 if owners[index]["type"] == "admin" else 1
-            ),
-            reverse=True
-        )
-
-        for index in allocation_order[:remaining_count]:
-            allocated_values[index] += 1
-
-        return allocated_values
-
-    def build_report_row(batch, report_title, share_ratio, starting_birds, mortality, sold):
-        sale_records = SaleRecord.objects.filter(batch=batch)
-
-        total_sold = SaleRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("birds_sold"))["total"] or 0
-
-        total_mortality = MortalityRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("count"))["total"] or 0
-
-        total_batch_current = (
-            batch.bird_count_initial
-            - total_mortality
-            - total_sold
-        )
-
-        total_revenue = 0
-        locked_cogs = 0
-
-        for sale in sale_records:
-            total_revenue += get_sale_total_amount(sale)
-            locked_cogs += get_sale_locked_cogs(sale)
-
-        chick_cost = ChickCostEntry.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("chick_cost"))["total"] or 0
-
-        carriage_cost = ChickCostEntry.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("carriage_cost"))["total"] or 0
-
-        feed_cost = FeedEntry.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("amount"))["total"] or 0
-
-        medicine_cost = MedicineEntry.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("amount"))["total"] or 0
-
-        expenses = Expense.objects.filter(batch=batch)
-
-        electricity_cost = expenses.filter(
-            category="electricity"
-        ).aggregate(total=Sum("amount"))["total"] or 0
-
-        other_expenses = expenses.exclude(category="electricity")
-
-        total_expenses = other_expenses.aggregate(
-            total=Sum("amount")
-        )["total"] or 0
-
-        total_batch_cogs_current = (
-            money(chick_cost)
-            + money(carriage_cost)
-            + money(feed_cost)
-            + money(medicine_cost)
-            + money(electricity_cost)
-        )
-
-        # Fallback only for old sales where locked COGS was not saved
-        if locked_cogs == 0 and total_sold > 0 and batch.bird_count_initial > 0:
-            locked_cogs = total_batch_cogs_current * (total_sold / batch.bird_count_initial)
-
-        current_birds = starting_birds - mortality - sold
-
-        share_revenue = round(total_revenue * share_ratio, 2)
-        share_locked_cogs = round(locked_cogs * share_ratio, 2)
-        share_expenses = round(money(total_expenses) * share_ratio, 2)
-
-        net_income = round(
-            share_revenue - share_locked_cogs - share_expenses,
-            2
-        )
-
-        investment_base = share_locked_cogs + share_expenses
-
-        # =====================================================
-        # ADMIN REALIZED ROI — SOLD BIRDS ONLY
-        # =====================================================
-
-        roi = 0
-
-        if investment_base > 0:
-            roi = round(
-                (net_income / investment_base) * 100,
-                2
-            )
-
-        # =====================================================
-        # TOTAL BATCH REALIZED ROI — SOLD BIRDS ONLY
-        # =====================================================
-
-        # Profit from birds already sold
-        total_batch_net_income = round(
-            total_revenue - locked_cogs,
-            2
-        )
-
-        # Investment/cost of birds already sold
-        total_batch_investment_base = locked_cogs
-
-        total_batch_roi = 0
-
-        if total_batch_investment_base > 0:
-            total_batch_roi = round(
-                (
-                        total_batch_net_income
-                        / total_batch_investment_base
-                ) * 100,
-                2
-            )
-        investor_reports = []
-        if is_admin:
-            investor_reports = get_batch_investor_reports(batch)
-
-        return {
-            "batch": batch,
-            "report_title": report_title,
-            "share_percentage": round(share_ratio * 100, 1),
-
-            "starting_birds": starting_birds,
-            "current_birds": current_birds,
-            "mortality": mortality,
-            "sold": sold,
-
-            "revenue": share_revenue,
-            "locked_cogs": share_locked_cogs,
-            "expenses": share_expenses,
-            "net_income": net_income,
-            "roi": roi,
-
-            "investor_reports": investor_reports,
-
-            "total_batch_start": batch.bird_count_initial,
-            "total_batch_current": total_batch_current,
-            "total_batch_mortality": total_mortality,
-            "total_batch_sold": total_sold,
-            "total_batch_revenue": round(total_revenue, 2),
-            "total_batch_cogs": round(locked_cogs, 2),
-            "total_batch_expenses": round(money(total_expenses), 2),
-            "total_batch_net_income": total_batch_net_income,
-            "total_batch_roi": total_batch_roi,
-        }
-
-    for batch in closed_batches:
-        total_mortality = MortalityRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("count"))["total"] or 0
-
-        total_sold = SaleRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("birds_sold"))["total"] or 0
-
-        owners = build_owner_inputs(batch)
-        mortality_allocations = allocate_whole_count(batch, total_mortality, owners)
-        sold_allocations = allocate_whole_count(batch, total_sold, owners)
-
-        if is_admin:
-            admin_index = None
-
-            for index, owner in enumerate(owners):
-                if owner["type"] == "admin":
-                    admin_index = index
-                    break
-
-            if admin_index is None:
-                continue
-
-            admin_starting_birds = owners[admin_index]["start_birds"]
-            admin_share_ratio = (
-                admin_starting_birds / batch.bird_count_initial
-                if batch.bird_count_initial > 0
-                else 0
-            )
-
-            row = build_report_row(
-                batch=batch,
-                report_title="Admin Share Report",
-                share_ratio=admin_share_ratio,
-                starting_birds=admin_starting_birds,
-                mortality=mortality_allocations[admin_index],
-                sold=sold_allocations[admin_index],
-            )
-
-            report_rows.append(row)
-
-        else:
-            allocation = InvestorAllocation.objects.filter(
-                batch=batch,
-                investor=investor_profile
-            ).first()
-
-            if not allocation:
-                continue
-
-            investor_index = None
-
-            for index, owner in enumerate(owners):
-                if owner["type"] == "investor" and owner["allocation_id"] == allocation.id:
-                    investor_index = index
-                    break
-
-            if investor_index is None:
-                continue
-
-            investor_share_ratio = (
-                allocation.birds_owned / batch.bird_count_initial
-                if batch.bird_count_initial > 0
-                else 0
-            )
-
-            investor_user = allocation.investor.user
-            investor_name = investor_user.get_full_name().strip() or investor_user.username
-
-            row = build_report_row(
-                batch=batch,
-                report_title=f"{investor_name} Share Report",
-                share_ratio=investor_share_ratio,
-                starting_birds=allocation.birds_owned,
-                mortality=mortality_allocations[investor_index],
-                sold=sold_allocations[investor_index],
-            )
-
-            report_rows.append(row)
-
+        report_rows.append(row)
     return render(request, "api/batch_report.html", {
         "report_rows": report_rows,
         "is_admin": is_admin,
     })
 
-def calculate_batch_report_data(batch, share_ratio=1):
-    total_mortality = MortalityRecord.objects.filter(
-        batch=batch
-    ).aggregate(total=Sum("count"))["total"] or 0
 
-    total_sold = SaleRecord.objects.filter(
-        batch=batch
-    ).aggregate(total=Sum("birds_sold"))["total"] or 0
-
-    current_birds = batch.bird_count_initial - total_mortality - total_sold
-
-    total_revenue = 0
-    sale_records = SaleRecord.objects.filter(batch=batch)
-
-    for sale in sale_records:
-        total_revenue += float(sale.total_amount)
-
-    chick_cost = ChickCostEntry.objects.filter(
-        batch=batch
-    ).aggregate(total=Sum("chick_cost"))["total"] or 0
-
-    carriage_cost = ChickCostEntry.objects.filter(
-        batch=batch
-    ).aggregate(total=Sum("carriage_cost"))["total"] or 0
-
-    feed_cost = FeedEntry.objects.filter(
-        batch=batch
-    ).aggregate(total=Sum("amount"))["total"] or 0
-
-    medicine_cost = MedicineEntry.objects.filter(
-        batch=batch
-    ).aggregate(total=Sum("amount"))["total"] or 0
-
-    expenses = Expense.objects.filter(batch=batch)
-
-    electricity_cost = expenses.filter(
-        category="electricity"
-    ).aggregate(total=Sum("amount"))["total"] or 0
-
-    total_expenses = expenses.exclude(
-        category="electricity"
-    ).aggregate(total=Sum("amount"))["total"] or 0
-
-    total_cogs = (
-        float(chick_cost)
-        + float(carriage_cost)
-        + float(feed_cost)
-        + float(medicine_cost)
-        + float(electricity_cost)
-    )
-
-    share_start_birds = round(batch.bird_count_initial * share_ratio)
-    share_mortality = round(total_mortality * share_ratio)
-    share_sold = round(total_sold * share_ratio)
-    share_current_birds = share_start_birds - share_mortality - share_sold
-
-    share_revenue = round(total_revenue * share_ratio, 2)
-    share_total_cogs = round(total_cogs * share_ratio, 2)
-    share_expenses = round(float(total_expenses) * share_ratio, 2)
-
-    net_income = round(share_revenue - share_total_cogs - share_expenses, 2)
-
-    roi = 0
-    if share_total_cogs > 0:
-        roi = round((net_income / share_total_cogs) * 100, 2)
-
-    return {
-        "start_birds": share_start_birds,
-        "current_birds": share_current_birds,
-        "mortality": share_mortality,
-        "sold": share_sold,
-
-        "revenue": share_revenue,
-        "chick_cost": round(float(chick_cost) * share_ratio, 2),
-        "feed_cost": round(float(feed_cost) * share_ratio, 2),
-        "medicine_cost": round(float(medicine_cost) * share_ratio, 2),
-        "electricity_cost": round(float(electricity_cost) * share_ratio, 2),
-        "carriage_cost": round(float(carriage_cost) * share_ratio, 2),
-        "total_cogs": share_total_cogs,
-        "expenses": share_expenses,
-        "net_income": net_income,
-        "roi": roi,
-    }
+def calculate_batch_report_data(batch, share_ratio=1, allocation_id=None):
+    """Compatibility adapter; all figures come from the shared engine."""
+    from django.contrib.auth import get_user_model
+    from django.core.exceptions import PermissionDenied
+    admin = get_user_model().objects.filter(is_superuser=True).order_by("pk").first()
+    if admin is None:
+        raise PermissionDenied("An administrator account is required.")
+    rows = build_finance_data(admin, "all", batch_ids=[batch.pk])["finance_rows"]
+    if not rows:
+        raise ValueError("Batch not found in the finance calculation.")
+    row = rows[0]
+    owner = None
+    if allocation_id is not None:
+        owner = next((o for o in row["all_owner_rows"] if o.get("allocation_id") == allocation_id), None)
+        if owner is None:
+            raise ValueError("The investor allocation does not belong to this batch.")
+    elif Decimal(str(share_ratio)) != Decimal("1"):
+        owner = next((o for o in row["all_owner_rows"] if o["share_ratio"] == Decimal(str(share_ratio))), None)
+        if owner is None:
+            raise ValueError("Use the investor allocation ID for an exact ownership report.")
+    return build_report_position(row, owner)
 
 def get_static_logo_path():
     logo_path = finders.find("images/raynoor-logo.png")
@@ -1806,174 +535,107 @@ def get_static_logo_path():
     return None
 
 @login_required
+@login_required
 def batch_report_pdf_investor(request, batch_id, allocation_id):
-    is_admin = request.user.is_superuser or request.user.is_staff
-
-    if not is_admin:
+    if not (request.user.is_superuser or request.user.is_staff):
         return redirect("dashboard")
-
-    batch = get_object_or_404(Batch, id=batch_id)
-
+    batch = get_object_or_404(Batch.objects.select_related("shed"), pk=batch_id)
     allocation = get_object_or_404(
-        InvestorAllocation.objects.select_related("investor__user", "batch"),
-        id=allocation_id,
-        batch=batch
+        InvestorAllocation.objects.select_related("investor__user"),
+        pk=allocation_id, batch=batch,
     )
-
-    investor_user = allocation.investor.user
-    investor_name = investor_user.get_full_name().strip() or investor_user.username
-
-    if batch.bird_count_initial > 0:
-        share_ratio = allocation.birds_owned / batch.bird_count_initial
-    else:
-        share_ratio = 0
-
-    report = calculate_batch_report_data(batch, share_ratio)
-
+    rows = build_finance_data(request.user, "all", batch_ids=[batch.pk])["finance_rows"]
+    row = rows[0]
+    owner = next((o for o in row["all_owner_rows"] if o.get("allocation_id") == allocation.pk), None)
+    if owner is None:
+        raise ValueError("Investor allocation could not be reconciled.")
+    from xml.sax.saxutils import escape
+    investor_name = allocation.investor.user.get_full_name().strip() or allocation.investor.user.username
+    report = build_report_position(row, owner)
+    def money_text(value):
+        return "Rs {:,.2f}".format(Decimal(value or 0))
+    def percent_text(value):
+        return "{:.2f}%".format(Decimal(value or 0))
+    def safe(value):
+        return escape(str(value))
     buffer = BytesIO()
-
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=35,
-        leftMargin=35,
-        topMargin=35,
-        bottomMargin=35,
-    )
-
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36,
+                            topMargin=34, bottomMargin=34)
     styles = getSampleStyleSheet()
-
-    title_style = ParagraphStyle(
-        "TitleStyle",
-        parent=styles["Title"],
-        fontSize=20,
-        textColor=colors.HexColor("#0b3f74"),
-        spaceAfter=12,
-    )
-
-    heading_style = ParagraphStyle(
-        "HeadingStyle",
-        parent=styles["Heading2"],
-        fontSize=14,
-        textColor=colors.HexColor("#0b3f74"),
-        spaceBefore=12,
-        spaceAfter=8,
-    )
-
-    normal_style = styles["Normal"]
-
-    elements = []
-
-    logo_path = get_static_logo_path()
-
-    if logo_path:
-        logo_reader = ImageReader(logo_path)
-        logo_width_px, logo_height_px = logo_reader.getSize()
-
-        logo_width = 1.25 * inch
-        logo_height = logo_width * (logo_height_px / logo_width_px)
-
-        logo = Image(logo_path, width=logo_width, height=logo_height)
-        logo.hAlign = "CENTER"
-
-        elements.append(logo)
-        elements.append(Spacer(1, 8))
-
-    elements.append(Paragraph("RayNoor Farms", title_style))
-
-    elements.append(Paragraph("Investor Batch Report", title_style))
-    elements.append(Paragraph(f"<b>Investor:</b> {investor_name}", normal_style))
+    styles.add(ParagraphStyle(name="RNTitle", parent=styles["Title"], fontSize=18,
+                              leading=22, textColor=colors.HexColor("#123F6C"), spaceAfter=8))
+    styles.add(ParagraphStyle(name="RNHeading", parent=styles["Heading2"], fontSize=11,
+                              textColor=colors.HexColor("#123F6C"), spaceBefore=10, spaceAfter=6))
+    normal = styles["Normal"]
+    elements = [
+        Paragraph("RayNoor Organic Farms", styles["RNTitle"]),
+        Paragraph("Investor Batch Report", styles["RNHeading"]),
+        Paragraph("<b>Investor:</b> " + safe(investor_name), normal),
+        Paragraph("<b>Batch:</b> " + safe(row["batch"].shed.shed_type.title()) + " Batch #" + safe(batch.batch_number), normal),
+        Paragraph("<b>Shed:</b> " + safe(batch.shed.name), normal),
+        Paragraph("<b>Ownership:</b> " + percent_text(owner["percentage"]) + " | <b>Status:</b> " + safe(batch.get_status_display()), normal),
+        Spacer(1, 10),
+    ]
+    def add_table(heading, data, widths=None):
+        elements.append(Paragraph(heading, styles["RNHeading"]))
+        table = Table(data, colWidths=widths or [3.5*inch, 3.0*inch], hAlign="LEFT", repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0,0),(-1,0),colors.HexColor("#123F6C")),
+            ("TEXTCOLOR",(0,0),(-1,0),colors.white),
+            ("FONTNAME",(0,0),(-1,0),"Helvetica-Bold"),
+            ("BACKGROUND",(0,1),(-1,-1),colors.HexColor("#F7FAFE")),
+            ("LINEBELOW",(0,0),(-1,-1),0.35,colors.HexColor("#DBE4EE")),
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ("LEFTPADDING",(0,0),(-1,-1),9), ("RIGHTPADDING",(0,0),(-1,-1),9),
+            ("TOPPADDING",(0,0),(-1,-1),7), ("BOTTOMPADDING",(0,0),(-1,-1),7),
+            ("ALIGN",(1,1),(-1,-1),"RIGHT"),
+        ]))
+        elements.append(table)
+    add_table("Bird Position", [
+        ["Measure", "Birds"],
+        ["Starting Birds", str(report["start_birds"])],
+        ["Mortality", str(report["mortality"])],
+        ["Sold", str(report["sold"])],
+        ["Current Birds", str(report["current_birds"])],
+    ])
+    add_table("Final Financial Summary" if row["is_final"] else "Financial Position to Date", [
+        ["Description", "Owner Share"],
+        ["Net Bird Sales", money_text(report["revenue"])],
+        ["Egg Net Sales", money_text(report["egg_revenue"])],
+        ["Total Revenue", money_text(report["total_revenue"])],
+        ["Chick Cost", money_text(report["chick_cost"])],
+        ["Carriage", money_text(report["carriage_cost"])],
+        ["Feed", money_text(report["feed_cost"])],
+        ["Medicine", money_text(report["medicine_cost"])],
+        ["All Expenses", money_text(report["expenses"])],
+        ["Total Recorded COGS", money_text(report["total_cogs"])],
+        ["Final Profit / Loss" if row["is_final"] else "Profit / Loss to Date", money_text(report["net_income"])],
+        ["Final ROI" if row["is_final"] else "ROI to Date", percent_text(report["roi"])],
+    ])
+    add_table("Historical Sale Cost Reconciliation", [
+        ["Description", "Owner Share"],
+        ["Sale-locked COGS", money_text(report["locked_cogs"])],
+        ["Remaining Live Inventory Cost", money_text(report["remaining_live_inventory_cost"])],
+        ["Unallocated Closing Costs", money_text(report["closing_cost_adjustment"])],
+        ["Total Recorded COGS", money_text(report["total_cogs"])],
+    ])
+    elements.append(Spacer(1, 8))
     elements.append(Paragraph(
-        f"<b>Batch:</b> {batch.batch_type.title()} Batch #{batch.batch_number}",
-        normal_style
-    ))
-    elements.append(Paragraph(f"<b>Shed:</b> {batch.shed.name}", normal_style))
-    elements.append(Paragraph(f"<b>Share:</b> {round(share_ratio * 100, 2)}%", normal_style))
-    elements.append(Paragraph(f"<b>Status:</b> {batch.status.title()}", normal_style))
-    elements.append(Spacer(1, 12))
-
-    elements.append(Paragraph("Bird Position", heading_style))
-
-    bird_table = Table([
-        ["Starting Birds", "Current Birds", "Mortality", "Sold"],
-        [
-            report["start_birds"],
-            report["current_birds"],
-            report["mortality"],
-            report["sold"],
-        ],
-    ], colWidths=[1.55 * inch, 1.55 * inch, 1.55 * inch, 1.55 * inch])
-
-    bird_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#eef4fb")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.HexColor("#0b3f74")),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d9e2ec")),
-        ("PADDING", (0, 0), (-1, -1), 9),
-    ]))
-
-    elements.append(bird_table)
-    elements.append(Spacer(1, 12))
-
-    elements.append(Paragraph("Financial Summary", heading_style))
-
-    finance_table = Table([
-        ["Description", "Amount"],
-        ["Revenue Share", f"Rs {report['revenue']:,.0f}"],
-        ["Chick Cost Share", f"Rs {report['chick_cost']:,.0f}"],
-        ["Feed Cost Share", f"Rs {report['feed_cost']:,.0f}"],
-        ["Medicine Cost Share", f"Rs {report['medicine_cost']:,.0f}"],
-        ["Electricity Cost Share", f"Rs {report['electricity_cost']:,.0f}"],
-        ["Carriage Cost Share", f"Rs {report['carriage_cost']:,.0f}"],
-        ["Total COGS Share", f"Rs {report['total_cogs']:,.0f}"],
-        ["Expense Share", f"Rs {report['expenses']:,.0f}"],
-        ["Net Income", f"Rs {report['net_income']:,.0f}"],
-        ["ROI", f"{report['roi']:,.2f}%"],
-    ], colWidths=[3.4 * inch, 2.6 * inch])
-
-    finance_table.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0b3f74")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("ALIGN", (1, 1), (1, -1), "RIGHT"),
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d9e2ec")),
-        ("PADDING", (0, 0), (-1, -1), 8),
-        ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f8fbff")),
-    ]))
-
-    elements.append(finance_table)
-    elements.append(Spacer(1, 14))
-
-    elements.append(Paragraph(
-        "This report is generated from farm batch records including sales, mortality, feed, medicine, electricity, carriage, and other expenses.",
-        normal_style
-    ))
-
-    def add_pdf_info(canvas, doc):
-        canvas.setTitle(f"Investor Batch Report - {investor_name}")
-        canvas.setAuthor("RayNoor Organic Farms")
-        canvas.setSubject(f"{batch.batch_type.title()} Batch #{batch.batch_number}")
-
-    doc.build(
-        elements,
-        onFirstPage=add_pdf_info,
-        onLaterPages=add_pdf_info
-    )
-
+        "All recorded expenses are included in COGS. Final profit equals total bird and egg revenue less total recorded batch costs. Historical sale-locked costs are preserved. Monetary detail is shown to two decimals; no journal entries are changed by this report.", normal))
+    for warning in row["reconciliation_warnings"]:
+        elements.append(Spacer(1, 4))
+        elements.append(Paragraph("<b>Review:</b> " + safe(warning), normal))
+    def page_info(canvas, document):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 8)
+        canvas.setFillColor(colors.HexColor("#64748B"))
+        canvas.drawRightString(A4[0]-36, 20, "Page " + str(document.page))
+        canvas.restoreState()
+    doc.build(elements, onFirstPage=page_info, onLaterPages=page_info)
     pdf = buffer.getvalue()
     buffer.close()
-
-    safe_investor_name = investor_name.replace(" ", "_")
-
-    filename = (
-        f"investor_report_{safe_investor_name}_batch_{batch.batch_number}.pdf"
-    )
-
-    response = HttpResponse(content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="{filename}"'
-    response.write(pdf)
-
-    return response
-
+    safe_name = re.sub(r"[^A-Za-z0-9_-]+", "_", investor_name).strip("_") or "investor"
+    filename = "investor_report_{}_batch_{}.pdf".format(safe_name, batch.pk)
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = 'inline; filename="{}"'.format(filename)
     return response

@@ -1,526 +1,83 @@
 {% extends "api/base_dashboard.html" %}
 {% load humanize %}
-
-{% block title %}
-Batch Performance Report
-{% endblock %}
-
+{% block title %}Final Batch Reports{% endblock %}
 {% block extra_css %}
 <style>
-body{
-            font-family:Arial,sans-serif;
-            background:#f4f6f8;
-            margin:0;
-            color:#111827;
-        }
-
-        .header{
-            background:#1f4e79;
-            color:white;
-            text-align:center;
-            padding:22px;
-        }
-
-        .header h2{
-            margin:0;
-        }
-
-        .container{
-            max-width:1100px;
-            margin:25px auto;
-            padding:15px;
-        }
-
-        .top-row{
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:12px;
-            margin-bottom:20px;
-            flex-wrap:wrap;
-        }
-
-        .btn{
-            display:inline-block;
-            background:#1f4e79;
-            color:white;
-            text-decoration:none;
-            padding:10px 16px;
-            border-radius:8px;
-            font-weight:bold;
-        }
-
-        .btn:hover{
-            background:#173b5c;
-        }
-
-        .hint{
-            color:#667085;
-            font-size:14px;
-        }
-
-        .report-card{
-            background:white;
-            border-radius:14px;
-            margin-bottom:16px;
-            box-shadow:0 2px 10px rgba(0,0,0,0.08);
-            overflow:hidden;
-        }
-
-        .report-card summary{
-            cursor:pointer;
-            padding:18px 22px;
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:15px;
-            list-style:none;
-        }
-
-        .report-card summary::-webkit-details-marker{
-            display:none;
-        }
-
-        .report-card summary::after{
-            content:"⌄";
-            font-size:24px;
-            color:#1f4e79;
-            font-weight:bold;
-        }
-
-        .report-card[open] summary::after{
-            content:"⌃";
-        }
-
-        .summary-left strong{
-            color:#1f4e79;
-            font-size:20px;
-            display:block;
-            margin-bottom:4px;
-        }
-
-        .summary-left span{
-            color:#667085;
-            font-size:14px;
-        }
-
-        .summary-right{
-            display:flex;
-            align-items:center;
-            gap:12px;
-            flex-wrap:wrap;
-            justify-content:flex-end;
-        }
-
-        .summary-money{
-            font-size:18px;
-            font-weight:bold;
-            white-space:nowrap;
-        }
-
-        .status-badge{
-            padding:6px 12px;
-            border-radius:20px;
-            font-size:12px;
-            font-weight:bold;
-            white-space:nowrap;
-        }
-
-        .active{
-            background:#ddffdd;
-            color:green;
-        }
-
-        .closed{
-            background:#e5e7eb;
-            color:#475467;
-        }
-
-        .report-body{
-            padding:0 22px 22px 22px;
-            border-top:1px solid #e5e7eb;
-        }
-
-        .title{
-            color:#1f4e79;
-            margin-top:20px;
-            margin-bottom:10px;
-        }
-
-        .grid{
-            display:grid;
-            grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-            gap:12px;
-            margin-top:15px;
-        }
-
-        .box{
-            background:#f8fafc;
-            border:1px solid #e5e7eb;
-            border-radius:12px;
-            padding:14px;
-            text-align:center;
-        }
-
-        .label{
-            color:#667085;
-            font-size:13px;
-        }
-
-        .value{
-            font-size:24px;
-            font-weight:bold;
-            color:#1f4e79;
-            margin-top:5px;
-        }
-
-        .section{
-            margin-top:20px;
-            border-top:1px solid #e5e7eb;
-            padding-top:15px;
-        }
-
-        .positive{
-            color:green;
-        }
-
-        .negative{
-            color:#dc2626;
-        }
-
-        .empty-card{
-            background:white;
-            border-radius:14px;
-            padding:22px;
-            box-shadow:0 2px 10px rgba(0,0,0,0.08);
-        }
-
-        .investor-report-list{
-            display:flex;
-            flex-direction:column;
-            gap:10px;
-            margin-top:12px;
-        }
-
-        .investor-report-row{
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-            gap:12px;
-            background:#f8fafc;
-            border:1px solid #e5e7eb;
-            border-radius:12px;
-            padding:12px 14px;
-        }
-
-        .investor-name{
-            font-weight:bold;
-            color:#1f4e79;
-            font-size:15px;
-        }
-
-        .investor-meta{
-            color:#667085;
-            font-size:13px;
-            margin-top:4px;
-        }
-
-        .pdf-btn{
-            display:inline-flex;
-            align-items:center;
-            justify-content:center;
-            gap:7px;
-            background:#dc2626;
-            color:white;
-            text-decoration:none;
-            padding:9px 12px;
-            border-radius:8px;
-            font-weight:bold;
-            font-size:13px;
-            white-space:nowrap;
-        }
-
-        .pdf-btn:hover{
-            background:#b91c1c;
-        }
-
-        .admin-note{
-            margin-top:12px;
-            background:#eef6ff;
-            border:1px solid #d9eaff;
-            color:#174a7b;
-            padding:12px 14px;
-            border-radius:10px;
-            font-size:14px;
-            font-weight:bold;
-        }
-
-        @media(max-width:768px){
-            .container{
-                padding:10px;
-            }
-
-            .top-row{
-                flex-direction:column;
-                align-items:stretch;
-            }
-
-            .btn{
-                width:100%;
-                text-align:center;
-                box-sizing:border-box;
-            }
-
-            .report-card summary{
-                flex-direction:column;
-                align-items:flex-start;
-                padding:16px;
-            }
-
-            .summary-right{
-                width:100%;
-                justify-content:space-between;
-            }
-
-            .report-body{
-                padding:0 16px 16px 16px;
-            }
-
-            .summary-money{
-                font-size:16px;
-            }
-
-            .grid{
-                grid-template-columns:1fr;
-            }
-
-            .investor-report-row{
-                flex-direction:column;
-                align-items:flex-start;
-            }
-
-            .pdf-btn{
-                width:100%;
-                box-sizing:border-box;
-            }
-        }
+.final-report{max-width:1320px;margin:0 auto;color:#173b61}.final-report *{box-sizing:border-box}
+.fr-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 22px;background:#fff;border:1px solid #dbe6f3;border-radius:18px;margin-bottom:18px}
+.fr-head h1{font-size:25px;color:#123f6c;margin:0 0 6px}.fr-head p{font-size:13px;color:#6e8095;margin:0;line-height:1.5}
+.fr-actions{display:flex;gap:8px;flex-wrap:wrap}.fr-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 14px;border:1px solid #d5e2f0;border-radius:11px;background:#fff;color:#245579;text-decoration:none;font-size:12px;font-weight:800;cursor:pointer}.fr-btn.primary{background:#116d3b;color:#fff;border-color:#116d3b}
+.fr-card{background:#fff;border:1px solid #dbe6f3;border-radius:18px;margin-bottom:18px;overflow:hidden}.fr-card-head{padding:18px 21px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;border-bottom:1px solid #e8eef6}.fr-eyebrow{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#718398}.fr-card h2{font-size:21px;margin:5px 0;color:#123f6c}.fr-meta{display:flex;gap:12px;flex-wrap:wrap;color:#718398;font-size:12px}.fr-pill{display:inline-flex;align-items:center;gap:5px;padding:5px 10px;background:#e8f5ed;color:#176b39;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
+.fr-body{padding:20px}.fr-section-title{font-size:14px;font-weight:900;color:#173b61;margin:0 0 12px}.fr-section{margin-top:20px}.fr-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px}.fr-stat{border:1px solid #dfe8f2;border-radius:13px;background:#fbfdff;padding:13px;min-width:0}.fr-stat .label{font-size:10px;color:#728195;font-weight:850;text-transform:uppercase;letter-spacing:.02em}.fr-stat .value{font-size:19px;color:#143f6d;font-weight:900;margin-top:7px;overflow-wrap:anywhere}.fr-stat .note{font-size:10px;color:#77889a;margin-top:5px;line-height:1.45}.fr-stat.profit{background:#f0faf4;border-color:#cce7d6}.fr-stat.loss .value{color:#bf302b}.fr-stat.roi{background:#f1f7ff;border-color:#cfe0f8}.fr-stat.warn{background:#fff9ef;border-color:#f0debb}
+.fr-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.fr-panel{border:1px solid #dfe8f2;border-radius:14px;overflow:hidden;min-width:0}.fr-panel-head{padding:12px 15px;background:#f7faff;border-bottom:1px solid #e5edf6;font-size:12px;font-weight:900;color:#173b61}.fr-panel-body{padding:5px 15px 12px}.fr-line{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #edf2f7;font-size:12px}.fr-line:last-child{border-bottom:0}.fr-line span{color:#64758a}.fr-line strong{text-align:right;color:#173b61;font-weight:850;white-space:nowrap}.fr-line.total{border-top:1px solid #cbd9e8;margin-top:4px;font-weight:900}.fr-line.total span{color:#173b61}.fr-line.negative strong{color:#bf302b}.fr-help{font-size:11px;color:#718398;line-height:1.6;margin:10px 0 0}
+.fr-notice{padding:12px 14px;border:1px solid #f0dcad;background:#fff9eb;color:#805c17;border-radius:12px;font-size:12px;line-height:1.6;margin-top:13px}.fr-notice ul{margin:5px 0 0;padding-left:17px}.fr-notice li{margin:4px 0}.fr-table-wrap{overflow-x:auto;border:1px solid #dfe8f2;border-radius:13px}.fr-table{width:100%;border-collapse:collapse;font-size:12px}.fr-table th{padding:11px 12px;background:#f5f9fe;color:#60748a;font-size:10px;text-transform:uppercase;text-align:right;white-space:nowrap}.fr-table th:first-child{text-align:left}.fr-table td{padding:12px;border-top:1px solid #e8eef6;text-align:right;white-space:nowrap}.fr-table td:first-child{text-align:left}.fr-table strong{color:#173b61}.fr-table .negative{color:#bf302b;font-weight:900}.fr-name{white-space:normal;min-width:125px}.fr-name small{display:block;color:#7b8998;font-size:10px;margin-top:4px}.fr-empty{padding:45px 20px;text-align:center;border:1px dashed #dbe6f3;border-radius:17px;background:#fff;color:#728195}.fr-empty h2{color:#173b61;font-size:19px}
+@media(max-width:1000px){.fr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.fr-split{grid-template-columns:1fr}}
+@media(max-width:650px){.fr-head,.fr-card-head{flex-direction:column;align-items:stretch;padding:16px}.fr-head h1{font-size:22px}.fr-actions{width:100%}.fr-btn{flex:1}.fr-body{padding:15px}.fr-grid{gap:8px}.fr-stat{padding:11px}.fr-stat .value{font-size:17px}.fr-panel-body{padding:4px 11px 11px}.fr-line{gap:7px;font-size:11px}}
+@media print{.sidebar,.topbar,.fr-head .fr-actions,.fr-btn,.no-print{display:none!important}.app-layout,.main-content,.page-content{display:block!important;margin:0!important;padding:0!important;width:100%!important}.fr-head{border:0;padding:0 0 10px}.fr-card{break-inside:avoid;box-shadow:none}.fr-body{padding:13px}.fr-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.fr-stat .value{font-size:15px}.fr-split{grid-template-columns:repeat(2,minmax(0,1fr))}.fr-table{font-size:9px}.fr-table th,.fr-table td{padding:6px}.fr-section{break-inside:avoid}}
 </style>
 {% endblock %}
-
 {% block content %}
-<div class="header">
-    <h2>📊 Batch Performance Report</h2>
-</div>
-
-<div class="container">
-
-    <div class="top-row">
-        <div class="hint">
-            Final batch reports are shown after a batch is closed.
+<div class="final-report">
+  <section class="fr-head">
+    <div><h1><i class="fa-solid fa-file-invoice-dollar"></i> Final Batch Reports</h1><p>Closed poultry batches, reconciled with Finance Tracker. Costs include chick, carriage, feed, medicine and all recorded expenses.</p></div>
+    <div class="fr-actions"><a class="fr-btn" href="{% url 'finance_tracker' %}?status=closed"><i class="fa-solid fa-arrow-left"></i> Finance Tracker</a><button class="fr-btn primary" type="button" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button></div>
+  </section>
+  {% for row in report_rows %}
+  {% with p=row.report_position %}
+  <article class="fr-card">
+    <header class="fr-card-head">
+      <div><div class="fr-eyebrow">{{ row.batch.shed.name }} · {% if row.is_layer_batch %}Layer{% else %}Meat{% endif %} Batch</div><h2>Batch #{{ row.batch.batch_number }}</h2><div class="fr-meta"><span><i class="fa-regular fa-calendar"></i> Started {{ row.batch.start_date|date:"d M Y" }}</span><span>Ended {{ row.batch.end_date|date:"d M Y"|default:"Not recorded" }}</span><span>{{ row.all_owner_count }} owner{{ row.all_owner_count|pluralize }}</span></div></div>
+      <span class="fr-pill"><i class="fa-solid fa-circle-check"></i> {{ row.status_display }}</span>
+    </header>
+    <div class="fr-body">
+      {% if not is_admin %}<div class="fr-notice" style="margin-top:0"><strong>My ownership statement:</strong> Financial figures below represent only your share of this batch.</div>{% endif %}
+      <section>
+        <h3 class="fr-section-title">Bird Position</h3>
+        <div class="fr-grid"><div class="fr-stat"><div class="label">Starting Birds</div><div class="value">{{ p.start_birds|intcomma }}</div></div><div class="fr-stat"><div class="label">Mortality</div><div class="value">{{ p.mortality|intcomma }}</div></div><div class="fr-stat"><div class="label">Sold</div><div class="value">{{ p.sold|intcomma }}</div></div><div class="fr-stat"><div class="label">Current Birds</div><div class="value">{{ p.current_birds|intcomma }}</div></div></div>
+      </section>
+      <section class="fr-section"><h3 class="fr-section-title">Final Financial Position</h3>
+        <div class="fr-grid">
+          <div class="fr-stat"><div class="label">Net Bird Sales</div><div class="value">Rs {{ p.revenue|floatformat:0|intcomma }}</div></div>
+          <div class="fr-stat"><div class="label">Egg Net Sales</div><div class="value">Rs {{ p.egg_revenue|floatformat:0|intcomma }}</div></div>
+          <div class="fr-stat"><div class="label">Total Revenue</div><div class="value">Rs {{ p.total_revenue|floatformat:0|intcomma }}</div></div>
+          <div class="fr-stat"><div class="label">Total Recorded COGS</div><div class="value">Rs {{ p.total_cogs|floatformat:0|intcomma }}</div></div>
+          <div class="fr-stat profit {% if p.net_income < 0 %}loss{% endif %}"><div class="label">Final Profit / Loss</div><div class="value">Rs {{ p.net_income|floatformat:0|intcomma }}</div><div class="note">Total revenue minus all recorded costs</div></div>
+          <div class="fr-stat roi {% if p.roi < 0 %}loss{% endif %}"><div class="label">Final ROI</div><div class="value">{{ p.roi|floatformat:1 }}%</div><div class="note">Final profit ÷ total recorded COGS</div></div>
+          {% if row.is_layer_batch %}<div class="fr-stat"><div class="label">Egg Stock</div><div class="value">{{ row.egg_stock|intcomma }}</div><div class="note">Usable eggs remaining</div></div>{% endif %}
+          <div class="fr-stat"><div class="label">Sale-locked COGS</div><div class="value">Rs {{ p.locked_cogs|floatformat:0|intcomma }}</div><div class="note">Historical cost snapshots of sold birds</div></div>
         </div>
+      </section>
+      <section class="fr-section fr-split">
+        <div class="fr-panel"><div class="fr-panel-head"><i class="fa-solid fa-layer-group"></i> Complete Cost Breakdown</div><div class="fr-panel-body">
+          <div class="fr-line"><span>Chick Cost</span><strong>Rs {{ p.chick_cost|floatformat:2|intcomma }}</strong></div>
+          <div class="fr-line"><span>Carriage</span><strong>Rs {{ p.carriage_cost|floatformat:2|intcomma }}</strong></div>
+          <div class="fr-line"><span>Feed</span><strong>Rs {{ p.feed_cost|floatformat:2|intcomma }}</strong></div>
+          <div class="fr-line"><span>Medicine</span><strong>Rs {{ p.medicine_cost|floatformat:2|intcomma }}</strong></div>
+          <div class="fr-line"><span>All Expenses</span><strong>Rs {{ p.expenses|floatformat:2|intcomma }}</strong></div>
+          <div class="fr-line total"><span>Total Recorded COGS</span><strong>Rs {{ p.total_cogs|floatformat:2|intcomma }}</strong></div>
+          <p class="fr-help">Electricity and every other recorded expense are included above. They are not deducted a second time.</p>
+        </div></div>
+        <div class="fr-panel"><div class="fr-panel-head"><i class="fa-solid fa-scale-balanced"></i> Cost Reconciliation</div><div class="fr-panel-body">
+          <div class="fr-line"><span>Historical Sale-locked COGS</span><strong>Rs {{ p.locked_cogs|floatformat:2|intcomma }}</strong></div>
+          <div class="fr-line"><span>Remaining Live Inventory Cost</span><strong>Rs {{ p.remaining_live_inventory_cost|floatformat:2|intcomma }}</strong></div>
+          <div class="fr-line"><span>Unallocated Closing Costs</span><strong>Rs {{ p.closing_cost_adjustment|floatformat:2|intcomma }}</strong></div>
+          <div class="fr-line total"><span>Total Recorded COGS</span><strong>Rs {{ p.total_cogs|floatformat:2|intcomma }}</strong></div>
+          <p class="fr-help">The difference includes costs not locked to sales, such as mortality-related and later recorded costs. This is a reconciliation presentation, not a change to historical sale records.</p>
+          <div class="fr-line"><span>Sold-bird Realized Profit</span><strong>Rs {{ p.realized_profit|floatformat:2|intcomma }}</strong></div>
+          <div class="fr-line"><span>Sold-bird Realized ROI</span><strong>{{ p.realized_roi|floatformat:1 }}%</strong></div>
+          <p class="fr-help">Realized figures are retained for reference. The final profit and ROI above use all recorded batch costs and both revenue streams.</p>
+        </div></div>
+      </section>
+      {% if row.reconciliation_warnings %}<div class="fr-notice"><strong>Reconciliation notes</strong><ul>{% for warning in row.reconciliation_warnings %}<li>{{ warning }}</li>{% endfor %}</ul></div>{% endif %}
+      <section class="fr-section"><h3 class="fr-section-title">Ownership & Financial Performance</h3>
+        <div class="fr-table-wrap"><table class="fr-table"><thead><tr><th>Owner</th><th>Share</th><th>Start</th><th>Mort.</th><th>Sold</th><th>Current</th><th>Bird Revenue</th><th>Egg Revenue</th><th>Total Revenue</th><th>Total COGS</th><th>Final P/L</th><th>Final ROI</th>{% if is_admin %}<th>Statement</th>{% endif %}</tr></thead><tbody>
+        {% for owner in row.report_owner_rows %}<tr><td class="fr-name"><strong>{{ owner.name }}</strong><small>{{ owner.kind|title }}</small></td><td>{{ owner.percentage|floatformat:1 }}%</td><td>{{ owner.start_birds|intcomma }}</td><td>{{ owner.mortality|intcomma }}</td><td>{{ owner.sold|intcomma }}</td><td>{{ owner.current_birds|intcomma }}</td><td>Rs {{ owner.revenue|floatformat:2|intcomma }}</td><td>Rs {{ owner.egg_revenue|floatformat:2|intcomma }}</td><td>Rs {{ owner.total_revenue|floatformat:2|intcomma }}</td><td>Rs {{ owner.recorded_cogs|floatformat:2|intcomma }}</td><td class="{% if owner.final_profit < 0 %}negative{% endif %}">Rs {{ owner.final_profit|floatformat:2|intcomma }}</td><td class="{% if owner.final_roi < 0 %}negative{% endif %}">{{ owner.final_roi|floatformat:1 }}%</td>{% if is_admin %}<td>{% if owner.allocation_id %}<a class="fr-btn" href="{% url 'batch_report_pdf_investor' row.batch.id owner.allocation_id %}" target="_blank" rel="noopener">PDF</a>{% else %}—{% endif %}</td>{% endif %}</tr>{% endfor %}
+        </tbody></table></div>
+        <p class="fr-help">Ownership follows the initial flock allocation. Monetary shares reconcile to the paisa before display rounding. Investors see only their own financial data.</p>
+      </section>
     </div>
-
-    {% for row in report_rows %}
-
-        <details class="report-card" {% if not is_admin and forloop.first %}open{% endif %}>
-
-            <summary>
-                <div class="summary-left">
-                    <strong>
-                        {{ row.batch.batch_type|title }} Batch #{{ row.batch.batch_number }}
-                    </strong>
-
-                    <span>
-                        {{ row.report_title }} — Share {{ row.share_percentage }}%
-                    </span>
-                </div>
-
-                <div class="summary-right">
-                    {% if row.batch.is_active %}
-                        <span class="status-badge active">Active</span>
-                    {% else %}
-                        <span class="status-badge closed">Closed</span>
-                    {% endif %}
-
-                    <div class="summary-money {% if row.net_income < 0 %}negative{% else %}positive{% endif %}">
-                        Net: Rs {{ row.net_income|floatformat:0|intcomma }}
-                    </div>
-                </div>
-            </summary>
-
-            <div class="report-body">
-
-                <h3 class="title">🐥 Bird Position</h3>
-
-                <div class="grid">
-                    <div class="box">
-                        <div class="label">Starting Birds</div>
-                        <div class="value">{{ row.starting_birds|intcomma }}</div>
-                    </div>
-
-                    <div class="box">
-                        <div class="label">Current Birds</div>
-                        <div class="value">{{ row.current_birds|intcomma }}</div>
-                    </div>
-
-                    <div class="box">
-                        <div class="label">Mortality</div>
-                        <div class="value">{{ row.mortality|intcomma }}</div>
-                    </div>
-
-                    <div class="box">
-                        <div class="label">Sold</div>
-                        <div class="value">{{ row.sold|intcomma }}</div>
-                    </div>
-                </div>
-
-                <div class="section">
-                    <h3 class="title">💰 Financial Summary</h3>
-
-                    <div class="grid">
-                        <div class="box">
-                            <div class="label">Revenue</div>
-                            <div class="value">Rs {{ row.revenue|floatformat:0|intcomma }}</div>
-                        </div>
-
-                        <div class="box">
-                            <div class="label">Sold Birds COGS</div>
-                            <div class="value">Rs {{ row.locked_cogs|floatformat:0|intcomma }}</div>
-                        </div>
-
-                        <div class="box">
-                            <div class="label">Expense Share</div>
-                            <div class="value">Rs {{ row.expenses|floatformat:0|intcomma }}</div>
-                        </div>
-
-                        <div class="box">
-                            <div class="label">Net Income</div>
-                            <div class="value {% if row.net_income < 0 %}negative{% else %}positive{% endif %}">
-                                Rs {{ row.net_income|floatformat:0|intcomma }}
-                            </div>
-                        </div>
-
-                        <div class="box">
-                            <div class="label">ROI</div>
-                            <div class="value {% if row.roi < 0 %}negative{% else %}positive{% endif %}">
-                                {{ row.roi|floatformat:2 }}%
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {% if is_admin and row.investor_reports %}
-                    <div class="section">
-                        <h3 class="title">👥 Investor Reports</h3>
-
-                        <div class="investor-report-list">
-                            {% for investor in row.investor_reports %}
-                                <div class="investor-report-row">
-                                    <div>
-                                        <div class="investor-name">
-                                            {{ investor.name }}
-                                        </div>
-
-                                        <div class="investor-meta">
-                                            Birds: {{ investor.birds_owned|intcomma }}
-                                            —
-                                            Share: {{ investor.share_percentage }}%
-                                        </div>
-                                    </div>
-
-                                    <a href="{% url 'batch_report_pdf_investor' row.batch.id investor.allocation_id %}"
-                                       class="pdf-btn"
-                                       target="_blank"
-                                       rel="noopener noreferrer">
-                                        📄 Download Investor PDF
-                                    </a>
-                                </div>
-                            {% endfor %}
-                        </div>
-
-                        <div class="admin-note">
-                            These PDF reports are investor-wise. Admin can download and send them by WhatsApp or email.
-                        </div>
-                    </div>
-                {% endif %}
-
-                {% if is_admin %}
-                    <div class="section">
-                        <h3 class="title">📦 Total Batch Report</h3>
-
-                        <div class="grid">
-                            <div class="box">
-                                <div class="label">Batch Start Birds</div>
-                                <div class="value">{{ row.total_batch_start|intcomma }}</div>
-                            </div>
-
-                            <div class="box">
-                                <div class="label">Batch Current Birds</div>
-                                <div class="value">{{ row.total_batch_current|intcomma }}</div>
-                            </div>
-
-                            <div class="box">
-                                <div class="label">Total Mortality</div>
-                                <div class="value">{{ row.total_batch_mortality|intcomma }}</div>
-                            </div>
-
-                            <div class="box">
-                                <div class="label">Total Sold</div>
-                                <div class="value">{{ row.total_batch_sold|intcomma }}</div>
-                            </div>
-
-                            <div class="box">
-                                <div class="label">Total Revenue</div>
-                                <div class="value">Rs {{ row.total_batch_revenue|floatformat:0|intcomma }}</div>
-                            </div>
-
-                            <div class="box">
-                                <div class="label">Sold Birds COGS</div>
-                                <div class="value">Rs {{ row.total_batch_cogs|floatformat:0|intcomma }}</div>
-                            </div>
-
-                            <div class="box">
-                                <div class="label">Total Expenses</div>
-                                <div class="value">Rs {{ row.total_batch_expenses|floatformat:0|intcomma }}</div>
-                            </div>
-
-                            <div class="box">
-                                <div class="label">Batch Net Income</div>
-                                <div class="value {% if row.total_batch_net_income < 0 %}negative{% else %}positive{% endif %}">
-                                    Rs {{ row.total_batch_net_income|floatformat:0|intcomma }}
-                                </div>
-                            </div>
-
-                            <div class="box">
-                                <div class="label">Batch ROI</div>
-                                <div class="value {% if row.total_batch_roi < 0 %}negative{% else %}positive{% endif %}">
-                                    {{ row.total_batch_roi|floatformat:2 }}%
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                {% endif %}
-
-            </div>
-
-        </details>
-
-    {% empty %}
-
-        <div class="empty-card">
-            <h3>📊 No Final Batch Report Available</h3>
-
-            <p>
-                Final batch reports are generated only after a batch is closed.
-                Your active batch performance is available in the Finance Tracker.
-            </p>
-
-            <a href="{% url 'finance_tracker' %}" class="btn">
-                💰 View Finance Tracker
-            </a>
-        </div>
-
-    {% endfor %}
-
+  </article>
+  {% endwith %}
+  {% empty %}<div class="fr-empty"><i class="fa-solid fa-folder-open" style="font-size:30px"></i><h2>No closed batch reports yet</h2><p>Final batch reports become available when a poultry batch is closed.</p><a class="fr-btn" href="{% url 'finance_tracker' %}">Open Finance Tracker</a></div>{% endfor %}
 </div>
 {% endblock %}
