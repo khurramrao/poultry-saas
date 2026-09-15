@@ -21,11 +21,13 @@
     .status{padding:6px 9px;border-radius:999px;font-size:9px;font-weight:900}.status-paid{background:#e7f7ed;color:#11783a}.status-partial,.status-outstanding,.status-unpaid{background:#fff3df;color:#a96100}.status-credit{background:#eaf2ff;color:#1b62a8}.status-no_cost{background:#eef2f6;color:#66788d}
     .account-body{padding:14px 16px}.money-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.money-box{padding:9px;border:1px solid #edf2f6;border-radius:10px;background:#fafcfe}.money-label{font-size:8px;color:#7c8999;font-weight:900;text-transform:uppercase}.money-value{margin-top:4px;color:#173b61;font-size:14px;font-weight:900}.money-box.paid .money-value{color:#11783a}.money-box.due .money-value{color:#aa6300}.money-box.credit .money-value{color:#1b62a8}
     .breakdown{margin-top:11px;padding-top:11px;border-top:1px solid #edf2f6}.breakdown-title{font-size:10px;color:#4d6176;font-weight:900;margin-bottom:7px}.breakdown-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.break-item{padding:7px;border-radius:8px;background:#f6f9fc}.break-item span{display:block;font-size:7px;color:#8390a0;font-weight:900;text-transform:uppercase}.break-item strong{display:block;margin-top:3px;font-size:10px;color:#173b61}
+
+    .sale-money-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid #e8eef5}.money-box.sale .money-value{color:#1765b2}.money-box.payout .money-value{color:#168046}.money-box.sale-due .money-value{color:#a96100}
     .card-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px}.small-note{font-size:9px;color:#7b8999}.view-btn{min-height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 11px;border-radius:9px;background:#0f4d80;color:#fff;text-decoration:none;font-size:10px;font-weight:900}
     .empty{padding:25px;border:1px dashed #d6e1ec;border-radius:14px;background:#fff;color:#718095;text-align:center}.no-results{display:none;padding:20px;border:1px dashed #d6e1ec;border-radius:14px;background:#fff;color:#718095;text-align:center}
 
     @media(max-width:1050px){.kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.accounts-grid{grid-template-columns:1fr}.breakdown-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-    @media(max-width:720px){.page-head,.section-bar{flex-direction:column;align-items:stretch}.head-actions{width:100%}.head-btn{flex:1}.account-tabs{display:flex;width:100%}.tab-btn{flex:1}.kpi-grid{grid-template-columns:1fr 1fr}.money-grid,.breakdown-grid{grid-template-columns:1fr}.card-foot{align-items:stretch;flex-direction:column}.view-btn{width:100%}.search-wrap{width:100%}}
+    @media(max-width:720px){.page-head,.section-bar{flex-direction:column;align-items:stretch}.head-actions{width:100%}.head-btn{flex:1}.account-tabs{display:flex;width:100%}.tab-btn{flex:1}.kpi-grid{grid-template-columns:1fr 1fr}.money-grid,.sale-money-grid,.breakdown-grid{grid-template-columns:1fr}.card-foot{align-items:stretch;flex-direction:column}.view-btn{width:100%}.search-wrap{width:100%}}
 </style>
 {% endblock %}
 
@@ -62,8 +64,11 @@
             <div><h2>{% if is_admin %}Poultry Investor Accounts{% else %}My Poultry Accounts{% endif %}</h2><p>Each batch remains a separate percentage-based account and statement.</p></div>
             <div class="section-totals">
                 <span class="mini-total">Cost <strong>Rs {{ poultry_total_cost|floatformat:0|intcomma }}</strong></span>
-                <span class="mini-total">Paid <strong>Rs {{ poultry_total_paid|floatformat:0|intcomma }}</strong></span>
-                <span class="mini-total">Due <strong>Rs {{ poultry_total_outstanding|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">Cost Paid <strong>Rs {{ poultry_total_paid|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">Cost Due <strong>Rs {{ poultry_total_outstanding|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">Sales Share <strong>Rs {{ poultry_total_sale_share|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">Sale Paid <strong>Rs {{ poultry_total_sale_paid|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">Sale Due <strong>Rs {{ poultry_total_sale_due|floatformat:0|intcomma }}</strong></span>
             </div>
         </div>
         <div class="search-wrap" style="margin-bottom:13px"><i class="fa-solid fa-magnifying-glass"></i><input id="poultrySearch" class="search-input" placeholder="Search investor, batch, shed, status..."></div>
@@ -86,6 +91,11 @@
                                 <div class="money-box paid"><div class="money-label">Paid</div><div class="money-value">Rs {{ account.total_paid|floatformat:0|intcomma }}</div></div>
                                 {% if account.credit > 0 %}<div class="money-box credit"><div class="money-label">Credit</div><div class="money-value">Rs {{ account.credit|floatformat:0|intcomma }}</div></div>{% else %}<div class="money-box due"><div class="money-label">Outstanding</div><div class="money-value">Rs {{ account.outstanding|floatformat:0|intcomma }}</div></div>{% endif %}
                             </div>
+                            <div class="sale-money-grid">
+                                <div class="money-box sale"><div class="money-label">Sales Share</div><div class="money-value">Rs {{ account.total_sale_share|floatformat:0|intcomma }}</div></div>
+                                <div class="money-box payout"><div class="money-label">Paid to Investor</div><div class="money-value">Rs {{ account.total_sale_paid|floatformat:0|intcomma }}</div></div>
+                                <div class="money-box sale-due"><div class="money-label">Sale Balance</div><div class="money-value">Rs {{ account.sale_balance_due|floatformat:0|intcomma }}</div></div>
+                            </div>
                             <div class="breakdown">
                                 <div class="breakdown-title">Cost Share Breakdown</div>
                                 <div class="breakdown-grid">
@@ -96,7 +106,7 @@
                                     <div class="break-item"><span>Expenses</span><strong>Rs {{ account.expense_cost_share|floatformat:0|intcomma }}</strong></div>
                                 </div>
                             </div>
-                            <div class="card-foot"><span class="small-note">Open the statement to see every cost and payment entry.</span><a class="view-btn" href="{% url 'investor_account_detail' account.allocation.id %}"><i class="fa-regular fa-file-lines"></i> View Poultry Statement</a></div>
+                            <div class="card-foot"><span class="small-note">Open the statement to see separate Cost Contribution and Sale Proceeds ledgers.</span><a class="view-btn" href="{% url 'investor_account_detail' account.allocation.id %}"><i class="fa-regular fa-file-lines"></i> View Poultry Statement</a></div>
                         </div>
                     </article>
                 {% endfor %}

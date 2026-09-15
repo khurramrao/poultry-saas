@@ -53,6 +53,7 @@ from api.models.sales import (
     ChickCostEntry,
     Expense,
 )
+from api.services.poultry_inventory import get_batch_bird_position
 from api.models.goats import (
     Goat,
     GoatAccountPayment,
@@ -353,15 +354,10 @@ def build_batch_summary(batch):
     ensure_vaccine_records(batch, batch.shed.shed_type)
     update_vaccine_statuses(batch)
 
-    total_mortality = sum(
-        MortalityRecord.objects.filter(batch=batch).values_list('count', flat=True)
-    )
-
-    total_sold = sum(
-        SaleRecord.objects.filter(batch=batch).values_list('birds_sold', flat=True)
-    )
-
-    current_birds = batch.bird_count_initial - total_mortality - total_sold
+    bird_position = get_batch_bird_position(batch)
+    total_mortality = bird_position["mortality"]
+    total_sold = bird_position["total_sold"]
+    current_birds = bird_position["current_birds"]
 
     mortality_percent = 0
     if batch.bird_count_initial > 0:
@@ -921,16 +917,12 @@ def dashboard(request, template_name="api/dashboard_v2.html"):
     total_sales_kpi = Decimal("0.00")
 
     for batch in accessible_batches:
-        batch_sold = sum(
-            SaleRecord.objects.filter(batch=batch).values_list(
-                "birds_sold",
-                flat=True
-            )
-        )
+        bird_position = get_batch_bird_position(batch)
+        batch_sold = bird_position["total_sold"]
 
         batch_sales = sum(
             (sale.total_amount for sale in SaleRecord.objects.filter(batch=batch)),
-            0
+            Decimal("0.00")
         )
 
         if is_admin:
@@ -1172,19 +1164,10 @@ def ownership_shares(request):
     ownership_batches = []
 
     for batch in active_batches:
-        total_mortality = MortalityRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("count"))["total"] or 0
-
-        total_sold = SaleRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("birds_sold"))["total"] or 0
-
-        current_birds = (
-            batch.bird_count_initial
-            - total_mortality
-            - total_sold
-        )
+        bird_position = get_batch_bird_position(batch)
+        total_mortality = bird_position["mortality"]
+        total_sold = bird_position["total_sold"]
+        current_birds = bird_position["current_birds"]
 
         # ---------- COGS ----------
         chick_cost = ChickCostEntry.objects.filter(
@@ -1649,19 +1632,10 @@ def active_batches(request):
     batch_rows = []
 
     for batch in batches:
-        total_mortality = MortalityRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("count"))["total"] or 0
-
-        total_sold = SaleRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("birds_sold"))["total"] or 0
-
-        current_birds = (
-            batch.bird_count_initial
-            - total_mortality
-            - total_sold
-        )
+        bird_position = get_batch_bird_position(batch)
+        total_mortality = bird_position["mortality"]
+        total_sold = bird_position["total_sold"]
+        current_birds = bird_position["current_birds"]
 
         batch_rows.append({
             "batch": batch,
@@ -1684,6 +1658,13 @@ def close_batch(request, batch_id):
         return redirect("dashboard")
 
     batch = get_object_or_404(Batch, id=batch_id)
+    bird_position = get_batch_bird_position(batch)
+    if bird_position["current_birds"] > 0:
+        messages.error(
+            request,
+            f"Cannot close Batch #{batch.batch_number}: {bird_position['current_birds']:,} system-recorded birds remain. Record counted sales or use ALL BIRDS SOLD in Finance Tracker after physical stock reaches zero.",
+        )
+        return redirect("active_batches")
 
     batch.is_active = False
     batch.status = "closed"

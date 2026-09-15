@@ -10,10 +10,12 @@
     .detail-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(310px,.55fr);gap:16px;align-items:start}.panel{background:#fff;border:1px solid #dfe7f1;border-radius:17px;overflow:hidden;box-shadow:0 6px 20px rgba(17,49,82,.05);margin-bottom:16px}.panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:16px 18px;border-bottom:1px solid #edf2f7;background:#fafcff}.panel-head h2{margin:0;color:#173d63;font-size:17px}.panel-head span{color:#7b899a;font-size:11px}.cost-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:16px}.cost-box{padding:12px;border:1px solid #e5ebf2;border-radius:11px;background:#fcfdff}.cost-box span{display:block;color:#748599;font-size:11px;margin-bottom:5px}.cost-box strong{display:block;color:#173e65;font-size:17px}.cost-box.total{background:#edf8f1;border-color:#d0ead8}.cost-box.total strong{color:#15733a}
     .statement-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}.statement{width:100%;border-collapse:collapse;min-width:850px}.statement th{padding:11px 12px;background:#f4f7fa;color:#52667d;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.03em}.statement td{padding:12px;border-top:1px solid #edf1f5;color:#28415b;font-size:12px;vertical-align:top}.statement th:first-child,.statement td:first-child{white-space:nowrap;min-width:92px}.statement th:nth-child(2),.statement td:nth-child(2){white-space:nowrap;min-width:110px}.statement .money{text-align:right;font-weight:800;white-space:nowrap}.statement .charge{color:#c14a32}.statement .payment{color:#158343}.statement .balance{color:#103f6c}.row-payment{background:#f5fbf7}.type-badge{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:900;background:#eef4fa;color:#45627e;white-space:nowrap;line-height:1.2}.row-payment .type-badge{background:#e7f7ec;color:#17783d}.empty{padding:26px;text-align:center;color:#7a899a}
     .payment-panel{position:sticky;top:82px}.payment-body{padding:17px}.form-group{margin-bottom:13px}.form-label{display:block;color:#30465d;font-size:12px;font-weight:800;margin-bottom:6px}.input,.select,.textarea{width:100%;box-sizing:border-box;border:1px solid #ccd8e5;border-radius:10px;background:#fff;color:#17324d;font-size:13px;outline:none}.input,.select{height:44px;padding:0 12px}.textarea{min-height:82px;padding:10px 12px;resize:vertical}.input:focus,.select:focus,.textarea:focus{border-color:#2874cd;box-shadow:0 0 0 3px rgba(40,116,205,.1)}.payment-note{padding:11px 12px;border-radius:10px;background:#eef6ff;border:1px solid #d7e9fb;color:#43637f;font-size:11px;line-height:1.5;margin-bottom:13px}.payment-submit{width:100%}.account-info{padding:16px}.info-row{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid #edf1f5}.info-row:last-child{border-bottom:0}.info-row span{color:#718196;font-size:12px}.info-row strong{color:#183e63;font-size:12px;text-align:right}
+
+    .sale-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.sale-kpis .kpi{border-color:#d8e8f8}.sale-kpis .kpi.sale strong{color:#1765b2}.sale-kpis .kpi.payout strong{color:#168046}.sale-kpis .kpi.balance strong{color:#a96100}.ledger-separator-note{padding:11px 13px;margin-bottom:14px;border:1px solid #d8e8f8;border-radius:11px;background:#f4f9ff;color:#41617e;font-size:11px;line-height:1.5}.row-payout{background:#f5fbf7}.row-sale{background:#fbfdff}.row-payout .type-badge{background:#e7f7ec;color:#17783d}.sale-share{color:#1765b2!important}.sale-payout{color:#168046!important}.sale-balance{color:#103f6c!important}.sale-payout-panel .payment-note{background:#eef8f2;border-color:#d2eadb;color:#3e6d50}
     @media print{.sidebar,.app-topbar,.head-actions,.payment-panel{display:none!important}.main-content{margin:0!important}.page-content{padding:0!important}.account-page{max-width:none}.detail-layout{display:block}.panel{box-shadow:none}.account-header{box-shadow:none}.statement{min-width:0;font-size:10px}}
-    @media(max-width:1050px){.detail-layout{grid-template-columns:1fr}.payment-panel{position:static}.kpis{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:700px){.statement{min-width:780px}.statement th,.statement td{padding:10px}.statement th:first-child,.statement td:first-child{min-width:88px}.account-header{flex-direction:column;padding:17px 15px}.head-actions{width:100%}.btn{width:100%}.account-header h1{font-size:22px}.kpis{grid-template-columns:1fr 1fr;gap:9px}.kpi{padding:13px}.kpi strong{font-size:20px}.cost-grid{grid-template-columns:1fr 1fr}.panel-head{align-items:flex-start;flex-direction:column}.statement-wrap{margin:0}.account-info,.payment-body,.cost-grid{padding:14px}}
-    @media(max-width:420px){.kpis,.cost-grid{grid-template-columns:1fr}.head-main{gap:9px}.head-icon{width:45px;height:45px;min-width:45px}}
+    @media(max-width:1050px){.detail-layout{grid-template-columns:1fr}.payment-panel{position:static}.kpis,.sale-kpis{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:700px){.statement{min-width:780px}.statement th,.statement td{padding:10px}.statement th:first-child,.statement td:first-child{min-width:88px}.account-header{flex-direction:column;padding:17px 15px}.head-actions{width:100%}.btn{width:100%}.account-header h1{font-size:22px}.kpis,.sale-kpis{grid-template-columns:1fr 1fr;gap:9px}.kpi{padding:13px}.kpi strong{font-size:20px}.cost-grid{grid-template-columns:1fr 1fr}.panel-head{align-items:flex-start;flex-direction:column}.statement-wrap{margin:0}.account-info,.payment-body,.cost-grid{padding:14px}}
+    @media(max-width:420px){.kpis,.sale-kpis,.cost-grid{grid-template-columns:1fr}.head-main{gap:9px}.head-icon{width:45px;height:45px;min-width:45px}}
 </style>
 {% endblock %}
 
@@ -30,6 +32,14 @@
         {% if account.credit > 0 %}<div class="kpi credit"><label>Account Credit</label><strong>Rs {{ account.credit|floatformat:0|intcomma }}</strong><small>Advance paid above current costs.</small></div>{% else %}<div class="kpi due"><label>Outstanding</label><strong>Rs {{ account.outstanding|floatformat:0|intcomma }}</strong><small>Amount still payable to Admin.</small></div>{% endif %}
         <div class="kpi"><label>Status</label><strong>{{ account.status_label }}</strong><small>Updates automatically as costs and payments change.</small></div>
     </div>
+
+    <div class="sale-kpis">
+        <div class="kpi sale"><label>Total Sale Share</label><strong>Rs {{ account.total_sale_share|floatformat:0|intcomma }}</strong><small>Investor share of bird sales + egg sales for this batch.</small></div>
+        <div class="kpi payout"><label>Sale Amount Paid</label><strong>Rs {{ account.total_sale_paid|floatformat:0|intcomma }}</strong><small>Money already paid by the farm to this investor from sale proceeds.</small></div>
+        <div class="kpi balance"><label>Sale Balance Due</label><strong>Rs {{ account.sale_balance_due|floatformat:0|intcomma }}</strong><small>Sale proceeds still payable to the investor. This does not offset cost contribution due.</small></div>
+    </div>
+
+    <div class="ledger-separator-note"><strong>Two separate ledgers:</strong> Cost Contribution tracks money the investor pays to the farm. Sale Proceeds tracks money the farm owes/pays to the investor. They are never automatically netted against each other.</div>
 
     <div class="detail-layout">
         <div>
@@ -67,6 +77,29 @@
                     </div>
                 {% else %}<div class="empty">No account activity has been recorded yet.</div>{% endif %}
             </section>
+
+            <section class="panel">
+                <div class="panel-head"><h2><i class="fa-solid fa-sack-dollar"></i> Sale Proceeds Ledger</h2><span>Sales increase amount due to investor · payouts reduce it</span></div>
+                {% if sale_statement_rows %}
+                    <div class="statement-wrap">
+                        <table class="statement">
+                            <thead><tr><th>Date</th><th>Type</th><th>Details</th><th style="text-align:right">Sale Share</th><th style="text-align:right">Paid to Investor</th><th style="text-align:right">Sale Balance</th></tr></thead>
+                            <tbody>
+                                {% for row in sale_statement_rows %}
+                                    <tr class="{% if row.entry_type == 'payout' %}row-payout{% else %}row-sale{% endif %}">
+                                        <td>{{ row.date|date:"d M Y" }}</td>
+                                        <td><span class="type-badge">{{ row.category }}</span></td>
+                                        <td>{{ row.description }}</td>
+                                        <td class="money sale-share">{% if row.sale_share > 0 %}Rs {{ row.sale_share|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                                        <td class="money sale-payout">{% if row.payout > 0 %}Rs {{ row.payout|floatformat:0|intcomma }}{% else %}—{% endif %}</td>
+                                        <td class="money sale-balance">Rs {{ row.running_balance|floatformat:0|intcomma }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}<div class="empty">No bird or egg sale proceeds have been recorded for this investor yet.</div>{% endif %}
+            </section>
         </div>
 
         <aside>
@@ -78,21 +111,38 @@
                     <div class="info-row"><span>Starting Birds Owned</span><strong>{{ account.birds_owned|intcomma }}</strong></div>
                     <div class="info-row"><span>Ownership Share</span><strong>{{ account.share_percentage }}%</strong></div>
                     <div class="info-row"><span>Batch Started</span><strong>{{ account.batch.start_date|date:"d M Y" }}</strong></div>
+                    <div class="info-row"><span>Bird Sale Share</span><strong>Rs {{ account.bird_sale_share|floatformat:0|intcomma }}</strong></div>
+                    <div class="info-row"><span>Egg Sale Share</span><strong>Rs {{ account.egg_sale_share|floatformat:0|intcomma }}</strong></div>
+                    <div class="info-row"><span>Sale Balance Due</span><strong>Rs {{ account.sale_balance_due|floatformat:0|intcomma }}</strong></div>
                 </div>
             </section>
 
             {% if is_admin %}
+            <section class="panel sale-payout-panel">
+                <div class="panel-head"><h2><i class="fa-solid fa-hand-holding-dollar"></i> Record Sale Payout</h2></div>
+                <form method="post" action="{% url 'record_investor_sale_payout' account.allocation.id %}" class="payment-body">
+                    {% csrf_token %}
+                    <div class="payment-note"><strong>Farm → Investor.</strong> Record money paid to this investor from their sale proceeds. Current sale balance due: <strong>Rs {{ account.sale_balance_due|floatformat:0|intcomma }}</strong>. This does not change their cost contribution account.</div>
+                    <div class="form-group"><label class="form-label">Payout Date</label><input class="input" type="date" name="payout_date" value="{{ today }}" required></div>
+                    <div class="form-group"><label class="form-label">Amount Paid to Investor (Rs)</label><input class="input" type="number" name="amount" min="0.01" step="0.01" max="{{ account.sale_balance_due }}" placeholder="Enter sale amount paid" required></div>
+                    <div class="form-group"><label class="form-label">Payment Method</label><select class="select" name="payment_method">{% for value,label in sale_payout_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+                    <div class="form-group"><label class="form-label">Reference</label><input class="input" type="text" name="reference" placeholder="Bank reference, cheque no., etc."></div>
+                    <div class="form-group"><label class="form-label">Notes</label><textarea class="textarea" name="notes" placeholder="Optional sale payout notes..."></textarea></div>
+                    <button class="btn btn-green payment-submit" type="submit" {% if account.sale_balance_due <= 0 %}disabled style="opacity:.55;cursor:not-allowed"{% endif %}><i class="fa-solid fa-check"></i> Record Sale Payout</button>
+                </form>
+            </section>
+
             <section class="panel payment-panel">
-                <div class="panel-head"><h2><i class="fa-solid fa-money-check-dollar"></i> Record Investor Payment</h2></div>
+                <div class="panel-head"><h2><i class="fa-solid fa-money-check-dollar"></i> Record Contribution Payment</h2></div>
                 <form method="post" action="{% url 'record_investor_account_payment' account.allocation.id %}" class="payment-body">
                     {% csrf_token %}
-                    <div class="payment-note">Record money received from this investor. Partial payments are allowed. If they pay in advance, the account will show a credit until future costs are added.</div>
+                    <div class="payment-note"><strong>Investor → Farm.</strong> Record money received from this investor toward their cost contribution. This is separate from sale payouts.</div>
                     <div class="form-group"><label class="form-label">Payment Date</label><input class="input" type="date" name="payment_date" value="{{ today }}" required></div>
-                    <div class="form-group"><label class="form-label">Amount (Rs)</label><input class="input" type="number" name="amount" min="0.01" step="0.01" placeholder="Enter amount received" required></div>
+                    <div class="form-group"><label class="form-label">Amount (Rs)</label><input class="input" type="number" name="amount" min="0.01" step="0.01" placeholder="Enter contribution amount received" required></div>
                     <div class="form-group"><label class="form-label">Payment Method</label><select class="select" name="payment_method">{% for value,label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
                     <div class="form-group"><label class="form-label">Reference</label><input class="input" type="text" name="reference" placeholder="Bank reference, cheque no., etc."></div>
                     <div class="form-group"><label class="form-label">Notes</label><textarea class="textarea" name="notes" placeholder="Optional payment notes..."></textarea></div>
-                    <button class="btn btn-green payment-submit" type="submit"><i class="fa-solid fa-check"></i> Record Payment</button>
+                    <button class="btn btn-green payment-submit" type="submit"><i class="fa-solid fa-check"></i> Record Contribution Payment</button>
                 </form>
             </section>
             {% endif %}

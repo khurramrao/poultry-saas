@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from api.models import InvestorProfile, InvestorAllocation, InvestorAccountPayment, BatchCost, FeedEntry, MedicineEntry, UserProfile
+from api.models import InvestorProfile, InvestorAllocation, InvestorAccountPayment, InvestorSalePayout, BatchCost, FeedEntry, MedicineEntry, UserProfile
 from api.models.sensor import (
     Shed,
     Device,
@@ -12,7 +12,7 @@ from api.models.sensor import (
     VaccineRecord,
 )
 from api.models.temperature import TemperatureRule
-from api.models.sales import SaleRecord, Expense, ChickCostEntry
+from api.models.sales import SaleRecord, Expense, ChickCostEntry, BatchBirdSaleReconciliation
 from api.models.eggs import EggProductionEntry, EggSale
 from api.models.goats import Goat, GoatWeightRecord, GoatCostEntry, GoatCostAllocation, GoatSale, GoatAccountPayment, GoatBreedingRecord, GoatKiddingRecord
 
@@ -110,6 +110,7 @@ class SaleRecordAdmin(admin.ModelAdmin):
     list_display = (
         "batch",
         "sale_date",
+        "sale_mode",
         "birds_sold",
         "total_weight_kg",
         "rate_per_kg",
@@ -201,6 +202,43 @@ class InvestorAccountPaymentAdmin(admin.ModelAdmin):
     )
     ordering = ("-payment_date", "-id")
 
+
+
+@admin.register(BatchBirdSaleReconciliation)
+class BatchBirdSaleReconciliationAdmin(admin.ModelAdmin):
+    list_display = (
+        "reconciliation_date",
+        "batch",
+        "counted_birds_sold",
+        "reconciled_weight_only_birds",
+        "total_birds_sold",
+        "total_weight_sold_kg",
+        "is_active",
+        "confirmed_by",
+    )
+    list_filter = ("is_active", "reconciliation_date")
+    search_fields = ("batch__batch_number", "notes")
+
+
+@admin.register(InvestorSalePayout)
+class InvestorSalePayoutAdmin(admin.ModelAdmin):
+    list_display = (
+        "payout_date",
+        "allocation",
+        "amount",
+        "payment_method",
+        "reference",
+        "recorded_by",
+    )
+    list_filter = ("payment_method", "payout_date")
+    search_fields = (
+        "allocation__investor__user__username",
+        "allocation__investor__user__first_name",
+        "allocation__investor__user__last_name",
+        "allocation__batch__batch_number",
+        "reference",
+    )
+    ordering = ("-payout_date", "-id")
 
 
 

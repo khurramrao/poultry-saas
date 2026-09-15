@@ -363,7 +363,7 @@ def daily_log(request):
 
         birds_allocations = allocate_count_to_owners(
             batch,
-            sale.birds_sold,
+            int(sale.birds_sold or 0),
             owner_inputs,
         )
         weight_allocations = allocate_decimal_to_owners(
@@ -500,7 +500,7 @@ def daily_log(request):
             summary_stats = [
                 make_summary_stat(
                     "Birds Sold",
-                    f"{int(sale.birds_sold or 0):,}",
+                    (f"{int(sale.birds_sold):,}" if sale.birds_sold else "Weight Only / Unknown"),
                 ),
                 make_summary_stat(
                     "Total Weight",

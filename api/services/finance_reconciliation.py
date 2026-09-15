@@ -10,6 +10,7 @@ from api.models.sensor import Batch, MortalityRecord
 from api.models.sales import ChickCostEntry, SaleRecord, Expense
 from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
 from api.models.eggs import EggProductionEntry, EggSale
+from api.services.poultry_inventory import get_batch_bird_position
 
 def build_finance_data(user, status_filter="all", batch_ids=None):
     """
@@ -178,12 +179,14 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         # MORTALITY + SALES
         # -----------------------------------------------------
 
-        total_mortality = int(
-            MortalityRecord.objects.filter(batch=batch).aggregate(
-                total=Sum("count")
-            )["total"]
-            or 0
-        )
+        bird_position = get_batch_bird_position(batch)
+        total_mortality = bird_position["mortality"]
+        counted_sold = bird_position["counted_sold"]
+        reconciled_weight_only_birds = bird_position["reconciled_weight_only_birds"]
+        total_sold = bird_position["total_sold"]
+        current_birds = bird_position["current_birds"]
+        all_birds_sold = bird_position["all_birds_sold"]
+        bird_sale_reconciliation = bird_position["reconciliation"]
 
         sales_records = list(
             SaleRecord.objects.filter(batch=batch).order_by(
@@ -191,31 +194,58 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                 "-id",
             )
         )
+        weight_only_sales = [
+            sale for sale in sales_records
+            if getattr(sale, "sale_mode", "counted") == "weight_only"
+        ]
+        pending_cogs_sales = [
+            sale for sale in sales_records
+            if not getattr(sale, "cogs_locked", True)
+        ]
+        realized_sales = [
+            sale for sale in sales_records
+            if getattr(sale, "cogs_locked", True)
+        ]
 
-        total_sold = sum(int(sale.birds_sold or 0) for sale in sales_records)
-
-        total_sales_revenue = sum(
+        total_sales_revenue = money(sum(
             (money(sale.total_amount) for sale in sales_records),
             zero_money,
-        )
-        gross_sales_revenue = sum(
+        ))
+        realized_sales_revenue = money(sum(
+            (money(sale.total_amount) for sale in realized_sales),
+            zero_money,
+        ))
+        pending_sales_revenue = money(total_sales_revenue - realized_sales_revenue)
+        weight_only_sales_revenue = money(sum(
+            (money(sale.total_amount) for sale in weight_only_sales),
+            zero_money,
+        ))
+        gross_sales_revenue = money(sum(
             (money(sale.gross_amount) for sale in sales_records),
             zero_money,
-        )
-        total_discount = sum(
+        ))
+        total_discount = money(sum(
             (money(sale.discount_amount) for sale in sales_records),
             zero_money,
-        )
+        ))
         total_sale_weight = sum(
             (Decimal(sale.total_weight_kg or 0) for sale in sales_records),
             Decimal("0"),
         )
+        weight_only_sale_weight = sum(
+            (Decimal(sale.total_weight_kg or 0) for sale in weight_only_sales),
+            Decimal("0"),
+        )
+        counted_sale_weight = sum(
+            (Decimal(sale.total_weight_kg or 0) for sale in sales_records if sale.birds_sold),
+            Decimal("0"),
+        )
 
         average_sale_weight = (
-            (total_sale_weight / Decimal(total_sold)).quantize(
+            (counted_sale_weight / Decimal(counted_sold)).quantize(
                 Decimal("0.001")
             )
-            if total_sold > 0
+            if counted_sold > 0
             else Decimal("0.000")
         )
 
@@ -302,11 +332,6 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                 }
                 for sale in egg_sales_records
             ]
-
-        current_birds = max(
-            batch_start_birds - total_mortality - total_sold,
-            0,
-        )
 
         # -----------------------------------------------------
         # ALL EXPENSES
@@ -429,25 +454,30 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         # REALIZED POSITION
         # -----------------------------------------------------
 
-        batch_locked_cogs_total = money(
+        historical_sale_locked_cogs = money(
             sum(
-                (money(sale.cogs_allocated) for sale in sales_records),
+                (money(sale.cogs_allocated) for sale in sales_records if getattr(sale, "cogs_locked", True)),
                 zero_money,
             )
         )
 
-        # All expenses are now part of COGS.  Realized profit therefore
-        # subtracts only the COGS locked to birds at the time of each sale.
+        # Before final reconciliation, only sales with a genuinely locked COGS
+        # contribute to realized profit. Weight-only/pending sales still count
+        # as exact revenue, but their profit remains pending. Once Admin confirms
+        # "All Birds Sold", no live inventory remains and every recorded batch
+        # cost is realized at batch level without rewriting historical sales.
+        batch_locked_cogs_total = (
+            total_cogs if all_birds_sold else historical_sale_locked_cogs
+        )
         batch_realized_expenses = zero_money
 
+        realized_revenue_for_profit = (
+            total_sales_revenue if all_birds_sold else realized_sales_revenue
+        )
         batch_net_income = money(
-            total_sales_revenue
-            - batch_locked_cogs_total
+            realized_revenue_for_profit - batch_locked_cogs_total
         )
-
-        batch_total_investment = money(
-            batch_locked_cogs_total
-        )
+        batch_total_investment = money(batch_locked_cogs_total)
 
         batch_roi = Decimal("0.0")
         if batch_total_investment > 0:
@@ -457,9 +487,10 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                 * Decimal("100")
             ).quantize(percent_unit)
 
-        remaining_cogs = max(
-            total_cogs - batch_locked_cogs_total,
-            zero_money,
+        remaining_cogs = (
+            zero_money
+            if all_birds_sold
+            else max(total_cogs - historical_sale_locked_cogs, zero_money)
         )
 
         # Current cost carried by each live bird.
@@ -479,10 +510,11 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
 
         # Final-period accounting is different from sold-bird realization.
         # Do not rewrite historical cogs_allocated values to close a batch.
-        is_final = not batch.is_active or batch.status in {"closed", "sold"}
+        is_closed = not batch.is_active or batch.status in {"closed", "sold"}
+        is_final = is_closed or all_birds_sold
         final_profit = layer_profit_to_date
         final_roi = layer_roi_to_date
-        closing_cost_difference = money(total_cogs - batch_locked_cogs_total)
+        closing_cost_difference = money(total_cogs - historical_sale_locked_cogs)
         closing_cost_adjustment = closing_cost_difference if current_birds == 0 else zero_money
         remaining_live_inventory_cost = closing_cost_difference if current_birds > 0 else zero_money
         reconciliation_warnings = []
@@ -492,10 +524,12 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             reconciliation_warnings.append("This batch is closed but still has recorded live birds. Confirm their disposal or transfer before treating the result as a fully settled closure.")
         if is_final and egg_stock > 0:
             reconciliation_warnings.append("Unsold eggs remain in stock. Their value is not separately capitalized in this report.")
-        if batch_locked_cogs_total > total_cogs:
+        if historical_sale_locked_cogs > total_cogs:
             reconciliation_warnings.append("Locked sale COGS exceed all currently recorded batch costs. Review historical sale snapshots and cost entries.")
         if is_final and abs(closing_cost_difference) >= money_unit:
             reconciliation_warnings.append("Recorded COGS and historical sale-locked COGS differ. The final result includes all recorded costs without modifying saved sale snapshots.")
+        if pending_cogs_sales and not all_birds_sold:
+            reconciliation_warnings.append("One or more bird sales have pending COGS because their bird quantity was not known or the flock count was already uncertain. Use All Birds Sold when physical stock reaches zero to realize the remaining COGS and final profit.")
 
         # -----------------------------------------------------
         # OWNERSHIP INPUTS
@@ -569,15 +603,18 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         for sale in sales_records:
             sale_history.append({
                 "sale_date": sale.sale_date,
-                "birds_sold": int(sale.birds_sold or 0),
+                "birds_sold": sale.birds_sold,
+                "sale_mode": getattr(sale, "sale_mode", "counted"),
+                "cogs_locked": getattr(sale, "cogs_locked", True),
                 "total_weight_kg": sale.total_weight_kg,
                 "rate_per_kg": money(sale.rate_per_kg),
                 "gross_amount": money(sale.gross_amount),
                 "discount_amount": money(sale.discount_amount),
                 "total_amount": money(sale.total_amount),
                 "cogs_allocated": money(sale.cogs_allocated),
-                "gross_profit": money(
-                    money(sale.total_amount) - money(sale.cogs_allocated)
+                "gross_profit": (
+                    money(money(sale.total_amount) - money(sale.cogs_allocated))
+                    if getattr(sale, "cogs_locked", True) else None
                 ),
                 "notes": sale.notes,
             })
@@ -746,14 +783,19 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                 owner_sale_cogs = locked_amounts[index]
                 owner["sale_history"].append({
                     "sale_date": sale.sale_date,
-                    "birds_sold": per_sale_birds[index],
+                    "sale_mode": getattr(sale, "sale_mode", "counted"),
+                    "cogs_locked": getattr(sale, "cogs_locked", True),
+                    "birds_sold": (per_sale_birds[index] if sale.birds_sold else None),
                     "weight_sold": (Decimal(sale.total_weight_kg or 0) * owner["share_ratio"]).quantize(Decimal("0.01")),
                     "rate_per_kg": money(sale.rate_per_kg),
                     "gross_revenue": gross_amounts[index],
                     "discount": discount_amounts[index],
                     "net_revenue": owner_net_revenue,
                     "locked_cogs": owner_sale_cogs,
-                    "sale_margin": money(owner_net_revenue - owner_sale_cogs),
+                    "sale_margin": (
+                        money(owner_net_revenue - owner_sale_cogs)
+                        if getattr(sale, "cogs_locked", True) else None
+                    ),
                 })
 
         if is_layer_batch:
@@ -789,14 +831,20 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             owner["gross_revenue"] = money(sum((h["gross_revenue"] for h in owner["sale_history"]), zero_money))
             owner["discount_share"] = money(sum((h["discount"] for h in owner["sale_history"]), zero_money))
             owner["revenue"] = money(sum((h["net_revenue"] for h in owner["sale_history"]), zero_money))
-            owner["locked_cogs"] = money(sum((h["locked_cogs"] for h in owner["sale_history"]), zero_money))
+            owner["historical_locked_cogs"] = money(sum((h["locked_cogs"] for h in owner["sale_history"] if h["cogs_locked"]), zero_money))
+            owner["realized_sale_revenue"] = money(sum((h["net_revenue"] for h in owner["sale_history"] if h["cogs_locked"]), zero_money))
+            owner["pending_sale_revenue"] = money(owner["revenue"] - owner["realized_sale_revenue"])
+            owner["locked_cogs"] = owner["recorded_cogs"] if all_birds_sold else owner["historical_locked_cogs"]
             owner["egg_gross_revenue"] = money(sum((h["gross_revenue"] for h in owner["egg_sale_history"]), zero_money))
             owner["egg_discount_share"] = money(sum((h["discount"] for h in owner["egg_sale_history"]), zero_money))
             owner["egg_revenue"] = money(sum((h["net_revenue"] for h in owner["egg_sale_history"]), zero_money))
             owner["total_revenue"] = money(owner["revenue"] + owner["egg_revenue"])
-            owner["remaining_cogs"] = max(owner["recorded_cogs"] - owner["locked_cogs"], zero_money)
+            owner["remaining_cogs"] = zero_money if all_birds_sold else max(owner["recorded_cogs"] - owner["historical_locked_cogs"], zero_money)
             owner["cost_per_live_bird"] = money(owner["remaining_cogs"] / Decimal(owner["current_birds"])) if owner["current_birds"] > 0 else zero_money
-            owner["net_income"] = money(owner["revenue"] - owner["locked_cogs"])
+            owner["net_income"] = money(
+                (owner["revenue"] if all_birds_sold else owner["realized_sale_revenue"])
+                - owner["locked_cogs"]
+            )
             owner["investment"] = owner["locked_cogs"]
             owner["roi"] = (owner["net_income"] / owner["investment"] * Decimal("100")).quantize(percent_unit) if owner["investment"] > 0 else Decimal("0.0")
             owner["layer_profit_to_date"] = money(owner["total_revenue"] - owner["recorded_cogs"])
@@ -875,7 +923,17 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             "is_layer_batch": is_layer_batch,
             "current_birds": current_birds,
             "total_mortality": total_mortality,
+            "counted_sold": counted_sold,
+            "reconciled_weight_only_birds": reconciled_weight_only_birds,
             "total_sold": total_sold,
+            "all_birds_sold": all_birds_sold,
+            "bird_sale_reconciliation": bird_sale_reconciliation,
+            "weight_only_sale_count": len(weight_only_sales),
+            "weight_only_sale_weight": weight_only_sale_weight.quantize(Decimal("0.01")),
+            "weight_only_sales_revenue": weight_only_sales_revenue,
+            "pending_cogs_sale_count": len(pending_cogs_sales),
+            "pending_sales_revenue": pending_sales_revenue,
+            "realized_sales_revenue": realized_sales_revenue,
             "gross_sales_revenue": gross_sales_revenue,
             "total_discount": total_discount,
             "total_sales_revenue": total_sales_revenue,
@@ -910,6 +968,7 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             "expense_count": len(expense_history),
             "total_cogs": total_cogs,
             "total_expenses": total_expenses,
+            "historical_sale_locked_cogs": historical_sale_locked_cogs,
             "batch_locked_cogs_total": batch_locked_cogs_total,
             "batch_realized_expenses": batch_realized_expenses,
             "remaining_cogs": remaining_cogs,

@@ -127,11 +127,11 @@
                     </div>
                     <div>
                         <div class="record-label">Birds Sold</div>
-                        <div class="record-value">{{ record.birds_sold }}</div>
+                        <div class="record-value">{% if record.sale_mode == "weight_only" %}Weight Only{% else %}{{ record.birds_sold }}{% endif %}</div>
                     </div>
                     <div>
                         <div class="record-label">Avg Weight</div>
-                        <div class="record-value">{{ record.average_weight_kg }} KG</div>
+                        <div class="record-value">{% if record.sale_mode == "weight_only" %}Pending{% else %}{{ record.average_weight_kg }} KG{% endif %}</div>
                     </div>
                     <div>
                         <div class="record-label">Rate / KG</div>

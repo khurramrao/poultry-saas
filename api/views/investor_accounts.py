@@ -12,10 +12,12 @@ from api.models.investors import (
     FeedEntry,
     InvestorAccountPayment,
     InvestorAllocation,
+    InvestorSalePayout,
     MedicineEntry,
 )
-from api.models.sales import ChickCostEntry, Expense
+from api.models.sales import ChickCostEntry, Expense, SaleRecord
 from api.models.goats import Goat, GoatCostAllocation
+from api.models.eggs import EggSale
 
 
 ZERO = Decimal("0.00")
@@ -88,9 +90,40 @@ def _batch_cost_totals(batch):
     return totals
 
 
+
+def _sale_proceeds_snapshot(allocation):
+    """Revenue owed to this investor, kept separate from cost contributions."""
+    ratio = _share_ratio(allocation)
+
+    bird_sale_share = _money(sum(
+        (_money(sale.total_amount * ratio) for sale in SaleRecord.objects.filter(batch=allocation.batch)),
+        ZERO,
+    ))
+    egg_sale_share = _money(sum(
+        (_money(sale.total_amount * ratio) for sale in EggSale.objects.filter(batch=allocation.batch)),
+        ZERO,
+    ))
+    total_sale_share = _money(bird_sale_share + egg_sale_share)
+    total_sale_paid = _money(
+        allocation.sale_payouts.aggregate(total=Sum("amount"))["total"] or ZERO
+    )
+    sale_balance_due = _money(max(total_sale_share - total_sale_paid, ZERO))
+    sale_overpaid = _money(max(total_sale_paid - total_sale_share, ZERO))
+
+    return {
+        "bird_sale_share": bird_sale_share,
+        "egg_sale_share": egg_sale_share,
+        "total_sale_share": total_sale_share,
+        "total_sale_paid": total_sale_paid,
+        "sale_balance_due": sale_balance_due,
+        "sale_overpaid": sale_overpaid,
+    }
+
+
 def _account_snapshot(allocation):
     ratio = _share_ratio(allocation)
     batch_costs = _batch_cost_totals(allocation.batch)
+    sale_proceeds = _sale_proceeds_snapshot(allocation)
 
     shares = {
         key: _money(value * ratio)
@@ -155,6 +188,7 @@ def _account_snapshot(allocation):
         "credit": _money(credit),
         "status": status,
         "status_label": status_label,
+        **sale_proceeds,
     }
 
 
@@ -379,6 +413,69 @@ def _build_statement(allocation):
     return rows
 
 
+def _build_sale_statement(allocation):
+    """Sales-only ledger: sale entitlement increases due-to-investor balance; payouts reduce it."""
+    ratio = _share_ratio(allocation)
+    rows = []
+
+    for sale in SaleRecord.objects.filter(batch=allocation.batch).order_by("sale_date", "id"):
+        if getattr(sale, "sale_mode", "counted") == "weight_only":
+            details = f"Weight-only bird sale · {sale.total_weight_kg} KG @ Rs {sale.rate_per_kg}/KG"
+        else:
+            details = f"Bird sale · {int(sale.birds_sold or 0)} birds · {sale.total_weight_kg} KG @ Rs {sale.rate_per_kg}/KG"
+        rows.append({
+            "date": sale.sale_date,
+            "sort_type": 0,
+            "sort_id": sale.id,
+            "entry_type": "sale",
+            "category": "Bird Sale",
+            "description": details,
+            "sale_share": _money(sale.total_amount * ratio),
+            "payout": ZERO,
+        })
+
+    for sale in EggSale.objects.filter(batch=allocation.batch).order_by("sale_date", "id"):
+        details = f"Egg sale · {sale.eggs_sold} eggs @ Rs {sale.rate_per_egg}/egg"
+        if sale.buyer_name:
+            details += f" · {sale.buyer_name}"
+        rows.append({
+            "date": sale.sale_date,
+            "sort_type": 0,
+            "sort_id": 100000 + sale.id,
+            "entry_type": "sale",
+            "category": "Egg Sale",
+            "description": details,
+            "sale_share": _money(sale.total_amount * ratio),
+            "payout": ZERO,
+        })
+
+    for payout in allocation.sale_payouts.all().order_by("payout_date", "id"):
+        description = payout.get_payment_method_display()
+        if payout.reference:
+            description += f" · {payout.reference}"
+        if payout.notes:
+            description += f" — {payout.notes}"
+        rows.append({
+            "date": payout.payout_date,
+            "sort_type": 1,
+            "sort_id": 200000 + payout.id,
+            "entry_type": "payout",
+            "category": "Paid to Investor",
+            "description": description,
+            "sale_share": ZERO,
+            "payout": _money(payout.amount),
+            "payout_record": payout,
+        })
+
+    rows.sort(key=lambda row: (row["date"], row["sort_type"], row["sort_id"]))
+    running_balance = ZERO
+    for row in rows:
+        running_balance = _money(running_balance + row["sale_share"] - row["payout"])
+        row["running_balance"] = running_balance
+
+    return rows
+
+
 @login_required
 def investor_accounts(request):
     is_admin = _is_admin(request.user)
@@ -425,6 +522,15 @@ def investor_accounts(request):
     poultry_total_credit = _money(sum(
         (item["credit"] for item in poultry_accounts),
         ZERO,
+    ))
+    poultry_total_sale_share = _money(sum(
+        (item["total_sale_share"] for item in poultry_accounts), ZERO,
+    ))
+    poultry_total_sale_paid = _money(sum(
+        (item["total_sale_paid"] for item in poultry_accounts), ZERO,
+    ))
+    poultry_total_sale_due = _money(sum(
+        (item["sale_balance_due"] for item in poultry_accounts), ZERO,
     ))
 
     # ---------------------------------------------------------
@@ -497,6 +603,9 @@ def investor_accounts(request):
             "poultry_total_paid": poultry_total_paid,
             "poultry_total_outstanding": poultry_total_outstanding,
             "poultry_total_credit": poultry_total_credit,
+            "poultry_total_sale_share": poultry_total_sale_share,
+            "poultry_total_sale_paid": poultry_total_sale_paid,
+            "poultry_total_sale_due": poultry_total_sale_due,
             "goat_total_cost": goat_total_cost,
             "goat_total_paid": goat_total_paid,
             "goat_total_outstanding": goat_total_outstanding,
@@ -517,6 +626,7 @@ def investor_account_detail(request, allocation_id):
 
     snapshot = _account_snapshot(allocation)
     statement_rows = _build_statement(allocation)
+    sale_statement_rows = _build_sale_statement(allocation)
 
     return render(
         request,
@@ -524,8 +634,10 @@ def investor_account_detail(request, allocation_id):
         {
             "account": snapshot,
             "statement_rows": statement_rows,
+            "sale_statement_rows": sale_statement_rows,
             "is_admin": _is_admin(request.user),
             "payment_methods": InvestorAccountPayment.PAYMENT_METHOD_CHOICES,
+            "sale_payout_methods": InvestorSalePayout.PAYMENT_METHOD_CHOICES,
             "today": timezone.localdate().isoformat(),
         },
     )
@@ -598,3 +710,61 @@ def record_investor_account_payment(request, allocation_id):
         "investor_account_detail",
         allocation_id=allocation.id,
     )
+
+@login_required
+@require_POST
+def record_investor_sale_payout(request, allocation_id):
+    if not _is_admin(request.user):
+        messages.error(request, "Only Admin can record sale payouts to investors.")
+        return redirect("investor_accounts")
+
+    allocation = get_object_or_404(
+        InvestorAllocation.objects.select_related("batch", "investor__user"),
+        id=allocation_id,
+    )
+    sale_position = _sale_proceeds_snapshot(allocation)
+
+    try:
+        amount = Decimal(str(request.POST.get("amount", "0") or "0")).quantize(MONEY)
+    except (InvalidOperation, TypeError, ValueError):
+        messages.error(request, "Enter a valid payout amount.")
+        return redirect("investor_account_detail", allocation_id=allocation.id)
+
+    if amount <= ZERO:
+        messages.error(request, "Payout amount must be greater than zero.")
+        return redirect("investor_account_detail", allocation_id=allocation.id)
+
+    if sale_position["sale_balance_due"] <= ZERO:
+        messages.error(request, "There is currently no unpaid sale amount due to this investor.")
+        return redirect("investor_account_detail", allocation_id=allocation.id)
+
+    if amount > sale_position["sale_balance_due"] + MONEY:
+        messages.error(
+            request,
+            f"Payout cannot exceed the current sale balance of Rs {sale_position['sale_balance_due']:,.2f}.",
+        )
+        return redirect("investor_account_detail", allocation_id=allocation.id)
+
+    payout_date = request.POST.get("payout_date") or timezone.localdate()
+    payment_method = request.POST.get("payment_method") or "bank_transfer"
+    valid_methods = {key for key, _ in InvestorSalePayout.PAYMENT_METHOD_CHOICES}
+    if payment_method not in valid_methods:
+        payment_method = "other"
+
+    InvestorSalePayout.objects.create(
+        allocation=allocation,
+        payout_date=payout_date,
+        amount=amount,
+        payment_method=payment_method,
+        reference=(request.POST.get("reference") or "").strip(),
+        notes=(request.POST.get("notes") or "").strip(),
+        recorded_by=request.user,
+    )
+
+    investor_name = _investor_name(allocation)
+    messages.success(
+        request,
+        f"Sale payout of Rs {amount:,.2f} recorded as PAID TO {investor_name}.",
+    )
+    return redirect("investor_account_detail", allocation_id=allocation.id)
+

@@ -16,24 +16,14 @@ from api.models.sales import (
     SaleRecord,
     Expense,
 )
+from api.services.poultry_inventory import get_batch_bird_position
 
 
 def attach_current_birds(batches):
     for batch in batches:
-        total_mortality = MortalityRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("count"))["total"] or 0
-
-        total_sold = SaleRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("birds_sold"))["total"] or 0
-
-        batch.current_birds = (
-            batch.bird_count_initial
-            - total_mortality
-            - total_sold
-        )
-
+        position = get_batch_bird_position(batch)
+        batch.current_birds = position["current_birds"]
+        batch.total_sold = position["total_sold"]
     return batches
 
 
@@ -48,8 +38,9 @@ def meat_sales_summary(request):
     for batch in meat_batches:
         sales = SaleRecord.objects.filter(batch=batch)
 
-        total_sold = sum(sales.values_list("birds_sold", flat=True))
-        total_revenue = sum(sale.total_amount for sale in sales)
+        position = get_batch_bird_position(batch)
+        total_sold = position["total_sold"]
+        total_revenue = sum((sale.total_amount for sale in sales), 0)
 
         rows.append({
             "batch": batch,
@@ -71,8 +62,9 @@ def meat_sale_detail(request, batch_id):
         batch=batch
     ).order_by("-sale_date")
 
-    total_sold = sum(records.values_list("birds_sold", flat=True))
-    total_revenue = sum(record.total_amount for record in records)
+    position = get_batch_bird_position(batch)
+    total_sold = position["total_sold"]
+    total_revenue = sum((record.total_amount for record in records), 0)
 
     return render(request, "api/meat_sale_detail.html", {
         "batch": batch,
@@ -90,8 +82,9 @@ def sale_records(request, batch_id):
         batch=batch
     ).order_by("-sale_date")
 
-    total_birds_sold = sum(records.values_list("birds_sold", flat=True))
-    total_revenue = sum(record.total_amount for record in records)
+    position = get_batch_bird_position(batch)
+    total_birds_sold = position["total_sold"]
+    total_revenue = sum((record.total_amount for record in records), 0)
 
     return render(request, "api/sale_records.html", {
         "batch": batch,
@@ -103,14 +96,25 @@ def sale_records(request, batch_id):
 
 @login_required
 def close_batch(request, batch_id):
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, "Only Admin can close a batch.")
+        return redirect("dashboard")
+
     batch = get_object_or_404(Batch, id=batch_id)
+    position = get_batch_bird_position(batch)
+    if position["current_birds"] > 0:
+        messages.error(
+            request,
+            f"Cannot close Batch #{batch.batch_number}: {position['current_birds']:,} system-recorded birds remain. Record counted sales or, after physical stock reaches zero, use ALL BIRDS SOLD in Finance Tracker.",
+        )
+        return redirect("finance_tracker")
 
     batch.is_active = False
     batch.end_date = date.today()
     batch.status = "closed"
-    batch.save()
-
-    return redirect("dashboard")
+    batch.save(update_fields=["is_active", "end_date", "status"])
+    messages.success(request, f"Batch #{batch.batch_number} closed successfully.")
+    return redirect("finance_tracker")
 
 
 @login_required

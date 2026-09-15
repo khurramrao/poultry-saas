@@ -221,3 +221,48 @@ class InvestorAccountPayment(models.Model):
             f"Batch {self.allocation.batch.batch_number} - "
             f"Rs {self.amount}"
         )
+
+class InvestorSalePayout(models.Model):
+    """Money paid by the farm to an investor from their poultry sale share.
+
+    This ledger is intentionally separate from InvestorAccountPayment, which
+    records money received FROM the investor toward their cost/contribution.
+    """
+
+    PAYMENT_METHOD_CHOICES = InvestorAccountPayment.PAYMENT_METHOD_CHOICES
+
+    allocation = models.ForeignKey(
+        InvestorAllocation,
+        on_delete=models.CASCADE,
+        related_name="sale_payouts",
+    )
+    payout_date = models.DateField(default=timezone.localdate)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default="bank_transfer",
+    )
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_investor_sale_payouts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-payout_date", "-id"]
+        verbose_name = "Investor Sale Payout"
+        verbose_name_plural = "Investor Sale Payouts"
+
+    def __str__(self):
+        return (
+            f"{self.allocation.investor.user.username} - "
+            f"Batch {self.allocation.batch.batch_number} - Sale payout Rs {self.amount}"
+        )
+

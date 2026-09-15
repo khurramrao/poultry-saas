@@ -2,15 +2,15 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 import math
 import re
 
 from api.models.sensor import Batch, MortalityRecord
-from api.models.sales import ChickCostEntry, SaleRecord, Expense
+from api.models.sales import ChickCostEntry, SaleRecord, Expense, BatchBirdSaleReconciliation
 from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
 from api.models.eggs import EggProductionEntry, EggSale
 
@@ -37,6 +37,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 from api.services.finance_reconciliation import build_finance_data, build_report_position
+from api.services.poultry_inventory import get_active_reconciliation, get_batch_bird_position
 from django.contrib.staticfiles import finders
 from reportlab.platypus import Image
 
@@ -55,16 +56,11 @@ def finance_tracker(request):
 
 def attach_current_birds(batches):
     for batch in batches:
-        total_mortality = MortalityRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("count"))["total"] or 0
-
-        total_sold = SaleRecord.objects.filter(
-            batch=batch
-        ).aggregate(total=Sum("birds_sold"))["total"] or 0
-
-        batch.current_birds = batch.bird_count_initial - total_mortality - total_sold
-
+        position = get_batch_bird_position(batch)
+        batch.current_birds = position["current_birds"]
+        batch.counted_birds_sold = position["counted_sold"]
+        batch.reconciled_weight_only_birds = position["reconciled_weight_only_birds"]
+        batch.all_birds_sold = position["all_birds_sold"]
     return batches
 
 
@@ -77,11 +73,12 @@ def add_sale_record(request):
         messages.error(request, "Only admin can add sales.")
         return redirect("dashboard")
 
-    batches = Batch.objects.filter(
-        is_active=True,
-        status="active"
-    ).order_by("-start_date", "batch_number")
-
+    batches = (
+        Batch.objects.filter(is_active=True, status="active")
+        .exclude(bird_sale_reconciliation__is_active=True)
+        .select_related("shed")
+        .order_by("-start_date", "batch_number")
+    )
     batches = attach_current_birds(batches)
 
     if request.method == "POST":
@@ -92,96 +89,252 @@ def add_sale_record(request):
             messages.error(request, "This batch is closed.")
             return redirect("finance_tracker")
 
-        sale_date = request.POST.get("sale_date")
-        birds_sold = int(request.POST.get("birds_sold") or 0)
-        total_weight_kg = Decimal(request.POST.get("total_weight_kg") or "0")
-        rate_per_kg = Decimal(request.POST.get("rate_per_kg") or "0")
-        discount_amount = Decimal(request.POST.get("discount_amount") or "0")
-        notes = request.POST.get("notes", "")
+        if get_active_reconciliation(batch):
+            messages.error(
+                request,
+                "All birds in this batch have already been confirmed sold. Undo the reconciliation before recording another bird sale.",
+            )
+            return redirect("finance_tracker")
 
-        total_mortality = MortalityRecord.objects.filter(batch=batch).aggregate(
-            total=Sum("count")
-        )["total"] or 0
+        sale_mode = (request.POST.get("sale_mode") or "counted").strip().lower()
+        if sale_mode not in {"counted", "weight_only"}:
+            sale_mode = "counted"
 
-        previous_sold = SaleRecord.objects.filter(batch=batch).aggregate(
-            total=Sum("birds_sold")
-        )["total"] or 0
+        sale_date = request.POST.get("sale_date") or timezone.localdate()
+        notes = (request.POST.get("notes") or "").strip()
 
-        current_birds_before_sale = batch.bird_count_initial - total_mortality - previous_sold
-
-        if birds_sold <= 0:
-            messages.error(request, "Birds sold must be greater than zero.")
+        try:
+            total_weight_kg = Decimal(request.POST.get("total_weight_kg") or "0")
+            rate_per_kg = Decimal(request.POST.get("rate_per_kg") or "0")
+            discount_amount = Decimal(request.POST.get("discount_amount") or "0")
+        except (InvalidOperation, TypeError, ValueError):
+            messages.error(request, "Enter valid weight, rate and discount amounts.")
             return redirect("add_sale_record")
 
-        if birds_sold > current_birds_before_sale:
-            messages.error(request, "Birds sold cannot be more than current available birds.")
+        if total_weight_kg <= 0:
+            messages.error(request, "Total weight must be greater than zero.")
+            return redirect("add_sale_record")
+        if rate_per_kg <= 0:
+            messages.error(request, "Rate per KG must be greater than zero.")
+            return redirect("add_sale_record")
+        if discount_amount < 0:
+            messages.error(request, "Discount cannot be negative.")
             return redirect("add_sale_record")
 
-        chick_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
-            total=Sum("chick_cost")
-        )["total"] or Decimal("0")
+        gross_amount = (total_weight_kg * rate_per_kg).quantize(Decimal("0.01"))
+        if discount_amount > gross_amount:
+            messages.error(request, "Discount cannot be greater than the gross sale amount.")
+            return redirect("add_sale_record")
 
-        carriage_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
-            total=Sum("carriage_cost")
-        )["total"] or Decimal("0")
+        position = get_batch_bird_position(batch)
+        current_birds_before_sale = position["current_birds"]
 
-        feed_cost = FeedEntry.objects.filter(batch=batch).aggregate(
-            total=Sum("amount")
-        )["total"] or Decimal("0")
+        birds_sold = None
+        cogs_per_bird_at_sale = Decimal("0.00")
+        cogs_allocated = Decimal("0.00")
+        cogs_locked = False
 
-        medicine_cost = MedicineEntry.objects.filter(batch=batch).aggregate(
-            total=Sum("amount")
-        )["total"] or Decimal("0")
+        if sale_mode == "counted":
+            try:
+                birds_sold = int(request.POST.get("birds_sold") or 0)
+            except (TypeError, ValueError):
+                birds_sold = 0
 
-        all_expense_cost = Expense.objects.filter(
-            batch=batch
-        ).aggregate(
-            total=Sum("amount")
-        )["total"] or Decimal("0")
+            if birds_sold <= 0:
+                messages.error(request, "Birds sold must be greater than zero for a Counted Birds sale.")
+                return redirect("add_sale_record")
+            if birds_sold > current_birds_before_sale:
+                messages.error(
+                    request,
+                    f"Only {current_birds_before_sale} system-recorded birds are available in this batch.",
+                )
+                return redirect("add_sale_record")
 
-        total_cogs = (
-                chick_cost
-                + carriage_cost
-                + feed_cost
-                + medicine_cost
-                + all_expense_cost
-        )
+            # Once an unresolved weight-only sale exists, the physical bird
+            # count is no longer exact. Later counted sales can still be saved,
+            # but their COGS remains pending until the final reconciliation.
+            has_unresolved_weight_only = SaleRecord.objects.filter(
+                batch=batch,
+                sale_mode="weight_only",
+                cogs_locked=False,
+            ).exists()
 
-        previous_locked_cogs = SaleRecord.objects.filter(batch=batch).aggregate(
-            total=Sum("cogs_allocated")
-        )["total"] or Decimal("0")
+            if not has_unresolved_weight_only:
+                chick_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+                    total=Sum("chick_cost")
+                )["total"] or Decimal("0")
+                carriage_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
+                    total=Sum("carriage_cost")
+                )["total"] or Decimal("0")
+                feed_cost = FeedEntry.objects.filter(batch=batch).aggregate(
+                    total=Sum("amount")
+                )["total"] or Decimal("0")
+                medicine_cost = MedicineEntry.objects.filter(batch=batch).aggregate(
+                    total=Sum("amount")
+                )["total"] or Decimal("0")
+                all_expense_cost = Expense.objects.filter(batch=batch).aggregate(
+                    total=Sum("amount")
+                )["total"] or Decimal("0")
 
-        remaining_cogs_before_sale = Decimal(total_cogs) - Decimal(previous_locked_cogs)
+                total_cogs = (
+                    Decimal(chick_cost)
+                    + Decimal(carriage_cost)
+                    + Decimal(feed_cost)
+                    + Decimal(medicine_cost)
+                    + Decimal(all_expense_cost)
+                )
+                previous_locked_cogs = SaleRecord.objects.filter(
+                    batch=batch,
+                    cogs_locked=True,
+                ).aggregate(total=Sum("cogs_allocated"))["total"] or Decimal("0")
 
-        cogs_per_bird_at_sale = Decimal("0")
-        if current_birds_before_sale > 0:
-            cogs_per_bird_at_sale = remaining_cogs_before_sale / Decimal(current_birds_before_sale)
+                remaining_cogs_before_sale = max(
+                    Decimal(total_cogs) - Decimal(previous_locked_cogs),
+                    Decimal("0"),
+                )
+                if current_birds_before_sale > 0:
+                    cogs_per_bird_at_sale = (
+                        remaining_cogs_before_sale / Decimal(current_birds_before_sale)
+                    )
+                    cogs_allocated = cogs_per_bird_at_sale * Decimal(birds_sold)
+                    cogs_locked = True
 
-        cogs_allocated = cogs_per_bird_at_sale * Decimal(birds_sold)
-
-        gross_amount = total_weight_kg * rate_per_kg
         net_sale_amount = gross_amount - discount_amount
-        gross_profit = net_sale_amount - cogs_allocated
+        gross_profit = (
+            net_sale_amount - cogs_allocated
+            if cogs_locked
+            else Decimal("0.00")
+        )
 
         SaleRecord.objects.create(
             batch=batch,
             sale_date=sale_date,
+            sale_mode=sale_mode,
             birds_sold=birds_sold,
             total_weight_kg=total_weight_kg,
             rate_per_kg=rate_per_kg,
             discount_amount=discount_amount,
             notes=notes,
+            cogs_locked=cogs_locked,
             cogs_per_bird_at_sale=cogs_per_bird_at_sale.quantize(Decimal("0.01")),
             cogs_allocated=cogs_allocated.quantize(Decimal("0.01")),
             gross_profit=gross_profit.quantize(Decimal("0.01")),
         )
 
-        messages.success(request, "Sale recorded and COGS locked successfully.")
+        if sale_mode == "weight_only":
+            messages.success(
+                request,
+                f"Weight-only sale recorded: {total_weight_kg:,.2f} KG, net Rs {net_sale_amount:,.2f}. Bird count and COGS are pending reconciliation.",
+            )
+        elif cogs_locked:
+            messages.success(request, "Counted sale recorded and COGS locked successfully.")
+        else:
+            messages.success(
+                request,
+                "Counted sale recorded. COGS remains pending because this batch already has unresolved weight-only sales.",
+            )
         return redirect("finance_tracker")
 
     return render(request, "api/add_sale_record.html", {
         "batches": batches,
     })
+
+
+@login_required
+@require_POST
+def mark_all_birds_sold(request, batch_id):
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, "Only Admin can confirm that all birds are sold.")
+        return redirect("finance_tracker")
+
+    batch = get_object_or_404(Batch.objects.select_related("shed"), id=batch_id)
+    if not batch.is_active or batch.status != "active":
+        messages.error(request, "Only an active batch can be reconciled this way.")
+        return redirect("finance_tracker")
+
+    if not SaleRecord.objects.filter(batch=batch, sale_mode="weight_only").exists():
+        messages.error(request, "This batch has no weight-only sales to reconcile.")
+        return redirect("finance_tracker")
+
+    position = get_batch_bird_position(batch)
+    if position["all_birds_sold"]:
+        messages.info(request, "All birds are already marked sold for this batch.")
+        return redirect("finance_tracker")
+
+    reconciled_weight_only_birds = (
+        int(batch.bird_count_initial or 0)
+        - position["mortality"]
+        - position["counted_sold"]
+    )
+    if reconciled_weight_only_birds < 0:
+        messages.error(
+            request,
+            "Bird records exceed the starting flock. Fix mortality/count sales before reconciling the batch.",
+        )
+        return redirect("finance_tracker")
+
+    data = build_finance_data(request.user, "all", batch_ids=[batch.id])
+    if not data["finance_rows"]:
+        messages.error(request, "Could not build the finance position for this batch.")
+        return redirect("finance_tracker")
+    row = data["finance_rows"][0]
+
+    BatchBirdSaleReconciliation.objects.update_or_create(
+        batch=batch,
+        defaults={
+            "reconciliation_date": timezone.localdate(),
+            "counted_birds_sold": position["counted_sold"],
+            "reconciled_weight_only_birds": reconciled_weight_only_birds,
+            "total_birds_sold": position["counted_sold"] + reconciled_weight_only_birds,
+            "total_weight_sold_kg": row["total_sale_weight"],
+            "total_sales_revenue": row["total_sales_revenue"],
+            "total_cogs_snapshot": row["total_cogs"],
+            "remaining_cogs_realized": max(
+                row["total_cogs"] - row["batch_locked_cogs_total"],
+                Decimal("0.00"),
+            ),
+            "notes": (request.POST.get("notes") or "").strip(),
+            "confirmed_by": request.user,
+            "is_active": True,
+            "reversed_at": None,
+            "reversed_by": None,
+        },
+    )
+
+    messages.success(
+        request,
+        f"All birds sold confirmed. {reconciled_weight_only_birds:,} previously uncounted birds were reconciled to weight-only sales. Current birds are now 0 and all recorded COGS is realized in Finance Tracker.",
+    )
+    return redirect("finance_tracker")
+
+
+@login_required
+@require_POST
+def undo_all_birds_sold(request, batch_id):
+    if not (request.user.is_superuser or request.user.is_staff):
+        messages.error(request, "Only Admin can undo this reconciliation.")
+        return redirect("finance_tracker")
+
+    batch = get_object_or_404(Batch, id=batch_id)
+    if not batch.is_active or batch.status != "active":
+        messages.error(request, "A closed batch reconciliation cannot be undone here.")
+        return redirect("finance_tracker")
+
+    reconciliation = get_active_reconciliation(batch)
+    if not reconciliation:
+        messages.info(request, "There is no active all-birds-sold reconciliation for this batch.")
+        return redirect("finance_tracker")
+
+    reconciliation.is_active = False
+    reconciliation.reversed_at = timezone.now()
+    reconciliation.reversed_by = request.user
+    reconciliation.save(update_fields=["is_active", "reversed_at", "reversed_by", "updated_at"])
+
+    messages.success(
+        request,
+        "All-birds-sold reconciliation was undone. Weight-only sale revenue remains recorded, but final COGS/profit is pending again.",
+    )
+    return redirect("finance_tracker")
 
 @login_required
 def feed_list(request):

@@ -345,7 +345,7 @@
     }
 
     .batch-birds-grid{
-        grid-template-columns:repeat(5,minmax(0,1fr));
+        grid-template-columns:repeat(6,minmax(0,1fr));
         margin-bottom:10px;
     }
 
@@ -549,6 +549,10 @@
         color:#8290a0;
         font-size:10px;
     }
+
+
+    .weight-reconcile-panel{display:flex;justify-content:space-between;gap:14px;align-items:center;margin:0 0 14px;padding:13px 15px;border-radius:12px;border:1px solid #efd89e;background:#fff9e9;color:#6f5318}.weight-reconcile-panel.done{border-color:#bfe3cb;background:#eefaf2;color:#24653d}.weight-reconcile-copy strong{display:block;font-size:13px;color:inherit}.weight-reconcile-copy span{display:block;margin-top:4px;font-size:11px;line-height:1.45}.weight-reconcile-actions{display:flex;gap:8px;flex-wrap:wrap}.weight-reconcile-btn{border:0;border-radius:9px;padding:10px 13px;font-size:11px;font-weight:900;cursor:pointer;white-space:nowrap;background:#148246;color:#fff}.weight-reconcile-btn.undo{background:#e7eef5;color:#34506b}.pending-text{color:#a36a12;font-weight:800}.reconciled-text{color:#168046;font-weight:800}
+    @media(max-width:760px){.weight-reconcile-panel{align-items:stretch;flex-direction:column}.weight-reconcile-actions,.weight-reconcile-btn{width:100%}.weight-reconcile-btn{min-height:42px}}
 
     .owner-table-wrap{
         overflow-x:auto;
@@ -1329,6 +1333,13 @@
                         <strong>
                             {% if is_admin %}{{ row.total_sold|intcomma }}{% else %}{{ row.current_user_owner.sold|intcomma }}{% endif %}
                         </strong>
+                        {% if row.all_birds_sold and row.reconciled_weight_only_birds %}<small>{{ row.counted_sold|intcomma }} counted + {{ row.reconciled_weight_only_birds|intcomma }} reconciled</small>{% endif %}
+                    </div>
+                    <div class="mini-stat">
+                        <span>Weight Sold</span>
+                        <strong>
+                            {% if is_admin %}{{ row.total_sale_weight|floatformat:2|intcomma }}{% else %}{{ row.current_user_owner.weight_sold|floatformat:2|intcomma }}{% endif %} KG
+                        </strong>
                     </div>
                     <div class="mini-stat">
                         <span>Current</span>
@@ -1345,6 +1356,33 @@
                     </div>
                 </div>
 
+                {% if row.weight_only_sale_count %}
+                    <div class="weight-reconcile-panel{% if row.all_birds_sold %} done{% endif %}">
+                        <div class="weight-reconcile-copy">
+                            {% if row.all_birds_sold %}
+                                <strong><i class="fa-solid fa-circle-check"></i> ALL BIRDS SOLD - COGS FULLY REALIZED</strong>
+                                <span>{{ row.reconciled_weight_only_birds|intcomma }} previously uncounted birds reconciled to weight-only sales. Physical/current birds = 0. The batch is still {{ row.status_display }} until you close it.</span>
+                            {% else %}
+                                <strong><i class="fa-solid fa-scale-balanced"></i> WEIGHT-ONLY SALES NEED FINAL BIRD RECONCILIATION</strong>
+                                <span>{{ row.weight_only_sale_count }} weight-only sale{{ row.weight_only_sale_count|pluralize }} · {{ row.weight_only_sale_weight|floatformat:2|intcomma }} KG · Rs {{ row.weight_only_sales_revenue|floatformat:0|intcomma }} revenue. Bird quantity and part of COGS/profit are still pending.</span>
+                            {% endif %}
+                        </div>
+                        {% if is_admin and row.batch.is_active and row.status_key == 'active' %}
+                            <div class="weight-reconcile-actions">
+                                {% if row.all_birds_sold %}
+                                    <form method="post" action="{% url 'undo_all_birds_sold' row.batch.id %}" onsubmit="return confirm('Undo ALL BIRDS SOLD for this batch? Weight-only revenue stays recorded, but current bird count and pending COGS will reopen.');">
+                                        {% csrf_token %}<button class="weight-reconcile-btn undo" type="submit"><i class="fa-solid fa-rotate-left"></i> Undo Reconciliation</button>
+                                    </form>
+                                {% else %}
+                                    <form method="post" action="{% url 'mark_all_birds_sold' row.batch.id %}" onsubmit="return confirm('Confirm that PHYSICAL BIRDS REMAINING = 0? This will reconcile the remaining {{ row.current_birds }} system-recorded birds as sold through weight-only sales and realize all recorded COGS for final profit/ROI. The batch will remain Active until you close it.');">
+                                        {% csrf_token %}<button class="weight-reconcile-btn" type="submit"><i class="fa-solid fa-check-double"></i> ALL BIRDS SOLD</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+
                 <div class="batch-money-grid{% if row.is_layer_batch %} layer-bird-money-grid{% endif %}">
                     <div class="money-stat">
                         <span>{% if row.is_layer_batch %}Net Bird Sales{% else %}Net Sales{% endif %}</span>
@@ -1353,7 +1391,7 @@
                         </strong>
                     </div>
                     <div class="money-stat">
-                        <span>Realized COGS</span>
+                        <span>{% if row.all_birds_sold %}Final Realized COGS{% elif row.pending_cogs_sale_count %}Locked COGS (Reconciled Sales){% else %}Realized COGS{% endif %}</span>
                         <strong>
                             Rs {% if is_admin %}{{ row.batch_locked_cogs_total|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.locked_cogs|floatformat:0|intcomma }}{% endif %}
                         </strong>
@@ -1365,7 +1403,7 @@
                         </strong>
                     </div>
                     <div class="money-stat net">
-                        <span>Realized Bird Profit</span>
+                        <span>{% if row.all_birds_sold %}Final Bird Profit{% else %}Realized Bird Profit{% endif %}</span>
                         {% if is_admin %}
                             <strong class="{% if row.batch_net_income < 0 %}money-negative{% endif %}">Rs {{ row.batch_net_income|floatformat:0|intcomma }}</strong>
                         {% else %}
@@ -1462,6 +1500,7 @@
                                 <th>Start</th>
                                 <th>Mort.</th>
                                 <th>Sold</th>
+                                <th>Weight Sold</th>
                                 <th>Current</th>
                                 {% if row.is_layer_batch %}
                                     <th>Bird Revenue</th>
@@ -1494,6 +1533,7 @@
                                     <td>{{ owner.start_birds|intcomma }}</td>
                                     <td>{{ owner.mortality|intcomma }}</td>
                                     <td>{{ owner.sold|intcomma }}</td>
+                                    <td>{{ owner.weight_sold|floatformat:2|intcomma }} KG</td>
                                     <td>{{ owner.current_birds|intcomma }}</td>
                                     {% if row.is_layer_batch %}
                                         <td>Rs {{ owner.revenue|floatformat:0|intcomma }}</td>
@@ -1529,6 +1569,7 @@
                             <div class="owner-mobile-birds">
                                 <div class="owner-mobile-metric"><span>Mortality</span><strong>{{ owner.mortality }}</strong></div>
                                 <div class="owner-mobile-metric"><span>Sold</span><strong>{{ owner.sold }}</strong></div>
+                                <div class="owner-mobile-metric"><span>Weight Sold</span><strong>{{ owner.weight_sold|floatformat:2 }} KG</strong></div>
                                 <div class="owner-mobile-metric"><span>Current</span><strong>{{ owner.current_birds }}</strong></div>
                                 <div class="owner-mobile-metric"><span>{% if row.is_layer_batch %}Layer ROI{% else %}ROI{% endif %}</span><strong>{% if row.is_layer_batch %}{{ owner.layer_roi_to_date|floatformat:1 }}{% else %}{{ owner.roi|floatformat:1 }}{% endif %}%</strong></div>
                             </div>
@@ -1633,6 +1674,7 @@
                                 <div class="detail-row"><span>Realized COGS</span><strong>Rs {{ owner.locked_cogs|floatformat:0|intcomma }}</strong></div>
                                 <div class="detail-row"><span>COGS Remaining in Live Birds</span><strong>Rs {{ owner.remaining_cogs|floatformat:0|intcomma }}</strong></div>
                                 <div class="detail-row"><span>{% if row.is_layer_batch %}Net Bird Sales Revenue{% else %}Net Sales Revenue{% endif %}</span><strong>Rs {{ owner.revenue|floatformat:0|intcomma }}</strong></div>
+                                {% if owner.pending_sale_revenue > 0 and not row.all_birds_sold %}<div class="detail-row"><span>Revenue Awaiting COGS Reconciliation</span><strong class="pending-text">Rs {{ owner.pending_sale_revenue|floatformat:0|intcomma }}</strong></div>{% endif %}
                                 <div class="detail-row"><span>Bird Sale Discount Share</span><strong>Rs {{ owner.discount_share|floatformat:0|intcomma }}</strong></div>
                                 <div class="detail-row total"><span>Realized Bird Profit</span><strong class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</strong></div>
 
@@ -1649,15 +1691,15 @@
                                 </div>
                                 {% for sale in owner.sale_history %}
                                     <details class="history-item">
-                                        <summary>{{ sale.sale_date|date:"M d, Y" }} · {{ sale.birds_sold }} Birds · Rs {{ sale.net_revenue|floatformat:0|intcomma }}</summary>
+                                        <summary>{{ sale.sale_date|date:"M d, Y" }} · {% if sale.sale_mode == 'weight_only' %}Weight Only{% else %}{{ sale.birds_sold }} Birds{% endif %} · Rs {{ sale.net_revenue|floatformat:0|intcomma }}</summary>
                                         <div class="history-body">
                                             <div class="detail-row"><span>Weight</span><strong>{{ sale.weight_sold|floatformat:2 }} KG</strong></div>
                                             <div class="detail-row"><span>Rate</span><strong>Rs {{ sale.rate_per_kg|floatformat:0|intcomma }}/KG</strong></div>
                                             <div class="detail-row"><span>Gross Revenue</span><strong>Rs {{ sale.gross_revenue|floatformat:0|intcomma }}</strong></div>
                                             <div class="detail-row"><span>Discount</span><strong>Rs {{ sale.discount|floatformat:0|intcomma }}</strong></div>
                                             <div class="detail-row"><span>Net Revenue</span><strong>Rs {{ sale.net_revenue|floatformat:0|intcomma }}</strong></div>
-                                            <div class="detail-row"><span>Locked COGS</span><strong>Rs {{ sale.locked_cogs|floatformat:0|intcomma }}</strong></div>
-                                            <div class="detail-row total"><span>Sale Margin</span><strong class="{% if sale.sale_margin < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ sale.sale_margin|floatformat:0|intcomma }}</strong></div>
+                                            <div class="detail-row"><span>COGS</span><strong>{% if sale.cogs_locked %}Rs {{ sale.locked_cogs|floatformat:0|intcomma }}{% else %}<span class="pending-text">Pending</span>{% endif %}</strong></div>
+                                            <div class="detail-row total"><span>Sale Margin</span><strong>{% if sale.cogs_locked %}<span class="{% if sale.sale_margin < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ sale.sale_margin|floatformat:0|intcomma }}</span>{% else %}<span class="pending-text">Pending reconciliation</span>{% endif %}</strong></div>
                                         </div>
                                     </details>
                                 {% empty %}
@@ -1908,6 +1950,22 @@
                                 </div>
 
                                 <div class="detail-row">
+                                    <span>Total Weight Sold</span>
+                                    <strong>{{ row.total_sale_weight|floatformat:2|intcomma }} KG</strong>
+                                </div>
+
+                                {% if row.weight_only_sale_count %}
+                                    <div class="detail-row"><span>Weight-Only Sales</span><strong>{{ row.weight_only_sale_count }} sale{{ row.weight_only_sale_count|pluralize }} · {{ row.weight_only_sale_weight|floatformat:2|intcomma }} KG</strong></div>
+                                    <div class="detail-row"><span>Weight-Only Net Revenue</span><strong>Rs {{ row.weight_only_sales_revenue|floatformat:0|intcomma }}</strong></div>
+                                    {% if not row.all_birds_sold %}<div class="detail-row"><span>COGS Status</span><strong class="pending-text">Pending final bird reconciliation</strong></div>{% else %}<div class="detail-row"><span>COGS Status</span><strong class="reconciled-text">Fully realized</strong></div>{% endif %}
+                                {% endif %}
+
+                                <div class="detail-row">
+                                    <span>Average Weight / Counted Bird</span>
+                                    <strong>{% if row.counted_sold %}{{ row.average_sale_weight|floatformat:3 }} KG{% else %}—{% endif %}</strong>
+                                </div>
+
+                                <div class="detail-row">
                                     <span>{% if row.is_layer_batch %}Bird Sale Discount{% else %}Discount{% endif %}</span>
                                     <strong class="money-negative">− Rs {{ row.total_discount|floatformat:0|intcomma }}</strong>
                                 </div>
@@ -1952,15 +2010,15 @@
                                     <div class="history-body">
                                         {% for sale in row.sale_history %}
                                             <details class="history-item">
-                                                <summary>{{ sale.sale_date|date:"M d, Y" }} · {{ sale.birds_sold }} Birds · Rs {{ sale.total_amount|floatformat:0|intcomma }}</summary>
+                                                <summary>{{ sale.sale_date|date:"M d, Y" }} · {% if sale.sale_mode == 'weight_only' %}Weight Only{% else %}{{ sale.birds_sold }} Birds{% endif %} · Rs {{ sale.total_amount|floatformat:0|intcomma }}</summary>
                                                 <div class="history-body">
                                                     <div class="detail-row"><span>Total Weight</span><strong>{{ sale.total_weight_kg|floatformat:2 }} KG</strong></div>
                                                     <div class="detail-row"><span>Rate</span><strong>Rs {{ sale.rate_per_kg|floatformat:0|intcomma }}/KG</strong></div>
                                                     <div class="detail-row"><span>Gross Amount</span><strong>Rs {{ sale.gross_amount|floatformat:0|intcomma }}</strong></div>
                                                     <div class="detail-row"><span>Discount</span><strong>Rs {{ sale.discount_amount|floatformat:0|intcomma }}</strong></div>
                                                     <div class="detail-row"><span>Net Sale</span><strong>Rs {{ sale.total_amount|floatformat:0|intcomma }}</strong></div>
-                                                    <div class="detail-row"><span>Realized COGS</span><strong>Rs {{ sale.cogs_allocated|floatformat:0|intcomma }}</strong></div>
-                                                    <div class="detail-row total"><span>Sale Profit / Loss</span><strong class="{% if sale.gross_profit < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ sale.gross_profit|floatformat:0|intcomma }}</strong></div>
+                                                    <div class="detail-row"><span>COGS</span><strong>{% if sale.cogs_locked %}Rs {{ sale.cogs_allocated|floatformat:0|intcomma }}{% else %}<span class="pending-text">Pending</span>{% endif %}</strong></div>
+                                                    <div class="detail-row total"><span>Sale Profit / Loss</span><strong>{% if sale.cogs_locked %}<span class="{% if sale.gross_profit < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ sale.gross_profit|floatformat:0|intcomma }}</span>{% else %}<span class="pending-text">Pending reconciliation</span>{% endif %}</strong></div>
                                                 </div>
                                             </details>
                                         {% empty %}

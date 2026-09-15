@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from api.models.sensor import Batch
 from django.utils import timezone
 from datetime import date
@@ -25,10 +26,21 @@ class ChickCostEntry(models.Model):
 
 
 class SaleRecord(models.Model):
+    SALE_MODE_CHOICES = [
+        ("counted", "Counted Birds"),
+        ("weight_only", "Weight Only / Bird Count Unknown"),
+    ]
+
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
     sale_date = models.DateField(default=date.today)
 
-    birds_sold = models.PositiveIntegerField()
+    sale_mode = models.CharField(
+        max_length=20,
+        choices=SALE_MODE_CHOICES,
+        default="counted",
+    )
+    birds_sold = models.PositiveIntegerField(null=True, blank=True)
+    cogs_locked = models.BooleanField(default=True)
     total_weight_kg = models.DecimalField(max_digits=10, decimal_places=2)
     rate_per_kg = models.DecimalField(max_digits=10, decimal_places=2)
 
@@ -79,8 +91,65 @@ class SaleRecord(models.Model):
         ).quantize(Decimal("0.01"))
 
 
+class BatchBirdSaleReconciliation(models.Model):
+    """Admin confirmation that no physical birds remain in the batch.
 
-from django.utils import timezone
+    This does not rewrite the bird count on individual weight-only sales.
+    Instead it records the otherwise-unknown quantity at batch level and lets
+    finance realize all remaining COGS while the batch can stay Active for
+    review before final closure.
+    """
+
+    batch = models.OneToOneField(
+        Batch,
+        on_delete=models.CASCADE,
+        related_name="bird_sale_reconciliation",
+    )
+    reconciliation_date = models.DateField(default=timezone.localdate)
+    counted_birds_sold = models.PositiveIntegerField(default=0)
+    reconciled_weight_only_birds = models.PositiveIntegerField(default=0)
+    total_birds_sold = models.PositiveIntegerField(default=0)
+    total_weight_sold_kg = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    total_sales_revenue = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    total_cogs_snapshot = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    remaining_cogs_realized = models.DecimalField(
+        max_digits=14, decimal_places=2, default=Decimal("0.00")
+    )
+    notes = models.TextField(blank=True)
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="confirmed_all_birds_sold_reconciliations",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    reversed_at = models.DateTimeField(null=True, blank=True)
+    reversed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reversed_all_birds_sold_reconciliations",
+    )
+
+    class Meta:
+        verbose_name = "Batch Bird Sale Reconciliation"
+        verbose_name_plural = "Batch Bird Sale Reconciliations"
+
+    def __str__(self):
+        state = "Active" if self.is_active else "Reversed"
+        return f"Batch {self.batch.batch_number} - All Birds Sold ({state})"
+
+
 
 class Expense(models.Model):
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
