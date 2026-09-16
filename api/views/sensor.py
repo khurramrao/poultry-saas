@@ -66,6 +66,15 @@ from django.utils.timesince import timesince
 from django.contrib.auth import logout
 from django.views.decorators.http import require_GET, require_POST
 
+from api.services.relay_automation import (
+    apply_manual_override,
+    evaluate_device_relays,
+    evaluate_relay,
+    get_relay_automation_status,
+    resume_auto,
+    validate_automation_values,
+)
+
 
 @csrf_exempt
 def receive_sensor_data(request):
@@ -91,7 +100,7 @@ def receive_sensor_data(request):
                 "message": "Device not registered"
             })
 
-        SensorData.objects.create(
+        sensor_record = SensorData.objects.create(
             device=device,
             temperature=data.get("temperature"),
             humidity=data.get("humidity"),
@@ -100,6 +109,11 @@ def receive_sensor_data(request):
             ammonia_raw=data.get("ammonia_raw", 0),
             sensor_error=data.get("sensor_error", False),
         )
+
+        # Re-evaluate any Sensor + Schedule relays immediately when fresh
+        # sensor data arrives. The ESP32 will receive the resulting desired
+        # state on its next relay-command poll.
+        evaluate_device_relays(device, latest_sensor=sensor_record)
 
         return JsonResponse({"status": "success"})
 
@@ -155,6 +169,7 @@ def get_relay_commands(request):
         relays = []
 
         for relay in relay_channels:
+            automation_status = evaluate_relay(relay)
             relays.append(
                 {
                     "channel": relay.channel_number,
@@ -162,6 +177,8 @@ def get_relay_commands(request):
                     "name": relay.name,
                     "load_type": relay.load_type,
                     "desired_state": relay.desired_state,
+                    "automation_type": relay.automation_type,
+                    "automation_reason": automation_status["reason"],
                 }
             )
 
@@ -1690,7 +1707,7 @@ def relay_control(request):
         )
         return redirect("dashboard")
 
-    relay_channels = (
+    relay_channels = list(
         RelayChannel.objects.filter(
             device__is_active=True,
             is_enabled=True,
@@ -1706,6 +1723,9 @@ def relay_control(request):
         )
     )
 
+    for relay in relay_channels:
+        relay.automation_status = get_relay_automation_status(relay)
+
     return render(
         request,
         "api/relay_control.html",
@@ -1714,6 +1734,7 @@ def relay_control(request):
             "is_admin": is_admin,
         },
     )
+
 
 @login_required
 @require_GET
@@ -1747,6 +1768,7 @@ def relay_status_snapshot(request):
     relay_data = []
 
     for relay in relays:
+        automation_status = get_relay_automation_status(relay)
         relay_data.append(
             {
                 "id": relay.id,
@@ -1759,6 +1781,12 @@ def relay_status_snapshot(request):
                     if relay.reported_at
                     else None
                 ),
+                "automation_type": relay.automation_type,
+                "automation_label": automation_status["mode_label"],
+                "automation_reason": automation_status["reason"],
+                "next_action": automation_status["next_action"],
+                "override_active": automation_status["override_active"],
+                "sensor_value": automation_status["sensor_value"],
             }
         )
 
@@ -1783,7 +1811,7 @@ def set_relay_state(request, relay_id):
         return redirect("dashboard")
 
     relay = get_object_or_404(
-        RelayChannel.objects.select_related("device"),
+        RelayChannel.objects.select_related("device", "device__shed"),
         id=relay_id,
         is_enabled=True,
         device__is_active=True,
@@ -1793,35 +1821,126 @@ def set_relay_state(request, relay_id):
 
     if requested_state not in {"on", "off"}:
         messages.error(request, "Invalid relay command.")
-        if request.POST.get("return_to") == "detail":
-            return redirect(
-                "relay_detail",
-                relay_id=relay.id,
+        return _relay_return_redirect(request, relay)
+
+    override_minutes = request.POST.get("override_minutes") or 60
+    status = apply_manual_override(
+        relay,
+        requested_state == "on",
+        request.user,
+        override_minutes=override_minutes,
+    )
+
+    if relay.automation_type == "manual":
+        message = f"{relay.name} changed to {'ON' if relay.desired_state else 'OFF'}."
+    else:
+        message = (
+            f"{relay.name} temporary manual {'ON' if relay.desired_state else 'OFF'} "
+            f"override applied. {status['next_action']}."
+        )
+
+    messages.success(request, message)
+    return _relay_return_redirect(request, relay)
+
+
+def _relay_return_redirect(request, relay):
+    return_to = request.POST.get("return_to", "").strip().lower()
+    if return_to == "detail":
+        return redirect("relay_detail", relay_id=relay.id)
+    if return_to == "automation":
+        return redirect("relay_automation", relay_id=relay.id)
+    return redirect("relay_control")
+
+
+@login_required
+@require_POST
+def resume_relay_auto(request, relay_id):
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        messages.error(request, "Only admin can control electrical outputs.")
+        return redirect("dashboard")
+
+    relay = get_object_or_404(
+        RelayChannel.objects.select_related("device", "device__shed"),
+        id=relay_id,
+        is_enabled=True,
+        device__is_active=True,
+    )
+
+    if relay.automation_type == "manual":
+        messages.info(request, f"{relay.name} is already Manual Only.")
+    else:
+        status = resume_auto(relay)
+        messages.success(
+            request,
+            f"{relay.name} resumed automatic control. {status['reason']}",
+        )
+
+    return _relay_return_redirect(request, relay)
+
+
+@login_required
+def relay_automation(request, relay_id):
+    is_admin = request.user.is_superuser or request.user.is_staff
+    if not is_admin:
+        messages.error(request, "Only admin can configure electrical automation.")
+        return redirect("dashboard")
+
+    relay = get_object_or_404(
+        RelayChannel.objects.select_related(
+            "device",
+            "device__shed",
+            "changed_by",
+        ),
+        id=relay_id,
+        is_enabled=True,
+        device__is_active=True,
+    )
+
+    if request.method == "POST":
+        try:
+            values = validate_automation_values(request.POST)
+        except ValueError as error:
+            messages.error(request, str(error))
+        else:
+            for field_name, value in values.items():
+                setattr(relay, field_name, value)
+
+            # Changing the automation configuration always returns the relay
+            # to AUTO. A fresh manual command can be applied afterwards.
+            relay.manual_override_state = None
+            relay.manual_override_started_at = None
+            relay.manual_override_until = None
+            relay.manual_override_allow_outside_schedule = False
+            relay.save(
+                update_fields=[
+                    *values.keys(),
+                    "manual_override_state",
+                    "manual_override_started_at",
+                    "manual_override_until",
+                    "manual_override_allow_outside_schedule",
+                ]
             )
 
-        return redirect("relay_control")
+            status = evaluate_relay(relay)
+            messages.success(
+                request,
+                f"Automation saved for {relay.name}. {status['reason']}",
+            )
+            return redirect("relay_detail", relay_id=relay.id)
 
-    relay.desired_state = requested_state == "on"
-    relay.commanded_at = timezone.now()
-    relay.changed_by = request.user
-    relay.last_error = ""
-
-    relay.save(
-        update_fields=[
-            "desired_state",
-            "commanded_at",
-            "changed_by",
-            "last_error",
-        ]
-    )
-
-    messages.success(
+    status = get_relay_automation_status(relay)
+    return render(
         request,
-        f"{relay.name} command changed to "
-        f"{'ON' if relay.desired_state else 'OFF'}.",
+        "api/relay_automation.html",
+        {
+            "relay": relay,
+            "automation_status": status,
+            "repeat_interval_hours": (relay.repeat_interval_minutes or 0) / 60,
+            "is_admin": True,
+        },
     )
 
-    return redirect("relay_control")
 
 @login_required
 def relay_detail(request, relay_id):
@@ -1845,11 +1964,15 @@ def relay_detail(request, relay_id):
         is_enabled=True,
     )
 
+    automation_status = get_relay_automation_status(relay)
+
     return render(
         request,
         "api/relay_detail.html",
         {
             "relay": relay,
+            "automation_status": automation_status,
             "is_admin": True,
         },
     )
+

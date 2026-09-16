@@ -34,6 +34,16 @@ path(
 ),
 
 path(
+    "relay-control/<int:relay_id>/automation/",
+    sensor.relay_automation,
+    name="relay_automation",
+),
+path(
+    "relay-control/<int:relay_id>/resume-auto/",
+    sensor.resume_relay_auto,
+    name="resume_relay_auto",
+),
+path(
     "relay-control/<int:relay_id>/",
     sensor.relay_detail,
     name="relay_detail",

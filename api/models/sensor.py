@@ -320,6 +320,104 @@ class RelayChannel(models.Model):
         default="",
     )
 
+    AUTOMATION_TYPE_CHOICES = [
+        ("manual", "Manual Only"),
+        ("daily", "Daily ON/OFF Schedule"),
+        ("sensor_schedule", "Sensor + Schedule"),
+        ("repeating", "Repeating Cycle"),
+    ]
+
+    automation_type = models.CharField(
+        max_length=30,
+        choices=AUTOMATION_TYPE_CHOICES,
+        default="manual",
+        help_text="Automation mode for this individual relay output.",
+    )
+
+    schedule_start_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Daily ON time, sensor automation start time, or repeating-cycle anchor."
+        ),
+    )
+
+    schedule_end_time = models.TimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "Daily OFF time, sensor force-OFF time, or optional repeating-cycle end time."
+        ),
+    )
+
+    sensor_on_threshold = models.PositiveSmallIntegerField(
+        default=60,
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(100),
+        ],
+        help_text="Sensor + Schedule: turn ON at or below this light percentage.",
+    )
+
+    sensor_off_threshold = models.PositiveSmallIntegerField(
+        default=70,
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(100),
+        ],
+        help_text="Sensor + Schedule: turn OFF at or above this light percentage.",
+    )
+
+    repeat_interval_minutes = models.PositiveIntegerField(
+        default=240,
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(1440),
+        ],
+        help_text="Repeating Cycle: minutes between cycle starts. 240 = every 4 hours.",
+    )
+
+    run_duration_minutes = models.PositiveIntegerField(
+        default=30,
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(1440),
+        ],
+        help_text="Repeating Cycle: how long the relay stays ON each cycle.",
+    )
+
+    manual_override_state = models.BooleanField(
+        null=True,
+        blank=True,
+        help_text="Temporary manual state while an automation mode is active.",
+    )
+
+    manual_override_started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    manual_override_until = models.DateTimeField(
+        null=True,
+        blank=True,
+    )
+
+    manual_override_allow_outside_schedule = models.BooleanField(
+        default=False,
+        help_text=(
+            "True only for an explicit temporary after-hours manual command."
+        ),
+    )
+
+    command_source = models.CharField(
+        max_length=20,
+        choices=[
+            ("manual", "Manual"),
+            ("automation", "Automation"),
+        ],
+        default="manual",
+    )
+
     class Meta:
         ordering = [
             "device_id",

@@ -156,6 +156,7 @@ class RelayChannelAdmin(admin.ModelAdmin):
         "name",
         "gpio_pin",
         "load_type",
+        "automation_type",
         "is_enabled",
         "desired_state",
         "actual_state",
@@ -166,6 +167,7 @@ class RelayChannelAdmin(admin.ModelAdmin):
     list_filter = (
         "device",
         "load_type",
+        "automation_type",
         "is_enabled",
         "desired_state",
         "actual_state",

@@ -1,309 +1,69 @@
 {% extends "api/base_dashboard.html" %}
-
-{% block title %}
-    {{ relay.name }}
-{% endblock %}
-
+{% block title %}{{ relay.name }}{% endblock %}
 {% block extra_css %}
 <style>
-    .detail-page {
-        max-width: 900px;
-        margin: 0 auto;
-    }
-
-    .back-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-
-        margin-bottom: 15px;
-
-        color: #1767bd;
-        text-decoration: none;
-        font-weight: bold;
-    }
-
-    .detail-card {
-        padding: 25px;
-
-        background: white;
-        border: 1px solid #dfe6ef;
-        border-radius: 15px;
-    }
-
-    .detail-heading {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 20px;
-
-        margin-bottom: 24px;
-    }
-
-    .detail-heading h1 {
-        margin: 0;
-    }
-
-    .detail-heading p {
-        margin: 7px 0 0;
-        color: #6c7b90;
-    }
-
-    .detail-state {
-        padding: 8px 13px;
-        border-radius: 999px;
-
-        background: #edf1f5;
-        font-weight: bold;
-    }
-
-    .detail-actions {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-
-        margin-bottom: 25px;
-    }
-
-    .detail-actions form {
-        margin: 0;
-    }
-
-    .detail-button {
-        width: 100%;
-        padding: 14px;
-
-        border: 0;
-        border-radius: 9px;
-
-        color: white;
-        font-size: 16px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-
-    .detail-button-on {
-        background: #149447;
-    }
-
-    .detail-button-off {
-        background: #df3d3d;
-    }
-
-    .detail-button:disabled {
-        opacity: 0.42;
-        cursor: not-allowed;
-    }
-
-    .information-grid {
-        display: grid;
-        grid-template-columns:
-            repeat(auto-fit, minmax(220px, 1fr));
-        gap: 14px;
-    }
-
-    .information-item {
-        padding: 15px;
-
-        background: #f7f9fc;
-        border: 1px solid #e6ebf2;
-        border-radius: 10px;
-    }
-
-    .information-item span {
-        display: block;
-        margin-bottom: 5px;
-
-        color: #718096;
-        font-size: 12px;
-        text-transform: uppercase;
-    }
-
-    .information-item strong {
-        font-size: 15px;
-    }
+.detail-page{max-width:980px;margin:0 auto}.back-link{display:inline-flex;align-items:center;gap:8px;margin-bottom:15px;color:#1767bd;text-decoration:none;font-weight:800}.detail-card{padding:24px;background:#fff;border:1px solid #dfe6ef;border-radius:15px}.detail-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:20px}.detail-heading h1{margin:0}.detail-heading p{margin:7px 0 0;color:#6c7b90}.detail-state{padding:8px 13px;border-radius:999px;background:#edf1f5;font-weight:800}.automation-panel{padding:16px;margin-bottom:18px;border:1px solid #dbe8f7;border-radius:12px;background:#f7fbff}.automation-panel h3{margin:0 0 11px;color:#173f69}.automation-grid,.information-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px}.information-item{padding:13px;background:#f7f9fc;border:1px solid #e6ebf2;border-radius:10px}.information-item span{display:block;margin-bottom:5px;color:#718096;font-size:11px;text-transform:uppercase;font-weight:800}.information-item strong{font-size:14px;color:#25415f}.reason-box{margin-top:12px;padding:11px;border-radius:9px;background:#fff;border:1px solid #e2eaf2;color:#4d657c}.detail-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:18px 0}.detail-actions form{margin:0}.detail-button,.automation-link{display:flex;align-items:center;justify-content:center;width:100%;box-sizing:border-box;padding:12px;border:0;border-radius:9px;color:#fff;font-weight:800;cursor:pointer;text-decoration:none}.detail-button-on{background:#149447}.detail-button-off{background:#df3d3d}.detail-button-auto{background:#1767bd}.automation-link{background:#173f69}.duration-wrap{display:flex;align-items:center;gap:10px;margin-top:13px}.duration-wrap label{font-size:12px;font-weight:800;color:#65758a}.duration-wrap select{padding:8px 10px;border:1px solid #d9e2ec;border-radius:8px;background:#fff}@media(max-width:680px){.detail-heading{flex-direction:column}.detail-actions{grid-template-columns:1fr}.duration-wrap{align-items:flex-start;flex-direction:column}}
 </style>
 {% endblock %}
-
 {% block content %}
-
 <div class="detail-page">
-
-    <a
-        href="{% url 'relay_control' %}"
-        class="back-link"
-    >
-        <i class="fa-solid fa-arrow-left"></i>
-        Back to Electrical Controls
-    </a>
-
-    <div class="detail-card">
-
-        <div class="detail-heading">
-            <div>
-                <h1>{{ relay.name }}</h1>
-
-                <p>
-                    {{ relay.device.shed.name }}
-                    · {{ relay.device.display_name }}
-                </p>
-            </div>
-
-            <div class="detail-state">
-                {% if not relay.reported_at %}
-                    Not reported
-                {% elif relay.desired_state != relay.actual_state %}
-                    Changing
-                {% elif relay.actual_state %}
-                    ON
-                {% else %}
-                    OFF
-                {% endif %}
-            </div>
-        </div>
-
-        <div class="detail-actions">
-
-            <form
-                method="post"
-                action="{% url 'set_relay_state' relay.id %}"
-            >
-                {% csrf_token %}
-
-                <input
-                    type="hidden"
-                    name="state"
-                    value="on"
-                >
-
-                <input
-                    type="hidden"
-                    name="return_to"
-                    value="detail"
-                >
-
-                <button
-                    type="submit"
-                    class="detail-button detail-button-on"
-                    {% if relay.desired_state %}disabled{% endif %}
-                >
-                    Turn ON
-                </button>
-            </form>
-
-            <form
-                method="post"
-                action="{% url 'set_relay_state' relay.id %}"
-            >
-                {% csrf_token %}
-
-                <input
-                    type="hidden"
-                    name="state"
-                    value="off"
-                >
-
-                <input
-                    type="hidden"
-                    name="return_to"
-                    value="detail"
-                >
-
-                <button
-                    type="submit"
-                    class="detail-button detail-button-off"
-                    {% if not relay.desired_state %}disabled{% endif %}
-                >
-                    Turn OFF
-                </button>
-            </form>
-
-        </div>
-
-        <div class="information-grid">
-
-            <div class="information-item">
-                <span>Device</span>
-                <strong>{{ relay.device.display_name }}</strong>
-            </div>
-
-            <div class="information-item">
-                <span>Shed</span>
-                <strong>{{ relay.device.shed.name }}</strong>
-            </div>
-
-            <div class="information-item">
-                <span>Relay channel</span>
-                <strong>{{ relay.channel_number }}</strong>
-            </div>
-
-            <div class="information-item">
-                <span>ESP32 GPIO</span>
-                <strong>{{ relay.gpio_pin }}</strong>
-            </div>
-
-            <div class="information-item">
-                <span>Equipment type</span>
-                <strong>{{ relay.get_load_type_display }}</strong>
-            </div>
-
-            <div class="information-item">
-                <span>Requested state</span>
-                <strong>
-                    {% if relay.desired_state %}ON{% else %}OFF{% endif %}
-                </strong>
-            </div>
-
-            <div class="information-item">
-                <span>ESP32 reported state</span>
-                <strong>
-                    {% if not relay.reported_at %}
-                        Not reported
-                    {% elif relay.actual_state %}
-                        ON
-                    {% else %}
-                        OFF
-                    {% endif %}
-                </strong>
-            </div>
-
-            <div class="information-item">
-                <span>Last command</span>
-                <strong>
-                    {% if relay.commanded_at %}
-                        {{ relay.commanded_at|date:"d M Y, h:i A" }}
-                    {% else %}
-                        No command yet
-                    {% endif %}
-                </strong>
-            </div>
-
-            <div class="information-item">
-                <span>Last ESP32 report</span>
-                <strong>
-                    {% if relay.reported_at %}
-                        {{ relay.reported_at|date:"d M Y, h:i A" }}
-                    {% else %}
-                        Not reported
-                    {% endif %}
-                </strong>
-            </div>
-
-            <div class="information-item">
-                <span>Last changed by</span>
-                <strong>
-                    {% if relay.changed_by %}
-                        {{ relay.changed_by.get_full_name|default:relay.changed_by.username }}
-                    {% else %}
-                        No command yet
-                    {% endif %}
-                </strong>
-            </div>
-
-        </div>
-
+<a href="{% url 'relay_control' %}" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Electrical Controls</a>
+<div class="detail-card">
+    <div class="detail-heading">
+        <div><h1>{{ relay.name }}</h1><p>{{ relay.device.shed.name }} · {{ relay.device.display_name }} · Relay {{ relay.channel_number }}</p></div>
+        <div class="detail-state">{% if not relay.reported_at %}Not reported{% elif relay.desired_state != relay.actual_state %}Changing{% elif relay.actual_state %}ON{% else %}OFF{% endif %}</div>
     </div>
 
-</div>
+    <div class="automation-panel">
+        <h3><i class="fa-solid fa-gears"></i> Automation</h3>
+        <div class="automation-grid">
+            <div class="information-item"><span>Mode</span><strong>{{ automation_status.mode_label }}</strong></div>
+            {% if relay.automation_type == "sensor_schedule" %}
+                <div class="information-item"><span>Light thresholds</span><strong>ON ≤ {{ relay.sensor_on_threshold }}% · OFF ≥ {{ relay.sensor_off_threshold }}%</strong></div>
+                <div class="information-item"><span>Automation window</span><strong>{{ automation_status.schedule_start_display }} → {{ automation_status.schedule_end_display }}</strong></div>
+                <div class="information-item"><span>Current light</span><strong>{% if automation_status.sensor_value != None %}{{ automation_status.sensor_value }}%{% else %}No fresh reading{% endif %}</strong></div>
+            {% elif relay.automation_type == "daily" %}
+                <div class="information-item"><span>ON / OFF</span><strong>{{ automation_status.schedule_start_display }} → {{ automation_status.schedule_end_display }}</strong></div>
+            {% elif relay.automation_type == "repeating" %}
+                <div class="information-item"><span>Repeat every</span><strong>{{ automation_status.repeat_interval_display }}</strong></div>
+                <div class="information-item"><span>Run duration</span><strong>{{ automation_status.run_duration_display }}</strong></div>
+                <div class="information-item"><span>Window</span><strong>{{ automation_status.schedule_start_display }} → {{ automation_status.schedule_end_display }}</strong></div>
+            {% endif %}
+            <div class="information-item"><span>Manual override</span><strong>{% if automation_status.override_active %}ACTIVE{% else %}Not active{% endif %}</strong></div>
+        </div>
+        <div class="reason-box"><strong>{{ automation_status.reason }}</strong><br>{{ automation_status.next_action }}</div>
+    </div>
 
+    {% if relay.automation_type != "manual" %}
+    <div class="duration-wrap"><label for="override-duration">Manual override duration</label><select id="override-duration"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="120">2 hours</option></select></div>
+    {% endif %}
+
+    <div class="detail-actions">
+        <form method="post" action="{% url 'set_relay_state' relay.id %}" data-manual-form>{% csrf_token %}<input type="hidden" name="state" value="on"><input type="hidden" name="return_to" value="detail"><input type="hidden" name="override_minutes" value="60" data-override-input><button class="detail-button detail-button-on" type="submit">{% if relay.automation_type == "manual" %}Turn ON{% else %}Manual ON{% endif %}</button></form>
+        <form method="post" action="{% url 'set_relay_state' relay.id %}" data-manual-form>{% csrf_token %}<input type="hidden" name="state" value="off"><input type="hidden" name="return_to" value="detail"><input type="hidden" name="override_minutes" value="60" data-override-input><button class="detail-button detail-button-off" type="submit">{% if relay.automation_type == "manual" %}Turn OFF{% else %}Manual OFF{% endif %}</button></form>
+        {% if relay.automation_type != "manual" %}<form method="post" action="{% url 'resume_relay_auto' relay.id %}">{% csrf_token %}<input type="hidden" name="return_to" value="detail"><button class="detail-button detail-button-auto" type="submit">Resume Auto</button></form>{% else %}<a class="automation-link" href="{% url 'relay_automation' relay.id %}">Set Automation</a>{% endif %}
+    </div>
+    {% if relay.automation_type != "manual" %}<a class="automation-link" href="{% url 'relay_automation' relay.id %}"><i class="fa-solid fa-pen-to-square"></i>&nbsp; Edit Automation</a>{% endif %}
+
+    <div class="information-grid" style="margin-top:20px;">
+        <div class="information-item"><span>Device</span><strong>{{ relay.device.display_name }}</strong></div>
+        <div class="information-item"><span>Shed</span><strong>{{ relay.device.shed.name }}</strong></div>
+        <div class="information-item"><span>Relay channel</span><strong>{{ relay.channel_number }}</strong></div>
+        <div class="information-item"><span>ESP32 GPIO</span><strong>{{ relay.gpio_pin }}</strong></div>
+        <div class="information-item"><span>Equipment type</span><strong>{{ relay.get_load_type_display }}</strong></div>
+        <div class="information-item"><span>Requested state</span><strong>{% if relay.desired_state %}ON{% else %}OFF{% endif %}</strong></div>
+        <div class="information-item"><span>ESP32 reported</span><strong>{% if not relay.reported_at %}Not reported{% elif relay.actual_state %}ON{% else %}OFF{% endif %}</strong></div>
+        <div class="information-item"><span>Command source</span><strong>{{ relay.get_command_source_display }}</strong></div>
+        <div class="information-item"><span>Last command</span><strong>{% if relay.commanded_at %}{{ relay.commanded_at|date:"d M Y, h:i A" }}{% else %}No command yet{% endif %}</strong></div>
+        <div class="information-item"><span>Last ESP32 report</span><strong>{% if relay.reported_at %}{{ relay.reported_at|date:"d M Y, h:i A" }}{% else %}Not reported{% endif %}</strong></div>
+        <div class="information-item"><span>Last manual user</span><strong>{% if relay.changed_by %}{{ relay.changed_by.get_full_name|default:relay.changed_by.username }}{% else %}None{% endif %}</strong></div>
+    </div>
+</div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const duration=document.getElementById('override-duration');
+document.querySelectorAll('[data-manual-form]').forEach(function(form){form.addEventListener('submit',function(){if(duration){form.querySelector('[data-override-input]').value=duration.value;}});});
+</script>
 {% endblock %}

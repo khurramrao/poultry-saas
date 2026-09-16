@@ -1,0 +1,69 @@
+{% extends "api/base_dashboard.html" %}
+{% block title %}Automation · {{ relay.name }}{% endblock %}
+{% block extra_css %}
+<style>
+.auto-page{max-width:900px;margin:0 auto}.back-link{display:inline-flex;gap:8px;align-items:center;margin-bottom:15px;color:#1767bd;text-decoration:none;font-weight:800}.auto-card{padding:24px;background:#fff;border:1px solid #dfe6ef;border-radius:15px}.auto-card h1{margin:0}.auto-sub{margin:6px 0 20px;color:#6d7d91}.mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:20px}.mode-option{position:relative}.mode-option input{position:absolute;opacity:0}.mode-option label{display:block;height:100%;box-sizing:border-box;padding:14px;border:2px solid #e2e8f0;border-radius:11px;cursor:pointer;background:#fafcff}.mode-option input:checked+label{border-color:#1767bd;background:#eef6ff}.mode-title{font-weight:900;color:#203f61}.mode-help{display:block;margin-top:4px;color:#718096;font-size:12px;line-height:1.4}.settings-box{display:none;padding:16px;margin:14px 0;border:1px solid #e2e9f1;border-radius:11px;background:#f8fafc}.settings-box.active{display:block}.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field label{display:block;margin-bottom:6px;color:#53677e;font-size:11px;font-weight:900;text-transform:uppercase}.field input{width:100%;box-sizing:border-box;padding:10px 11px;border:1px solid #d5dee8;border-radius:8px;background:#fff;color:#25415f}.field small{display:block;margin-top:5px;color:#7d8b9b;line-height:1.35}.rule-preview{margin-top:14px;padding:12px;border-radius:9px;background:#fff;border:1px solid #dbe5ef;color:#435f7c;line-height:1.55}.save-row{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}.btn{display:inline-flex;align-items:center;justify-content:center;padding:11px 17px;border:0;border-radius:9px;font-weight:900;text-decoration:none;cursor:pointer}.btn-secondary{background:#eef2f6;color:#31506f}.btn-primary{background:#1767bd;color:#fff}.status-strip{margin-bottom:18px;padding:12px 14px;border-radius:10px;background:#f7fbff;border:1px solid #dbe8f7;color:#4a647e}@media(max-width:650px){.mode-grid,.settings-grid{grid-template-columns:1fr}.save-row{flex-direction:column-reverse}.btn{width:100%;box-sizing:border-box}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="auto-page">
+<a class="back-link" href="{% url 'relay_detail' relay.id %}"><i class="fa-solid fa-arrow-left"></i> Back to {{ relay.name }}</a>
+<div class="auto-card">
+    <h1>Automation · {{ relay.name }}</h1>
+    <div class="auto-sub">{{ relay.device.shed.name }} · {{ relay.device.display_name }} · CH{{ relay.channel_number }}</div>
+    <div class="status-strip"><strong>Current:</strong> {{ automation_status.mode_label }} · {{ automation_status.reason }}<br>{{ automation_status.next_action }}</div>
+
+    <form method="post">{% csrf_token %}
+        <div class="mode-grid">
+            <div class="mode-option"><input id="mode-manual" type="radio" name="automation_type" value="manual" {% if relay.automation_type == 'manual' %}checked{% endif %}><label for="mode-manual"><span class="mode-title">Manual Only</span><span class="mode-help">Relay changes only when Admin presses ON or OFF.</span></label></div>
+            <div class="mode-option"><input id="mode-daily" type="radio" name="automation_type" value="daily" {% if relay.automation_type == 'daily' %}checked{% endif %}><label for="mode-daily"><span class="mode-title">Daily ON/OFF Schedule</span><span class="mode-help">Turn ON at one time and OFF at another every day.</span></label></div>
+            <div class="mode-option"><input id="mode-sensor" type="radio" name="automation_type" value="sensor_schedule" {% if relay.automation_type == 'sensor_schedule' %}checked{% endif %}><label for="mode-sensor"><span class="mode-title">Sensor + Schedule</span><span class="mode-help">Use the shed light sensor inside a fixed daily time window.</span></label></div>
+            <div class="mode-option"><input id="mode-repeat" type="radio" name="automation_type" value="repeating" {% if relay.automation_type == 'repeating' %}checked{% endif %}><label for="mode-repeat"><span class="mode-title">Repeating Cycle</span><span class="mode-help">Example: exhaust fan every 4 hours for 30 minutes.</span></label></div>
+        </div>
+
+        <div id="manual-settings" class="settings-box"><div class="rule-preview"><strong>Manual Only:</strong> automation is disabled for this relay. ON/OFF buttons directly control the requested state.</div></div>
+
+        <div id="daily-settings" class="settings-box">
+            <div class="settings-grid">
+                <div class="field"><label>Turn ON</label><input type="time" name="daily_start" value="{% if relay.schedule_start_time %}{{ relay.schedule_start_time|time:'H:i' }}{% endif %}"></div>
+                <div class="field"><label>Turn OFF</label><input type="time" name="daily_end" value="{% if relay.schedule_end_time %}{{ relay.schedule_end_time|time:'H:i' }}{% endif %}"></div>
+            </div>
+            <div class="rule-preview">The relay is ON only inside this daily window. Overnight windows are supported.</div>
+        </div>
+
+        <div id="sensor_schedule-settings" class="settings-box">
+            <div class="settings-grid">
+                <div class="field"><label>Automation starts</label><input type="time" name="sensor_schedule_start" value="{% if relay.schedule_start_time %}{{ relay.schedule_start_time|time:'H:i' }}{% endif %}"><small>Example: 5:00 PM.</small></div>
+                <div class="field"><label>Force OFF at</label><input type="time" name="sensor_schedule_end" value="{% if relay.schedule_end_time %}{{ relay.schedule_end_time|time:'H:i' }}{% endif %}"><small>Example: 10:00 PM. An earlier manual ON cannot pass this cutoff.</small></div>
+                <div class="field"><label>Turn ON at / below (%)</label><input type="number" min="0" max="100" name="sensor_on_threshold" value="{{ relay.sensor_on_threshold }}"></div>
+                <div class="field"><label>Turn OFF at / above (%)</label><input type="number" min="0" max="100" name="sensor_off_threshold" value="{{ relay.sensor_off_threshold }}"><small>Keep this higher than the ON threshold (for example 60% / 70%) to stop relay chatter.</small></div>
+            </div>
+            <div class="rule-preview"><strong>Example:</strong> between 5 PM and 10 PM, light ≤ 60% → ON; light ≥ 70% → OFF. At 10 PM → forced OFF. If power returns at 10:30 PM, the requested state remains OFF.</div>
+        </div>
+
+        <div id="repeating-settings" class="settings-box">
+            <div class="settings-grid">
+                <div class="field"><label>First cycle starts</label><input type="time" name="repeating_start" value="{% if relay.schedule_start_time %}{{ relay.schedule_start_time|time:'H:i' }}{% endif %}"><small>Example: 6:00 AM.</small></div>
+                <div class="field"><label>Stop new cycles after (optional)</label><input type="time" name="repeating_end" value="{% if relay.schedule_end_time %}{{ relay.schedule_end_time|time:'H:i' }}{% endif %}"><small>Leave blank for continuous 24-hour repeating cycles.</small></div>
+                <div class="field"><label>Repeat every (hours)</label><input type="number" min="0.25" max="24" step="0.25" name="repeat_interval_hours" value="{{ repeat_interval_hours|floatformat:2 }}"><small>4 = every four hours.</small></div>
+                <div class="field"><label>Run for (minutes)</label><input type="number" min="1" max="1440" name="run_duration_minutes" value="{{ relay.run_duration_minutes }}"><small>Example: 30 minutes.</small></div>
+            </div>
+            <div class="rule-preview"><strong>Example:</strong> Start 6:00 AM · repeat every 4 hours · run 30 minutes → 6:00-6:30, 10:00-10:30, 2:00-2:30, etc.</div>
+        </div>
+
+        <input type="hidden" name="repeat_interval_minutes" value="{{ relay.repeat_interval_minutes }}">
+
+        <div class="save-row"><a href="{% url 'relay_detail' relay.id %}" class="btn btn-secondary">Cancel</a><button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i>&nbsp; Save Automation</button></div>
+    </form>
+</div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const boxes={manual:document.getElementById('manual-settings'),daily:document.getElementById('daily-settings'),sensor_schedule:document.getElementById('sensor_schedule-settings'),repeating:document.getElementById('repeating-settings')};
+function selectedMode(){const checked=document.querySelector('input[name="automation_type"]:checked');return checked?checked.value:'manual';}
+function refreshMode(){Object.values(boxes).forEach(b=>b.classList.remove('active'));boxes[selectedMode()].classList.add('active');}
+document.querySelectorAll('input[name="automation_type"]').forEach(r=>r.addEventListener('change',refreshMode));refreshMode();
+
+</script>
+{% endblock %}
