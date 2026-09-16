@@ -901,10 +901,21 @@
     margin-top:4px;
 }
 
-        .device-update{
-    white-space:nowrap;
+       .shed-main > div:last-child{
+    min-width:0;
+    flex:1;
+}
+
+.device-update{
+    white-space:normal;
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:2px 4px;
     font-size:12px !important;
+    line-height:1.35;
     margin-top:5px !important;
+    overflow-wrap:anywhere;
 }
 
 .device-update span:first-child{
