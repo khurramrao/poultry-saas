@@ -50,7 +50,7 @@ from reportlab.platypus import Image
 def finance_tracker(request):
     if not (request.user.is_superuser or request.user.is_staff or hasattr(request.user, "investor_profile")):
         return redirect("dashboard")
-    context = build_finance_data(request.user, request.GET.get("status", "all"))
+    context = build_finance_data(request.user, request.GET.get("status", "active"))
     return render(request, "api/finance_tracker.html", context)
 
 

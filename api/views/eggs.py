@@ -114,7 +114,7 @@ def egg_dashboard(request):
         messages.error(request, "You are not allowed to view egg records.")
         return redirect("dashboard")
 
-    batches = list(_available_layer_batches(request.user, include_closed=True))
+    batches = list(_available_layer_batches(request.user, include_closed=False))
 
     overview = {
         "collected": 0,
