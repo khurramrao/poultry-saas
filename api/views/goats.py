@@ -516,7 +516,70 @@ def goat_detail(request, goat_id):
         messages.error(request, "You can only view goats that belong to your account.")
         return redirect("goat_dashboard")
 
-    weight_records = goat.weight_records.select_related("recorded_by").all()
+    # Build weight history in chronological order first so each reading can
+    # be compared with the immediately previous actual reading.  The final
+    # list is reversed again for the UI (newest first).
+    chronological_weights = list(
+        goat.weight_records
+        .select_related("recorded_by")
+        .order_by("record_date", "id")
+    )
+
+    previous_record = None
+    for record in chronological_weights:
+        record.gain_since_previous_kg = None
+        record.days_since_previous = None
+        record.avg_gain_per_day_kg = None
+        record.avg_gain_per_day_g = None
+
+        if previous_record is not None:
+            days = (record.record_date - previous_record.record_date).days
+            gain = Decimal(record.weight_kg) - Decimal(previous_record.weight_kg)
+
+            record.gain_since_previous_kg = gain.quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
+            record.days_since_previous = days
+
+            if days > 0:
+                record.avg_gain_per_day_kg = (
+                    gain / Decimal(days)
+                ).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+                record.avg_gain_per_day_g = (
+                    gain * Decimal("1000") / Decimal(days)
+                ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
+        previous_record = record
+
+    weight_records = list(reversed(chronological_weights))
+
+    weight_summary = {
+        "starting_weight": ZERO,
+        "current_weight": ZERO,
+        "total_gain": ZERO,
+        "days_tracked": 0,
+        "avg_gain_per_day_g": None,
+    }
+
+    if chronological_weights:
+        first_weight = chronological_weights[0]
+        latest_weight = chronological_weights[-1]
+        total_gain = Decimal(latest_weight.weight_kg) - Decimal(first_weight.weight_kg)
+        days_tracked = (latest_weight.record_date - first_weight.record_date).days
+
+        weight_summary.update({
+            "starting_weight": Decimal(first_weight.weight_kg),
+            "current_weight": Decimal(latest_weight.weight_kg),
+            "total_gain": total_gain.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+            "days_tracked": days_tracked,
+        })
+
+        if days_tracked > 0:
+            weight_summary["avg_gain_per_day_g"] = (
+                total_gain * Decimal("1000") / Decimal(days_tracked)
+            ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+
     finance = goat_finance_snapshot(goat)
     cost_allocations = (
         goat.cost_allocations
@@ -568,6 +631,7 @@ def goat_detail(request, goat_id):
         "goat": goat,
         **goat_age_context(goat),
         "weight_records": weight_records,
+        "weight_summary": weight_summary,
         "current_weight": current_weight,
         "weight_gain": weight_gain,
         "finance": finance,
