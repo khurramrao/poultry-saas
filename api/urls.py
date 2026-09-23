@@ -62,6 +62,7 @@ path(
     path("daily-log/", logs.daily_log, name="daily_log"),
     path("eggs/", eggs.egg_dashboard, name="egg_dashboard"),
     path("eggs/production/add/", eggs.add_egg_production, name="add_egg_production"),
+    path("eggs/active-hens/", eggs.active_hens_history, name="active_hens_history"),
     path("eggs/sales/add/", eggs.add_egg_sale, name="add_egg_sale"),
     path("goats/", goats.goat_dashboard, name="goat_dashboard"),
     path("goats/add/", goats.add_goat, name="add_goat"),

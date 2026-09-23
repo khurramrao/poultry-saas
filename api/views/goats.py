@@ -337,6 +337,14 @@ def goat_dashboard(request):
     goats = list(_visible_goats(request.user).order_by("status", "goat_code", "id"))
     rows = [goat_finance_snapshot(goat) for goat in goats]
 
+    # Show each goat's live calendar age directly on the inventory card so
+    # large herds can be reviewed without opening every Goat Detail page.
+    for row in rows:
+        age = goat_age_context(row["goat"])
+        row["age_label"] = age["goat_age_label"]
+        row["age_days"] = age["goat_age_days"]
+        row["age_is_estimated"] = age["goat_age_is_estimated"]
+
     active_rows = [row for row in rows if row["goat"].status == "active"]
     active_males = [row for row in active_rows if row["goat"].sex == "male"]
     active_females = [row for row in active_rows if row["goat"].sex == "female"]

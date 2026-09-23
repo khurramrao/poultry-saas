@@ -170,3 +170,62 @@ class EggSale(models.Model):
             f"Batch {self.batch.batch_number} - "
             f"{self.sale_date} - {self.eggs_sold} eggs"
         )
+
+class LayerHenCountHistory(models.Model):
+    """Effective-dated laying-hen count for a Layer batch.
+
+    The count is entered only when it changes. Egg-production percentages for
+    any date use the latest count whose effective_date is on or before that
+    production date. Roosters are intentionally excluded.
+    """
+
+    batch = models.ForeignKey(
+        Batch,
+        on_delete=models.CASCADE,
+        related_name="active_hen_history",
+    )
+    effective_date = models.DateField(default=timezone.localdate)
+    active_hens = models.PositiveIntegerField()
+    notes = models.CharField(max_length=255, blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_layer_hen_counts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-effective_date", "-id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["batch", "effective_date"],
+                name="unique_layer_hen_count_per_batch_date",
+            )
+        ]
+        verbose_name = "Layer Active Hen Count"
+        verbose_name_plural = "Layer Active Hen Counts"
+
+    def clean(self):
+        super().clean()
+        if self.batch_id and self.batch.shed.shed_type != "layer":
+            raise ValidationError(
+                {"batch": "Active hen counts can only be recorded for a Layer shed batch."}
+            )
+        if not self.active_hens or self.active_hens <= 0:
+            raise ValidationError({"active_hens": "Active hens must be greater than zero."})
+        if self.batch_id and self.active_hens > int(self.batch.bird_count_initial or 0):
+            raise ValidationError(
+                {"active_hens": "Active hens cannot exceed the batch starting bird count."}
+            )
+        if self.effective_date and self.effective_date > timezone.localdate():
+            raise ValidationError({"effective_date": "Effective date cannot be in the future."})
+
+    def __str__(self):
+        return (
+            f"Batch {self.batch.batch_number} - {self.effective_date} - "
+            f"{self.active_hens} active hens"
+        )
+

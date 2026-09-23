@@ -9,7 +9,7 @@
     .egg-header {
         display:flex;
         justify-content:space-between;
-        align-items:flex-start;
+        align-items:center;
         gap:18px;
         padding:22px 24px;
         margin-bottom:18px;
@@ -19,7 +19,7 @@
         box-shadow:0 8px 24px rgba(17,53,90,.06);
     }
 
-    .egg-header-main { display:flex; align-items:flex-start; gap:14px; }
+    .egg-header-main { display:flex; align-items:flex-start; gap:14px; flex:1 1 auto; min-width:0; }
     .egg-icon {
         width:56px; height:56px; min-width:56px;
         display:flex; align-items:center; justify-content:center;
@@ -32,23 +32,25 @@
     .egg-header h1 { margin:0 0 6px; color:#123f6c; font-size:28px; line-height:1.1; }
     .egg-header p { margin:0; color:#6d7d90; font-size:14px; line-height:1.5; max-width:700px; }
 
-    .egg-actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .egg-actions { display:flex; flex:0 0 auto; flex-wrap:nowrap; align-items:center; justify-content:flex-end; gap:8px; }
     .egg-btn {
         min-height:44px;
         display:inline-flex; align-items:center; justify-content:center; gap:8px;
-        padding:0 16px;
+        padding:0 13px;
         border:0; border-radius:12px;
         text-decoration:none;
-        font-size:14px; font-weight:800;
+        font-size:13px; font-weight:800;
+        white-space:nowrap;
         transition:transform .15s ease, box-shadow .15s ease;
     }
     .egg-btn:hover { transform:translateY(-1px); }
     .egg-btn-production { background:#1d9b51; color:#fff; box-shadow:0 7px 16px rgba(29,155,81,.16); }
     .egg-btn-sale { background:#176bc1; color:#fff; box-shadow:0 7px 16px rgba(23,107,193,.16); }
+    .egg-btn-hens { background:#7a4fd4; color:#fff; box-shadow:0 7px 16px rgba(122,79,212,.16); }
 
     .kpi-grid {
         display:grid;
-        grid-template-columns:repeat(6,minmax(0,1fr));
+        grid-template-columns:repeat(4,minmax(0,1fr));
         gap:12px;
         margin-bottom:18px;
     }
@@ -114,7 +116,7 @@
 
     .batch-kpis {
         display:grid;
-        grid-template-columns:repeat(6,minmax(0,1fr));
+        grid-template-columns:repeat(4,minmax(0,1fr));
         gap:10px;
         padding:14px 20px 18px;
     }
@@ -150,8 +152,8 @@
     .history-body { padding:4px 14px 10px; }
     .history-row {
         display:grid;
-        grid-template-columns:105px minmax(0,1fr) auto;
-        gap:10px;
+        grid-template-columns:100px minmax(0,1fr) 92px;
+        gap:12px;
         align-items:center;
         padding:10px 0;
         border-bottom:1px solid #edf2f6;
@@ -159,21 +161,50 @@
     }
     .history-row:last-child { border-bottom:0; }
     .history-date { color:#62758b; white-space:nowrap; }
-    .history-main { color:#284863; font-weight:700; }
-    .history-sub { color:#8390a0; font-size:11px; margin-top:2px; font-weight:500; }
+    .history-main { color:#284863; font-weight:700; line-height:1.35; min-width:0; }
+    .history-sub { color:#8390a0; font-size:11px; margin-top:3px; font-weight:500; line-height:1.4; overflow-wrap:anywhere; }
     .history-amount { color:#135fae; font-weight:900; white-space:nowrap; text-align:right; }
     .history-count { color:#177540; font-weight:900; white-space:nowrap; text-align:right; }
     .empty { padding:18px 5px; text-align:center; color:#8793a2; font-size:12px; }
 
+
+    .production-rate {
+        min-width:82px;
+        padding:7px 8px;
+        border:1px solid #e2d7f8;
+        border-radius:10px;
+        background:#faf7ff;
+        color:#7043cc;
+        font-weight:900;
+        white-space:nowrap;
+        text-align:center;
+        line-height:1.15;
+    }
+    .production-rate .history-sub { margin-top:2px; color:#8b7aa7; font-size:9px; text-transform:uppercase; letter-spacing:.03em; }
+    .monthly-panel { margin:0 20px 20px; border:1px solid #e1e9f2; border-radius:15px; overflow:hidden; background:#fff; }
+    .monthly-wrap { overflow-x:auto; }
+    .monthly-table { width:100%; min-width:860px; border-collapse:collapse; font-size:12px; }
+    .monthly-table th { padding:10px 12px; background:#f7faff; color:#66788d; font-size:10px; text-transform:uppercase; letter-spacing:.04em; text-align:right; border-bottom:1px solid #e8eef5; white-space:nowrap; }
+    .monthly-table th:first-child,.monthly-table td:first-child { text-align:left; }
+    .monthly-table td { padding:11px 12px; color:#284863; text-align:right; border-bottom:1px solid #edf2f6; white-space:nowrap; }
+    .monthly-table tr:last-child td { border-bottom:0; }
+    .monthly-rate { color:#7a4fd4; font-weight:900; }
+    .monthly-warning { color:#b26b00; font-size:10px; display:block; margin-top:2px; }
+    .hens-not-set { color:#b26b00; font-weight:800; }
+
     @media(max-width:1100px) {
+        .egg-header { flex-direction:column; align-items:stretch; }
+        .egg-actions { width:100%; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .egg-btn { width:100%; }
         .kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
         .batch-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); }
     }
     @media(max-width:800px) {
-        .egg-header { flex-direction:column; align-items:stretch; padding:18px 16px; }
-        .egg-actions { width:100%; }
-        .egg-btn { flex:1; }
+        .egg-header { padding:18px 16px; }
+        .egg-actions { grid-template-columns:1fr; }
+        .egg-btn { width:100%; }
         .history-grid { grid-template-columns:1fr; padding-left:14px; padding-right:14px; }
+        .monthly-panel { margin-left:14px; margin-right:14px; }
         .batch-head { padding:16px 14px; }
         .batch-kpis { padding-left:14px; padding-right:14px; grid-template-columns:repeat(2,minmax(0,1fr)); }
         .kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -212,6 +243,9 @@
             <a class="egg-btn egg-btn-sale" href="{% url 'add_egg_sale' %}">
                 <i class="fa-solid fa-cart-shopping"></i> Record Egg Sale
             </a>
+            <a class="egg-btn egg-btn-hens" href="{% url 'active_hens_history' %}">
+                <i class="fa-solid fa-venus"></i> Active Hens
+            </a>
         </div>
         {% endif %}
     </section>
@@ -246,6 +280,16 @@
             <div class="kpi-label">{% if is_admin %}Net Egg Sales{% else %}Your Egg Sales Share{% endif %}</div>
             <div class="kpi-value">Rs {{ overview.net_sales|floatformat:0 }}</div>
             <div class="kpi-help">Sales after discounts.</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">Active Laying Hens</div>
+            <div class="kpi-value">{{ overview.active_hens }}</div>
+            <div class="kpi-help">Roosters are excluded.</div>
+        </div>
+        <div class="kpi-card sales">
+            <div class="kpi-label">This Month Production %</div>
+            <div class="kpi-value">{% if overview.month_production_percent != None %}{{ overview.month_production_percent|floatformat:1 }}%{% else %}—{% endif %}</div>
+            <div class="kpi-help">Collected eggs ÷ active-hen days for recorded days.{% if overview.month_missing_hen_days %} Set Active Hens to complete {{ overview.month_missing_hen_days }} day{{ overview.month_missing_hen_days|pluralize }}.{% endif %}</div>
         </div>
     </section>
 
@@ -291,6 +335,8 @@
                 <div class="batch-kpi"><div class="batch-kpi-label">Sold</div><div class="batch-kpi-value">{{ row.totals.sold }}</div></div>
                 <div class="batch-kpi highlight"><div class="batch-kpi-label">Current Stock</div><div class="batch-kpi-value">{{ row.totals.stock }}</div></div>
                 <div class="batch-kpi"><div class="batch-kpi-label">{% if is_admin %}Net Sales{% else %}Your Sales Share{% endif %}</div><div class="batch-kpi-value">Rs {% if is_admin %}{{ row.totals.net_sales|floatformat:0 }}{% else %}{{ row.egg_sales_share|floatformat:0 }}{% endif %}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">Active Hens</div><div class="batch-kpi-value">{% if row.current_active_hens %}{{ row.current_active_hens }}{% else %}<span class="hens-not-set">Not Set</span>{% endif %}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">Month Production %</div><div class="batch-kpi-value">{% if row.current_month and row.current_month.production_percent != None %}{{ row.current_month.production_percent|floatformat:1 }}%{% else %}—{% endif %}</div></div>
             </div>
 
             <div class="history-grid">
@@ -300,15 +346,15 @@
                         <span>Latest 12 entries</span>
                     </div>
                     <div class="history-body">
-                        {% if row.production_entries %}
-                            {% for item in row.production_entries %}
+                        {% if row.production_days %}
+                            {% for item in row.production_days %}
                             <div class="history-row">
                                 <div class="history-date">{{ item.production_date|date:"d M Y" }}</div>
                                 <div class="history-main">
                                     {{ item.eggs_collected }} collected
-                                    <div class="history-sub">{{ item.damaged_eggs }} damaged{% if item.notes %} · {{ item.notes }}{% endif %}</div>
+                                    <div class="history-sub">{{ item.damaged_eggs }} damaged · {{ item.usable_eggs }} usable{% if item.active_hens %} · {{ item.active_hens }} active hens{% else %} · <span class="hens-not-set">hen count not set</span>{% endif %}{% if item.notes_text %} · {{ item.notes_text }}{% endif %}</div>
                                 </div>
-                                <div class="history-count">{{ item.usable_eggs }} usable</div>
+                                <div class="production-rate">{% if item.production_percent != None %}{{ item.production_percent|floatformat:1 }}%<div class="history-sub">production</div>{% else %}—<div class="history-sub">production</div>{% endif %}</div>
                             </div>
                             {% endfor %}
                         {% else %}
@@ -340,6 +386,51 @@
                     </div>
                 </div>
             </div>
+
+            <div class="monthly-panel">
+                <div class="history-head">
+                    <strong><i class="fa-solid fa-chart-line"></i> Monthly Egg Performance</strong>
+                    <span>Latest 12 months · production % uses active hens only</span>
+                </div>
+                {% if row.monthly_rows %}
+                <div class="monthly-wrap">
+                    <table class="monthly-table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Avg Hens</th>
+                                <th>Days</th>
+                                <th>Collected</th>
+                                <th>Damaged</th>
+                                <th>Usable</th>
+                                <th>Production %</th>
+                                <th>{% if is_admin %}Net Sales{% else %}Your Sales Share{% endif %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for month in row.monthly_rows %}
+                            <tr>
+                                <td><strong>{{ month.month|date:"M Y" }}</strong></td>
+                                <td>{% if month.avg_hens != None %}{{ month.avg_hens|floatformat:1 }}{% else %}—{% endif %}</td>
+                                <td>{{ month.days_recorded }}</td>
+                                <td>{{ month.collected }}</td>
+                                <td>{{ month.damaged }}</td>
+                                <td>{{ month.usable }}</td>
+                                <td class="monthly-rate">
+                                    {% if month.production_percent != None %}{{ month.production_percent|floatformat:1 }}%{% else %}—{% endif %}
+                                    {% if month.missing_hen_days %}<span class="monthly-warning">{{ month.missing_hen_days }} day{{ month.missing_hen_days|pluralize }} missing hen count</span>{% endif %}
+                                </td>
+                                <td>Rs {{ month.net_sales|floatformat:0 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                    <div class="empty">No monthly production history yet.</div>
+                {% endif %}
+            </div>
+
         </section>
         {% endfor %}
     {% else %}

@@ -1,3 +1,5 @@
+from collections import defaultdict
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -9,7 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from api.models.eggs import EggProductionEntry, EggSale
+from api.models.eggs import EggProductionEntry, EggSale, LayerHenCountHistory
 from api.models.investors import InvestorAllocation
 from api.models.sensor import Batch
 
@@ -26,6 +28,143 @@ def _money(value):
 
 def _is_admin(user):
     return user.is_superuser or user.is_staff
+
+
+
+def _percent(numerator, denominator):
+    if not denominator:
+        return None
+    return (
+        Decimal(numerator) / Decimal(denominator) * Decimal("100")
+    ).quantize(Decimal("0.1"))
+
+
+def _hen_history_for_batch(batch):
+    return list(
+        LayerHenCountHistory.objects.filter(batch=batch).order_by(
+            "effective_date",
+            "id",
+        )
+    )
+
+
+def _hen_count_from_history(history, target_date):
+    count = None
+    for record in history:
+        if record.effective_date <= target_date:
+            count = int(record.active_hens or 0)
+        else:
+            break
+    return count or None
+
+
+def _active_hens_on_date(batch, target_date):
+    record = (
+        LayerHenCountHistory.objects.filter(
+            batch=batch,
+            effective_date__lte=target_date,
+        )
+        .order_by("-effective_date", "-id")
+        .first()
+    )
+    return int(record.active_hens) if record else None
+
+
+def _daily_production_rows(entries, hen_history):
+    daily = {}
+    for entry in entries:
+        row = daily.setdefault(
+            entry.production_date,
+            {
+                "production_date": entry.production_date,
+                "eggs_collected": 0,
+                "damaged_eggs": 0,
+                "usable_eggs": 0,
+                "notes": [],
+            },
+        )
+        row["eggs_collected"] += int(entry.eggs_collected or 0)
+        row["damaged_eggs"] += int(entry.damaged_eggs or 0)
+        row["usable_eggs"] += int(entry.usable_eggs or 0)
+        if entry.notes and entry.notes.strip():
+            row["notes"].append(entry.notes.strip())
+
+    rows = []
+    for production_date in sorted(daily.keys(), reverse=True):
+        row = daily[production_date]
+        active_hens = _hen_count_from_history(hen_history, production_date)
+        row["active_hens"] = active_hens
+        row["production_percent"] = _percent(
+            row["eggs_collected"],
+            active_hens,
+        )
+        row["notes_text"] = " · ".join(dict.fromkeys(row["notes"]))
+        rows.append(row)
+    return rows
+
+
+def _monthly_performance(production_days, sales, display_ratio):
+    monthly = defaultdict(
+        lambda: {
+            "collected": 0,
+            "damaged": 0,
+            "usable": 0,
+            "days_recorded": 0,
+            "days_with_hens": 0,
+            "hen_days": 0,
+            "net_sales": MONEY_ZERO,
+        }
+    )
+
+    for day in production_days:
+        month = day["production_date"].replace(day=1)
+        row = monthly[month]
+        row["collected"] += day["eggs_collected"]
+        row["damaged"] += day["damaged_eggs"]
+        row["usable"] += day["usable_eggs"]
+        row["days_recorded"] += 1
+        if day["active_hens"]:
+            row["days_with_hens"] += 1
+            row["hen_days"] += int(day["active_hens"])
+
+    for sale in sales:
+        month = sale.sale_date.replace(day=1)
+        monthly[month]["net_sales"] += (
+            _money(sale.total_amount) * display_ratio
+        ).quantize(MONEY_UNIT)
+
+    rows = []
+    for month in sorted(monthly.keys(), reverse=True):
+        row = monthly[month]
+        complete_hen_coverage = (
+            row["days_recorded"] > 0
+            and row["days_with_hens"] == row["days_recorded"]
+        )
+        production_percent = None
+        if complete_hen_coverage and row["hen_days"]:
+            production_percent = _percent(row["collected"], row["hen_days"])
+
+        avg_hens = None
+        if complete_hen_coverage and row["days_recorded"]:
+            avg_hens = (
+                Decimal(row["hen_days"]) / Decimal(row["days_recorded"])
+            ).quantize(Decimal("0.1"))
+
+        rows.append({
+            "month": month,
+            "collected": row["collected"],
+            "damaged": row["damaged"],
+            "usable": row["usable"],
+            "days_recorded": row["days_recorded"],
+            "days_with_hens": row["days_with_hens"],
+            "hen_days": row["hen_days"],
+            "avg_hens": avg_hens,
+            "production_percent": production_percent,
+            "net_sales": _money(row["net_sales"]),
+            "missing_hen_days": row["days_recorded"] - row["days_with_hens"],
+        })
+
+    return rows
 
 
 def _available_layer_batches(user, include_closed=True):
@@ -115,6 +254,8 @@ def egg_dashboard(request):
         return redirect("dashboard")
 
     batches = list(_available_layer_batches(request.user, include_closed=False))
+    today = timezone.localdate()
+    current_month = today.replace(day=1)
 
     overview = {
         "collected": 0,
@@ -123,23 +264,34 @@ def egg_dashboard(request):
         "sold": 0,
         "stock": 0,
         "net_sales": MONEY_ZERO,
+        "active_hens": 0,
+        "month_collected": 0,
+        "month_hen_days": 0,
+        "month_missing_hen_days": 0,
+        "month_production_percent": None,
     }
 
     batch_rows = []
 
     for batch in batches:
         totals = _batch_egg_totals(batch)
-
-        production_entries = list(
+        all_production_entries = list(
             EggProductionEntry.objects.filter(batch=batch).order_by(
                 "-production_date",
                 "-id",
-            )[:12]
+            )
         )
+        hen_history = _hen_history_for_batch(batch)
+        production_days = _daily_production_rows(
+            all_production_entries,
+            hen_history,
+        )
+        current_active_hens = _hen_count_from_history(hen_history, today)
 
         ownership_percent = None
         egg_sales_share = None
         recent_sales = []
+        ratio = Decimal("1")
 
         if not is_admin:
             allocation = InvestorAllocation.objects.filter(
@@ -176,22 +328,40 @@ def egg_dashboard(request):
                 ).quantize(MONEY_UNIT),
             })
 
-        batch_rows.append(
-            {
-                "batch": batch,
-                "totals": totals,
-                "production_entries": production_entries,
-                "recent_sales": recent_sales,
-                "ownership_percent": ownership_percent,
-                "egg_sales_share": egg_sales_share,
-            }
+        monthly_rows = _monthly_performance(
+            production_days,
+            totals["sales"],
+            display_ratio,
         )
+        current_month_row = next(
+            (row for row in monthly_rows if row["month"] == current_month),
+            None,
+        )
+
+        batch_rows.append({
+            "batch": batch,
+            "totals": totals,
+            "production_days": production_days[:12],
+            "recent_sales": recent_sales,
+            "ownership_percent": ownership_percent,
+            "egg_sales_share": egg_sales_share,
+            "current_active_hens": current_active_hens,
+            "hen_history": list(reversed(hen_history[-6:])),
+            "monthly_rows": monthly_rows[:12],
+            "current_month": current_month_row,
+        })
 
         overview["collected"] += totals["collected"]
         overview["damaged"] += totals["damaged"]
         overview["usable"] += totals["usable"]
         overview["sold"] += totals["sold"]
         overview["stock"] += totals["stock"]
+        overview["active_hens"] += current_active_hens or 0
+
+        if current_month_row:
+            overview["month_collected"] += current_month_row["collected"]
+            overview["month_hen_days"] += current_month_row["hen_days"]
+            overview["month_missing_hen_days"] += current_month_row["missing_hen_days"]
 
         if is_admin:
             overview["net_sales"] += totals["net_sales"]
@@ -199,6 +369,14 @@ def egg_dashboard(request):
             overview["net_sales"] += egg_sales_share or MONEY_ZERO
 
     overview["net_sales"] = _money(overview["net_sales"])
+    if (
+        overview["month_hen_days"]
+        and overview["month_missing_hen_days"] == 0
+    ):
+        overview["month_production_percent"] = _percent(
+            overview["month_collected"],
+            overview["month_hen_days"],
+        )
 
     return render(
         request,
@@ -207,6 +385,97 @@ def egg_dashboard(request):
             "batch_rows": batch_rows,
             "overview": overview,
             "is_admin": is_admin,
+            "current_month": current_month,
+        },
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def active_hens_history(request):
+    if not _is_admin(request.user):
+        messages.error(request, "Only admin can update active laying hens.")
+        return redirect("egg_dashboard")
+
+    batches = list(_available_layer_batches(request.user, include_closed=False))
+    today = timezone.localdate()
+
+    if request.method == "POST":
+        batch = get_object_or_404(
+            Batch.objects.select_related("shed"),
+            pk=request.POST.get("batch_id"),
+        )
+        if (
+            batch.shed.shed_type != "layer"
+            or not batch.is_active
+            or batch.status != "active"
+        ):
+            messages.error(request, "Active hens can only be updated for an active Layer batch.")
+            return redirect("active_hens_history")
+
+        try:
+            effective_date = date.fromisoformat(
+                request.POST.get("effective_date") or str(today)
+            )
+            active_hens = int(request.POST.get("active_hens") or 0)
+        except (TypeError, ValueError):
+            messages.error(request, "Enter a valid effective date and active hen count.")
+            return redirect("active_hens_history")
+
+        entry = LayerHenCountHistory(
+            batch=batch,
+            effective_date=effective_date,
+            active_hens=active_hens,
+            notes=(request.POST.get("notes") or "").strip(),
+            recorded_by=request.user,
+        )
+        try:
+            entry.full_clean(exclude=["id"])
+        except ValidationError as error:
+            messages.error(request, "; ".join(error.messages))
+            return redirect("active_hens_history")
+
+        existing = LayerHenCountHistory.objects.filter(
+            batch=batch,
+            effective_date=effective_date,
+        ).first()
+        if existing:
+            existing.active_hens = active_hens
+            existing.notes = entry.notes
+            existing.recorded_by = request.user
+            try:
+                existing.full_clean()
+                existing.save()
+            except ValidationError as error:
+                messages.error(request, "; ".join(error.messages))
+                return redirect("active_hens_history")
+            action = "updated"
+        else:
+            entry.save()
+            action = "recorded"
+
+        messages.success(
+            request,
+            f"Active hens {action}: {active_hens} hens from {effective_date:%d %b %Y}.",
+        )
+        return redirect("active_hens_history")
+
+    history_rows = list(
+        LayerHenCountHistory.objects.filter(batch__in=batches)
+        .select_related("batch", "batch__shed", "recorded_by")
+        .order_by("-effective_date", "-id")
+    )
+    for batch in batches:
+        batch.current_active_hens = _active_hens_on_date(batch, today)
+
+    return render(
+        request,
+        "api/active_hens_history.html",
+        {
+            "batches": batches,
+            "history_rows": history_rows,
+            "today": today,
+            "is_admin": True,
         },
     )
 
@@ -218,7 +487,10 @@ def add_egg_production(request):
         messages.error(request, "Only admin can add egg production entries.")
         return redirect("egg_dashboard")
 
-    batches = _available_layer_batches(request.user, include_closed=False)
+    batches = list(_available_layer_batches(request.user, include_closed=False))
+    today = timezone.localdate()
+    for batch in batches:
+        batch.current_active_hens = _active_hens_on_date(batch, today)
 
     if request.method == "POST":
         batch = get_object_or_404(
@@ -238,10 +510,17 @@ def add_egg_production(request):
             return redirect("add_egg_production")
 
         try:
+            production_date = date.fromisoformat(
+                request.POST.get("production_date") or str(today)
+            )
             eggs_collected = int(request.POST.get("eggs_collected") or 0)
             damaged_eggs = int(request.POST.get("damaged_eggs") or 0)
         except (TypeError, ValueError):
-            messages.error(request, "Enter valid whole-number egg quantities.")
+            messages.error(request, "Enter a valid date and whole-number egg quantities.")
+            return redirect("add_egg_production")
+
+        if production_date > today:
+            messages.error(request, "Production date cannot be in the future.")
             return redirect("add_egg_production")
 
         if eggs_collected < 0 or damaged_eggs < 0:
@@ -257,10 +536,7 @@ def add_egg_production(request):
 
         entry = EggProductionEntry(
             batch=batch,
-            production_date=(
-                request.POST.get("production_date")
-                or timezone.localdate()
-            ),
+            production_date=production_date,
             eggs_collected=eggs_collected,
             damaged_eggs=damaged_eggs,
             notes=(request.POST.get("notes") or "").strip(),
@@ -274,10 +550,18 @@ def add_egg_production(request):
             messages.error(request, "; ".join(error.messages))
             return redirect("add_egg_production")
 
-        messages.success(
-            request,
-            f"Egg production recorded: {entry.usable_eggs} usable eggs.",
-        )
+        active_hens = _active_hens_on_date(batch, production_date)
+        production_percent = _percent(eggs_collected, active_hens)
+        if production_percent is None:
+            messages.warning(
+                request,
+                "Egg production saved, but production % is unavailable until Active Hens is set for this date.",
+            )
+        else:
+            messages.success(
+                request,
+                f"Egg production recorded: {entry.usable_eggs} usable eggs · {production_percent}% production from {active_hens} active hens.",
+            )
         return redirect("egg_dashboard")
 
     return render(

@@ -77,7 +77,7 @@
                             <select name="batch_id" id="batch_id" required>
                                 <option value="">Select Layer Batch</option>
                                 {% for batch in batches %}
-                                    <option value="{{ batch.id }}" data-number="{{ batch.batch_number }}" data-shed="{{ batch.shed.name }}">{{ batch.shed.name }} · Batch #{{ batch.batch_number }}</option>
+                                    <option value="{{ batch.id }}" data-number="{{ batch.batch_number }}" data-shed="{{ batch.shed.name }}" data-hens="{{ batch.current_active_hens|default_if_none:'' }}">{{ batch.shed.name }} · Batch #{{ batch.batch_number }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -92,7 +92,7 @@
                         <div>
                             <label for="damaged_eggs">Broken / Damaged</label>
                             <input type="number" min="0" step="1" inputmode="numeric" name="damaged_eggs" id="damaged_eggs" value="0" required>
-                            <div class="help">Damaged eggs are removed from usable stock.</div>
+                            <div class="help">Damaged eggs are removed from usable stock. Production % is calculated automatically using Active Hen History for the selected date.</div>
                         </div>
                         <div class="full">
                             <label for="notes">Notes</label>
@@ -110,9 +110,11 @@
                 <div class="summary-head"><h3>Production Preview</h3><p>Check usable eggs before saving.</p></div>
                 <div class="summary-body">
                     <div class="summary-row"><span>Selected Batch</span><strong id="summaryBatch">Not selected</strong></div>
+                    <div class="summary-row"><span>Active Hens (current)</span><strong id="summaryHens">Not set</strong></div>
                     <div class="summary-row"><span>Collected</span><strong id="summaryCollected">0</strong></div>
                     <div class="summary-row"><span>Damaged</span><strong id="summaryDamaged">0</strong></div>
                     <div class="usable-box"><small>Usable Eggs Added to Stock</small><div id="summaryUsable">0</div></div>
+                    <div class="usable-box"><small>Estimated Production %</small><div id="summaryProduction">—</div><div class="help">Final % uses the hen count effective on the production date.</div></div>
                 </div>
             </aside>
         </div>
@@ -128,17 +130,22 @@
     const damaged=document.getElementById('damaged_eggs');
     const form=document.getElementById('productionForm');
     const sBatch=document.getElementById('summaryBatch');
+    const sHens=document.getElementById('summaryHens');
     const sCollected=document.getElementById('summaryCollected');
     const sDamaged=document.getElementById('summaryDamaged');
     const sUsable=document.getElementById('summaryUsable');
+    const sProduction=document.getElementById('summaryProduction');
     function n(el){const v=parseInt(el.value||'0',10);return Number.isFinite(v)?Math.max(v,0):0;}
     function update(){
         const option=batch.options[batch.selectedIndex];
         sBatch.textContent=option&&option.value ? (option.dataset.shed+' · Batch #'+option.dataset.number) : 'Not selected';
+        const hens=option&&option.value ? parseInt(option.dataset.hens||'0',10) : 0;
+        sHens.textContent=hens>0 ? hens.toLocaleString('en-PK') : 'Not set';
         const c=n(collected), d=n(damaged);
         sCollected.textContent=c.toLocaleString('en-PK');
         sDamaged.textContent=d.toLocaleString('en-PK');
         sUsable.textContent=Math.max(c-d,0).toLocaleString('en-PK');
+        sProduction.textContent=hens>0 ? ((c/hens)*100).toFixed(1)+'%' : '—';
         damaged.setCustomValidity(d>c?'Damaged eggs cannot exceed eggs collected.':'');
     }
     [batch,collected,damaged].forEach(el=>{el.addEventListener('input',update);el.addEventListener('change',update);});
