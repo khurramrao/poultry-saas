@@ -18,7 +18,7 @@ from api.models.investors import (
     MedicineEntry,
 )
 from api.models.sales import ChickCostEntry, Expense, SaleRecord
-from api.models.goats import Goat, GoatCostAllocation
+from api.models.goats import Goat, GoatCostAllocation, GoatSale, GoatSalePayout
 from api.models.eggs import EggSale
 from api.models.sensor import Batch
 
@@ -308,8 +308,8 @@ def _account_snapshot(allocation):
 
 
 
-def _goat_account_snapshot(owner):
-    goats = list(
+def _goat_account_snapshot(owner, goat_status="all"):
+    all_goats = list(
         Goat.objects
         .filter(owner=owner)
         .select_related("owner", "shed")
@@ -317,58 +317,69 @@ def _goat_account_snapshot(owner):
         .order_by("goat_code", "id")
     )
 
-    purchase_cost = _money(sum((goat.purchase_cost or ZERO for goat in goats), ZERO))
+    if goat_status == "active":
+        visible_goats = [goat for goat in all_goats if goat.status == "active"]
+    elif goat_status == "sold":
+        visible_goats = [goat for goat in all_goats if goat.status == "sold"]
+    else:
+        visible_goats = list(all_goats)
 
-    allocations = GoatCostAllocation.objects.filter(owner_snapshot=owner)
-    feed_cost = _money(
-        allocations.filter(cost_entry__category="feed")
-        .aggregate(total=Sum("amount"))["total"] or ZERO
-    )
-    medicine_cost = _money(
-        allocations.filter(cost_entry__category="medicine")
-        .aggregate(total=Sum("amount"))["total"] or ZERO
-    )
-    expense_cost = _money(
-        allocations.filter(cost_entry__category="expense")
-        .aggregate(total=Sum("amount"))["total"] or ZERO
-    )
-
+    all_goat_ids = [goat.id for goat in all_goats]
+    purchase_cost = _money(sum((goat.purchase_cost or ZERO for goat in all_goats), ZERO))
+    allocations = GoatCostAllocation.objects.filter(goat_id__in=all_goat_ids)
+    feed_cost = _money(allocations.filter(cost_entry__category="feed").aggregate(total=Sum("amount"))["total"] or ZERO)
+    medicine_cost = _money(allocations.filter(cost_entry__category="medicine").aggregate(total=Sum("amount"))["total"] or ZERO)
+    expense_cost = _money(allocations.filter(cost_entry__category="expense").aggregate(total=Sum("amount"))["total"] or ZERO)
     total_cost = _money(purchase_cost + feed_cost + medicine_cost + expense_cost)
-    total_paid = _money(
-        owner.goat_account_payments.aggregate(total=Sum("amount"))["total"]
-        or ZERO
-    )
 
+    sales = GoatSale.objects.filter(goat__owner=owner)
+    total_sales = _money(sales.aggregate(total=Sum("total_amount"))["total"] or ZERO)
+    realized_profit = _money(sum(
+        (_money((sale.total_amount or ZERO) - (sale.locked_total_cost or ZERO)) for sale in sales),
+        ZERO,
+    ))
+
+    current_live_weight = _money(sum(
+        (goat.current_weight_kg or ZERO for goat in all_goats if goat.status == "active"),
+        ZERO,
+    ))
+
+    total_paid = _money(owner.goat_account_payments.aggregate(total=Sum("amount"))["total"] or ZERO)
     raw_balance = _money(total_cost - total_paid)
     if abs(raw_balance) < ACCOUNT_TOLERANCE:
         raw_balance = ZERO
-
     outstanding = _money(max(raw_balance, ZERO))
     credit = _money(max(-raw_balance, ZERO))
 
-    if credit > ZERO:
-        status = "credit"
-        status_label = "Credit"
-    elif outstanding <= ZERO and total_cost > ZERO:
-        status = "paid"
-        status_label = "Paid"
-    elif total_paid > ZERO:
-        status = "partial"
-        status_label = "Partial"
-    elif total_cost > ZERO:
-        status = "unpaid"
-        status_label = "Unpaid"
-    else:
-        status = "no_cost"
-        status_label = "No Cost"
+    total_sale_paid = _money(owner.goat_sale_payouts.aggregate(total=Sum("amount"))["total"] or ZERO)
+    raw_sale_balance = _money(total_sales - total_sale_paid)
+    if abs(raw_sale_balance) < ACCOUNT_TOLERANCE:
+        raw_sale_balance = ZERO
+    sale_balance = _money(max(raw_sale_balance, ZERO))
 
-    owner_name = owner.get_full_name().strip() or owner.username
+    if credit > ZERO:
+        status = "credit"; status_label = "Credit"
+    elif outstanding > ZERO and total_paid > ZERO:
+        status = "partial"; status_label = "Partial"
+    elif outstanding > ZERO:
+        status = "unpaid"; status_label = "Unfunded"
+    elif total_cost > ZERO:
+        status = "paid"; status_label = "Funded"
+    else:
+        status = "no_cost"; status_label = "No Cost"
+
+    is_farm_owner = bool(owner.is_superuser or owner.is_staff)
+    owner_name = "Admin / Farm" if is_farm_owner else (owner.get_full_name().strip() or owner.username)
 
     return {
         "owner": owner,
         "owner_name": owner_name,
-        "goat_count": len(goats),
-        "active_goat_count": sum(1 for goat in goats if goat.status == "active"),
+        "is_farm_owner": is_farm_owner,
+        "goat_count": len(visible_goats),
+        "all_goat_count": len(all_goats),
+        "active_goat_count": sum(1 for goat in all_goats if goat.status == "active"),
+        "sold_goat_count": sum(1 for goat in all_goats if goat.status == "sold"),
+        "current_live_weight": current_live_weight,
         "purchase_cost": purchase_cost,
         "feed_cost": feed_cost,
         "medicine_cost": medicine_cost,
@@ -379,6 +390,11 @@ def _goat_account_snapshot(owner):
         "credit": credit,
         "status": status,
         "status_label": status_label,
+        "total_sales": total_sales,
+        "realized_profit": realized_profit,
+        "total_sale_paid": total_sale_paid,
+        "sale_balance": sale_balance,
+        "goat_status": goat_status,
     }
 
 def _authorized_allocation(request, allocation_id):
@@ -758,6 +774,10 @@ def investor_accounts(request):
     if status_filter not in {"active", "closed", "all"}:
         status_filter = "active"
 
+    goat_status = (request.GET.get("goat_status") or "active").lower()
+    if goat_status not in {"active", "sold", "all"}:
+        goat_status = "active"
+
     if not is_admin and investor_profile is None:
         messages.error(
             request,
@@ -890,17 +910,14 @@ def investor_accounts(request):
         ))
 
     # ---------------------------------------------------------
-    # GOAT ACCOUNTS - individual goat ownership
+    # GOAT ACCOUNTS - one summary account per owner
     # ---------------------------------------------------------
     if is_admin:
         goat_owners = (
             User.objects
-            .filter(
-                investor_profile__isnull=False,
-                owned_goats__isnull=False,
-            )
+            .filter(owned_goats__isnull=False)
             .distinct()
-            .order_by("username")
+            .order_by("-is_superuser", "-is_staff", "username")
         )
     else:
         goat_owners = User.objects.filter(
@@ -908,24 +925,56 @@ def investor_accounts(request):
             owned_goats__isnull=False,
         )
 
-    goat_accounts = [_goat_account_snapshot(owner) for owner in goat_owners]
+    # The visible cards follow Active / Sold / All, but contribution payments
+    # stay owner-level and are never artificially split between goat statuses.
+    goat_accounts = [
+        _goat_account_snapshot(owner, goat_status)
+        for owner in goat_owners
+    ]
+    goat_accounts = [item for item in goat_accounts if item["goat_count"] > 0]
 
+    goat_all_accounts = [
+        _goat_account_snapshot(owner, "all")
+        for owner in goat_owners
+    ]
+
+    # Legacy combined-account totals remain ALL-goat totals so the main page
+    # headline does not change merely because the Goat display filter changes.
     goat_total_cost = _money(sum(
-        (item["total_cost"] for item in goat_accounts),
+        (item["total_cost"] for item in goat_all_accounts),
         ZERO,
     ))
     goat_total_paid = _money(sum(
-        (item["total_paid"] for item in goat_accounts),
+        (item["total_paid"] for item in goat_all_accounts),
         ZERO,
     ))
     goat_total_outstanding = _money(sum(
-        (item["outstanding"] for item in goat_accounts),
+        (item["outstanding"] for item in goat_all_accounts),
         ZERO,
     ))
     goat_total_credit = _money(sum(
-        (item["credit"] for item in goat_accounts),
+        (item["credit"] for item in goat_all_accounts),
         ZERO,
     ))
+
+    goat_filter_owner_count = len(goat_accounts)
+    goat_filter_goat_count = sum(item["goat_count"] for item in goat_accounts)
+    goat_filter_total_cost = _money(sum(
+        (item["total_cost"] for item in goat_accounts),
+        ZERO,
+    ))
+    goat_filter_total_sales = _money(sum(
+        (item["total_sales"] for item in goat_accounts),
+        ZERO,
+    ))
+    goat_filter_total_profit = _money(sum(
+        (item["realized_profit"] for item in goat_accounts),
+        ZERO,
+    ))
+    goat_filter_total_paid = _money(sum((item["total_paid"] for item in goat_accounts), ZERO))
+    goat_filter_total_due = _money(sum((item["outstanding"] for item in goat_accounts), ZERO))
+    goat_filter_sale_paid = _money(sum((item["total_sale_paid"] for item in goat_accounts), ZERO))
+    goat_filter_sale_due = _money(sum((item["sale_balance"] for item in goat_accounts), ZERO))
 
     # Combined headline figures. Poultry and Goat balances remain
     # separately auditable in their own account cards/statements.
@@ -975,6 +1024,16 @@ def investor_accounts(request):
             "goat_total_paid": goat_total_paid,
             "goat_total_outstanding": goat_total_outstanding,
             "goat_total_credit": goat_total_credit,
+            "goat_status": goat_status,
+            "goat_filter_owner_count": goat_filter_owner_count,
+            "goat_filter_goat_count": goat_filter_goat_count,
+            "goat_filter_total_cost": goat_filter_total_cost,
+            "goat_filter_total_sales": goat_filter_total_sales,
+            "goat_filter_total_profit": goat_filter_total_profit,
+            "goat_filter_total_paid": goat_filter_total_paid,
+            "goat_filter_total_due": goat_filter_total_due,
+            "goat_filter_sale_paid": goat_filter_sale_paid,
+            "goat_filter_sale_due": goat_filter_sale_due,
         },
     )
 

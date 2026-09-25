@@ -17,6 +17,7 @@ from api.models.goats import (
     GoatCostAllocation,
     GoatCostEntry,
     GoatSale,
+    GoatSalePayout,
     GoatWeightRecord,
     GoatBreedingRecord,
     GoatKiddingRecord,
@@ -145,62 +146,103 @@ def goat_finance_snapshot(goat):
     }
 
 
-def _owner_goat_account_snapshot(owner):
-    goats = list(
+def _owner_goat_account_snapshot(owner, goat_status="all"):
+    all_goats = list(
         Goat.objects
         .filter(owner=owner)
         .select_related("owner", "shed")
         .order_by("goat_code", "id")
     )
-    goat_rows = [goat_finance_snapshot(goat) for goat in goats]
+    all_rows = [goat_finance_snapshot(goat) for goat in all_goats]
 
-    total_cost = _money(sum((row["total_cost"] for row in goat_rows), ZERO))
-    total_purchase = _money(sum((row["purchase_cost"] for row in goat_rows), ZERO))
-    total_feed = _money(sum((row["feed_cost"] for row in goat_rows), ZERO))
-    total_medicine = _money(sum((row["medicine_cost"] for row in goat_rows), ZERO))
-    total_expense = _money(sum((row["expense_cost"] for row in goat_rows), ZERO))
+    if goat_status == "active":
+        visible_rows = [row for row in all_rows if row["goat"].status == "active"]
+    elif goat_status == "sold":
+        visible_rows = [row for row in all_rows if row["goat"].status == "sold"]
+    else:
+        visible_rows = list(all_rows)
+
+    # Owner account money is always based on ALL goats owned by this person.
+    # The Active / Sold / All selector changes which goats are displayed, not
+    # the cash ledger itself.
+    total_purchase = _money(sum((row["purchase_cost"] for row in all_rows), ZERO))
+    total_feed = _money(sum((row["feed_cost"] for row in all_rows), ZERO))
+    total_medicine = _money(sum((row["medicine_cost"] for row in all_rows), ZERO))
+    total_expense = _money(sum((row["expense_cost"] for row in all_rows), ZERO))
+    total_cost = _money(sum((row["total_cost"] for row in all_rows), ZERO))
+    total_sales = _money(sum((row["sale_revenue"] for row in all_rows), ZERO))
+    total_profit = _money(sum(
+        (row["sale_profit"] for row in all_rows if row["sale"]),
+        ZERO,
+    ))
+    current_live_weight = _money(sum(
+        (
+            row["current_weight"] or ZERO
+            for row in all_rows
+            if row["goat"].status == "active"
+        ),
+        ZERO,
+    ))
 
     total_paid = _money(
         owner.goat_account_payments.aggregate(total=Sum("amount"))["total"]
         or ZERO
     )
+    raw_balance = _money(total_cost - total_paid)
+    if abs(raw_balance) < ACCOUNT_TOLERANCE:
+        raw_balance = ZERO
+    outstanding = _money(max(raw_balance, ZERO))
+    credit = _money(max(-raw_balance, ZERO))
 
-    balance = _money(total_cost - total_paid)
-    if abs(balance) < ACCOUNT_TOLERANCE:
-        balance = ZERO
-
-    outstanding = max(balance, ZERO)
-    credit = max(-balance, ZERO)
+    total_sale_paid = _money(
+        owner.goat_sale_payouts.aggregate(total=Sum("amount"))["total"]
+        or ZERO
+    )
+    raw_sale_balance = _money(total_sales - total_sale_paid)
+    if abs(raw_sale_balance) < ACCOUNT_TOLERANCE:
+        raw_sale_balance = ZERO
+    sale_balance = _money(max(raw_sale_balance, ZERO))
 
     if credit > ZERO:
         status = "credit"
         status_label = "Credit"
+    elif outstanding > ZERO and total_paid > ZERO:
+        status = "partial"
+        status_label = "Partial"
     elif outstanding > ZERO:
-        status = "outstanding"
-        status_label = "Outstanding"
+        status = "unpaid"
+        status_label = "Unfunded"
     elif total_cost > ZERO:
         status = "paid"
-        status_label = "Paid"
+        status_label = "Funded"
     else:
         status = "no_cost"
         status_label = "No Cost"
 
-    total_sales = _money(sum((row["sale_revenue"] for row in goat_rows), ZERO))
-    total_profit = _money(sum((row["sale_profit"] for row in goat_rows if row["sale"]), ZERO))
-
-    owner_name = owner.get_full_name().strip() or owner.username
+    is_farm_owner = _is_admin(owner)
+    owner_name = (
+        "Admin / Farm"
+        if is_farm_owner
+        else (owner.get_full_name().strip() or owner.username)
+    )
 
     return {
         "owner": owner,
         "owner_name": owner_name,
-        "goats": goat_rows,
-        "goat_count": len(goats),
-        "active_goat_count": sum(1 for goat in goats if goat.status == "active"),
+        "is_farm_owner": is_farm_owner,
+        "goats": all_rows,
+        "visible_goats": visible_rows,
+        "goat_count": len(visible_rows),
+        "all_goat_count": len(all_rows),
+        "active_goat_count": sum(1 for row in all_rows if row["goat"].status == "active"),
+        "sold_goat_count": sum(1 for row in all_rows if row["goat"].status == "sold"),
+        "current_live_weight": current_live_weight,
         "total_purchase": total_purchase,
         "total_feed": total_feed,
         "total_medicine": total_medicine,
         "total_expense": total_expense,
         "total_cost": total_cost,
+        "account_total_cost": total_cost,
         "total_paid": total_paid,
         "outstanding": outstanding,
         "credit": credit,
@@ -208,8 +250,10 @@ def _owner_goat_account_snapshot(owner):
         "status_label": status_label,
         "total_sales": total_sales,
         "total_profit": total_profit,
+        "total_sale_paid": total_sale_paid,
+        "sale_balance": sale_balance,
+        "goat_status": goat_status,
     }
-
 
 def _build_owner_statement(owner):
     rows = []
@@ -283,6 +327,60 @@ def _build_owner_statement(owner):
 
     return rows
 
+
+
+
+def _build_owner_sale_statement(owner):
+    rows = []
+
+    for sale in (
+        GoatSale.objects
+        .filter(goat__owner=owner)
+        .select_related("goat")
+        .order_by("sale_date", "id")
+    ):
+        details = f"{sale.goat.goat_code} · {sale.goat.name or sale.goat.breed or 'Goat'}"
+        if sale.buyer_name:
+            details += f" · Buyer: {sale.buyer_name}"
+        rows.append({
+            "date": sale.sale_date,
+            "sort_type": 0,
+            "sort_id": 100000 + sale.id,
+            "category": "Goat Sale",
+            "description": details,
+            "sale_credit": _money(sale.total_amount),
+            "payout": ZERO,
+        })
+
+    for payout in owner.goat_sale_payouts.all().order_by("payout_date", "id"):
+        description = payout.get_payment_method_display()
+        if payout.reference:
+            description += f" · {payout.reference}"
+        if payout.notes:
+            description += f" — {payout.notes}"
+
+        rows.append({
+            "date": payout.payout_date,
+            "sort_type": 1,
+            "sort_id": 200000 + payout.id,
+            "category": "Sale Withdrawal" if _is_admin(owner) else "Sale Payout",
+            "description": description,
+            "sale_credit": ZERO,
+            "payout": _money(payout.amount),
+        })
+
+    rows.sort(key=lambda row: (row["date"], row["sort_type"], row["sort_id"]))
+
+    running_balance = ZERO
+    for row in rows:
+        running_balance = _money(
+            running_balance + row["sale_credit"] - row["payout"]
+        )
+        if abs(running_balance) < ACCOUNT_TOLERANCE:
+            running_balance = ZERO
+        row["running_balance"] = running_balance
+
+    return rows
 
 def _allocate_exact_amount(total_amount, goats):
     goats = list(goats)
@@ -997,34 +1095,47 @@ def goat_accounts(request):
         messages.error(request, "You do not have permission to view Goat accounts.")
         return redirect("dashboard")
 
+    goat_status = (request.GET.get("goat_status") or "active").lower()
+    if goat_status not in {"active", "sold", "all"}:
+        goat_status = "active"
+
     if is_admin:
         owners = (
             User.objects
-            .filter(investor_profile__isnull=False, owned_goats__isnull=False)
+            .filter(owned_goats__isnull=False)
             .distinct()
-            .order_by("username")
+            .order_by("-is_superuser", "-is_staff", "username")
         )
     else:
-        owners = User.objects.filter(pk=request.user.pk)
+        owners = User.objects.filter(
+            pk=request.user.pk,
+            owned_goats__isnull=False,
+        )
 
-    accounts = [_owner_goat_account_snapshot(owner) for owner in owners]
+    accounts = [
+        _owner_goat_account_snapshot(owner, goat_status)
+        for owner in owners
+    ]
+    accounts = [account for account in accounts if account["goat_count"] > 0]
 
     total_cost = _money(sum((row["total_cost"] for row in accounts), ZERO))
-    total_paid = _money(sum((row["total_paid"] for row in accounts), ZERO))
-    total_outstanding = _money(sum((row["outstanding"] for row in accounts), ZERO))
-    total_credit = _money(sum((row["credit"] for row in accounts), ZERO))
+    total_sales = _money(sum((row["total_sales"] for row in accounts), ZERO))
+    total_profit = _money(sum((row["total_profit"] for row in accounts), ZERO))
+    total_goats = sum(row["goat_count"] for row in accounts)
 
     return render(request, "api/goat_accounts.html", {
         "accounts": accounts,
         "is_admin": is_admin,
+        "goat_status": goat_status,
+        "owner_count": len(accounts),
+        "total_goats": total_goats,
         "total_cost": total_cost,
-        "total_paid": total_paid,
-        "total_outstanding": total_outstanding,
-        "total_credit": total_credit,
+        "total_sales": total_sales,
+        "total_profit": total_profit,
     })
 
-
 @login_required
+@require_http_methods(["GET", "POST"])
 def goat_account_detail(request, owner_id):
     owner = get_object_or_404(User, pk=owner_id)
 
@@ -1036,27 +1147,107 @@ def goat_account_detail(request, owner_id):
         messages.error(request, "No Goat account exists for this owner.")
         return redirect("goat_accounts")
 
-    account = _owner_goat_account_snapshot(owner)
+    is_admin = _is_admin(request.user)
+    is_farm_owner = _is_admin(owner)
+
+    if request.method == "POST":
+        if not is_admin:
+            messages.error(request, "Only Admin can record Goat account cash movements.")
+            return redirect("goat_account_detail", owner_id=owner.id)
+
+        action = (request.POST.get("action") or "").strip()
+
+        if action == "record_contribution":
+            try:
+                amount = _money(request.POST.get("contribution_amount") or "0")
+            except (InvalidOperation, TypeError, ValueError):
+                amount = ZERO
+
+            if amount <= ZERO:
+                messages.error(request, "Contribution amount must be greater than zero.")
+                return redirect("goat_account_detail", owner_id=owner.id)
+
+            payment_method = request.POST.get("contribution_method") or "bank_transfer"
+            valid_methods = {key for key, _ in GoatAccountPayment.PAYMENT_METHOD_CHOICES}
+            if payment_method not in valid_methods:
+                payment_method = "other"
+
+            GoatAccountPayment.objects.create(
+                owner=owner,
+                payment_date=request.POST.get("contribution_date") or timezone.localdate(),
+                amount=amount,
+                payment_method=payment_method,
+                reference=(request.POST.get("contribution_reference") or "").strip(),
+                notes=(request.POST.get("contribution_notes") or "").strip(),
+                recorded_by=request.user,
+            )
+
+            label = "Farm contribution" if is_farm_owner else "Investor contribution"
+            messages.success(request, f"{label} of Rs {amount:,.2f} recorded.")
+            return redirect("goat_account_detail", owner_id=owner.id)
+
+        if action == "record_sale_payout":
+            account_now = _owner_goat_account_snapshot(owner, "all")
+            try:
+                amount = _money(request.POST.get("sale_payout_amount") or "0")
+            except (InvalidOperation, TypeError, ValueError):
+                amount = ZERO
+
+            if amount <= ZERO:
+                messages.error(request, "Sale payout / withdrawal amount must be greater than zero.")
+                return redirect("goat_account_detail", owner_id=owner.id)
+
+            if amount - account_now["sale_balance"] > ACCOUNT_TOLERANCE:
+                messages.error(
+                    request,
+                    f"Amount cannot exceed the available Goat sale balance of Rs {account_now['sale_balance']:,.2f}.",
+                )
+                return redirect("goat_account_detail", owner_id=owner.id)
+
+            payment_method = request.POST.get("sale_payout_method") or "bank_transfer"
+            valid_methods = {key for key, _ in GoatSalePayout.PAYMENT_METHOD_CHOICES}
+            if payment_method not in valid_methods:
+                payment_method = "other"
+
+            GoatSalePayout.objects.create(
+                owner=owner,
+                payout_date=request.POST.get("sale_payout_date") or timezone.localdate(),
+                amount=amount,
+                payment_method=payment_method,
+                reference=(request.POST.get("sale_payout_reference") or "").strip(),
+                notes=(request.POST.get("sale_payout_notes") or "").strip(),
+                recorded_by=request.user,
+            )
+
+            label = "Farm sale withdrawal" if is_farm_owner else "Investor Goat sale payout"
+            messages.success(request, f"{label} of Rs {amount:,.2f} recorded.")
+            return redirect("goat_account_detail", owner_id=owner.id)
+
+        messages.error(request, "Unknown Goat account action.")
+        return redirect("goat_account_detail", owner_id=owner.id)
+
+    account = _owner_goat_account_snapshot(owner, "all")
     statement_rows = _build_owner_statement(owner)
+    sale_statement_rows = _build_owner_sale_statement(owner)
 
     return render(request, "api/goat_account_detail.html", {
         "account": account,
         "statement_rows": statement_rows,
-        "is_admin": _is_admin(request.user),
+        "sale_statement_rows": sale_statement_rows,
+        "is_admin": is_admin,
+        "is_farm_owner": is_farm_owner,
         "payment_methods": GoatAccountPayment.PAYMENT_METHOD_CHOICES,
+        "sale_payment_methods": GoatSalePayout.PAYMENT_METHOD_CHOICES,
         "today": timezone.localdate(),
     })
 
-
-@login_required
-@require_POST
 def record_goat_account_payment(request, owner_id):
     if not _is_admin(request.user):
         messages.error(request, "Only Admin can record Goat investor payments.")
         return redirect("goat_accounts")
 
     owner = get_object_or_404(
-        User.objects.filter(investor_profile__isnull=False),
+        User.objects.filter(owned_goats__isnull=False).distinct(),
         pk=owner_id,
     )
 

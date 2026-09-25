@@ -177,50 +177,14 @@
     </div>
 
     <div class="tab-panel" id="goatAccounts">
-        <div class="section-bar">
-            <div><h2>{% if is_admin %}Goat Investor Accounts{% else %}My Goat Account{% endif %}</h2><p>Goat charges are tied to individually owned RN goats, not to a herd percentage.</p></div>
-            <div class="section-totals">
-                <span class="mini-total">Cost <strong>Rs {{ goat_total_cost|floatformat:0|intcomma }}</strong></span>
-                <span class="mini-total">Paid <strong>Rs {{ goat_total_paid|floatformat:0|intcomma }}</strong></span>
-                <span class="mini-total">Due <strong>Rs {{ goat_total_outstanding|floatformat:0|intcomma }}</strong></span>
-            </div>
-        </div>
-        <div class="search-wrap" style="margin-bottom:13px"><i class="fa-solid fa-magnifying-glass"></i><input id="goatSearch" class="search-input" placeholder="Search investor or Goat account status..."></div>
-
-        {% if goat_accounts %}
-            <div class="accounts-grid" id="goatGrid">
-                {% for account in goat_accounts %}
-                    <article class="account-card goat-card" data-search="{{ account.owner_name }} {{ account.status_label }}">
-                        <div class="account-head">
-                            <div>
-                                <div class="account-name">{{ account.owner_name }}</div>
-                                <div class="account-meta">{{ account.goat_count }} goat{{ account.goat_count|pluralize }} · {{ account.active_goat_count }} active</div>
-                                <span class="account-type goat"><i class="fa-solid fa-paw"></i> Goat</span>
-                            </div>
-                            <span class="status status-{{ account.status }}">{{ account.status_label }}</span>
-                        </div>
-                        <div class="account-body">
-                            <div class="money-grid">
-                                <div class="money-box"><div class="money-label">Total Goat Cost</div><div class="money-value">Rs {{ account.total_cost|floatformat:0|intcomma }}</div></div>
-                                <div class="money-box paid"><div class="money-label">Paid</div><div class="money-value">Rs {{ account.total_paid|floatformat:0|intcomma }}</div></div>
-                                {% if account.credit > 0 %}<div class="money-box credit"><div class="money-label">Credit</div><div class="money-value">Rs {{ account.credit|floatformat:0|intcomma }}</div></div>{% else %}<div class="money-box due"><div class="money-label">Outstanding</div><div class="money-value">Rs {{ account.outstanding|floatformat:0|intcomma }}</div></div>{% endif %}
-                            </div>
-                            <div class="breakdown">
-                                <div class="breakdown-title">Goat Cost Breakdown</div>
-                                <div class="breakdown-grid">
-                                    <div class="break-item"><span>Purchase</span><strong>Rs {{ account.purchase_cost|floatformat:0|intcomma }}</strong></div>
-                                    <div class="break-item"><span>Feed</span><strong>Rs {{ account.feed_cost|floatformat:0|intcomma }}</strong></div>
-                                    <div class="break-item"><span>Medicine</span><strong>Rs {{ account.medicine_cost|floatformat:0|intcomma }}</strong></div>
-                                    <div class="break-item"><span>Expenses</span><strong>Rs {{ account.expense_cost|floatformat:0|intcomma }}</strong></div>
-                                </div>
-                            </div>
-                            <div class="card-foot"><span class="small-note">The Goat statement identifies the RN goat behind every cost allocation.</span><a class="view-btn" href="{% url 'goat_account_detail' account.owner.id %}"><i class="fa-regular fa-file-lines"></i> View Goat Statement</a></div>
-                        </div>
-                    </article>
-                {% endfor %}
-            </div>
-            <div class="no-results" id="goatNoResults">No matching Goat accounts found.</div>
-        {% else %}<div class="empty">No investor-owned Goat accounts are available yet.</div>{% endif %}
+        <div class="section-bar"><div><h2>{% if is_admin %}Goat Owner Accounts{% else %}My Goat Account{% endif %}</h2><p>One account per owner. Goat costs, contributions, sale proceeds and payouts stay separate.</p></div><div class="section-totals"><span class="mini-total">Owners <strong>{{ goat_filter_owner_count|intcomma }}</strong></span><span class="mini-total">Goats <strong>{{ goat_filter_goat_count|intcomma }}</strong></span><span class="mini-total">Cost <strong>Rs {{ goat_filter_total_cost|floatformat:0|intcomma }}</strong></span><span class="mini-total">Paid <strong>Rs {{ goat_filter_total_paid|floatformat:0|intcomma }}</strong></span><span class="mini-total">Due <strong>Rs {{ goat_filter_total_due|floatformat:0|intcomma }}</strong></span><span class="mini-total">Sale Paid <strong>Rs {{ goat_filter_sale_paid|floatformat:0|intcomma }}</strong></span><span class="mini-total">Sale Due <strong>Rs {{ goat_filter_sale_due|floatformat:0|intcomma }}</strong></span></div></div>
+        <div class="batch-filter"><a href="?status={{ status_filter }}&goat_status=active#goatAccounts" class="{% if goat_status == 'active' %}active{% endif %}">Active Goats</a><a href="?status={{ status_filter }}&goat_status=sold#goatAccounts" class="{% if goat_status == 'sold' %}active{% endif %}">Sold Goats</a><a href="?status={{ status_filter }}&goat_status=all#goatAccounts" class="{% if goat_status == 'all' %}active{% endif %}">All Goats</a><span class="filter-note">Active goats are shown by default.</span></div>
+        <div class="search-wrap" style="margin-bottom:13px"><i class="fa-solid fa-magnifying-glass"></i><input id="goatSearch" class="search-input" placeholder="Search owner, Admin / Farm, status..."></div>
+        {% if goat_accounts %}<div class="accounts-grid" id="goatGrid">{% for account in goat_accounts %}<article class="account-card goat-card {% if account.is_farm_owner %}farm-account-card{% endif %}" data-search="{{ account.owner_name }} {{ account.status_label }} {% if account.is_farm_owner %}admin farm{% else %}investor{% endif %}"><div class="account-head"><div><div class="account-name">{{ account.owner_name }}</div><div class="account-meta">{{ account.active_goat_count }} active · {{ account.sold_goat_count }} sold · {{ account.all_goat_count }} total</div><span class="account-type {% if account.is_farm_owner %}farm{% else %}goat{% endif %}"><i class="fa-solid {% if account.is_farm_owner %}fa-building-columns{% else %}fa-paw{% endif %}"></i>{% if account.is_farm_owner %}Farm Ownership{% else %}Goat Owner{% endif %}</span></div><span class="status status-{{ account.status }}">{{ account.status_label }}</span></div><div class="account-body">
+        <div class="money-grid"><div class="money-box"><div class="money-label">Account Cost</div><div class="money-value">Rs {{ account.total_cost|floatformat:0|intcomma }}</div></div><div class="money-box paid"><div class="money-label">{% if account.is_farm_owner %}Farm Invested{% else %}Contribution Paid{% endif %}</div><div class="money-value">Rs {{ account.total_paid|floatformat:0|intcomma }}</div></div><div class="money-box due"><div class="money-label">{% if account.is_farm_owner %}Farm Funding Due{% else %}Contribution Due{% endif %}</div><div class="money-value">Rs {{ account.outstanding|floatformat:0|intcomma }}</div></div></div>
+        <div class="sale-money-grid"><div class="money-box sale"><div class="money-label">Goat Sales</div><div class="money-value">Rs {{ account.total_sales|floatformat:0|intcomma }}</div></div><div class="money-box payout"><div class="money-label">{% if account.is_farm_owner %}Withdrawn by Farm{% else %}Paid to Owner{% endif %}</div><div class="money-value">Rs {{ account.total_sale_paid|floatformat:0|intcomma }}</div></div><div class="money-box due"><div class="money-label">Sale Balance</div><div class="money-value">Rs {{ account.sale_balance|floatformat:0|intcomma }}</div></div></div>
+        <div class="breakdown"><div class="breakdown-title">Goat Position</div><div class="breakdown-grid"><div class="break-item"><span>Purchase</span><strong>Rs {{ account.purchase_cost|floatformat:0|intcomma }}</strong></div><div class="break-item"><span>Feed</span><strong>Rs {{ account.feed_cost|floatformat:0|intcomma }}</strong></div><div class="break-item"><span>Medicine</span><strong>Rs {{ account.medicine_cost|floatformat:0|intcomma }}</strong></div><div class="break-item"><span>Expenses</span><strong>Rs {{ account.expense_cost|floatformat:0|intcomma }}</strong></div><div class="break-item"><span>Realized P/L</span><strong>Rs {{ account.realized_profit|floatformat:0|intcomma }}</strong></div></div></div>
+        <div class="card-foot"><span class="small-note">Contribution and sale-proceeds ledgers are separate.</span><a class="view-btn" href="{% url 'goat_account_detail' account.owner.id %}"><i class="fa-regular fa-file-lines"></i> View Goat Statement</a></div></div></article>{% endfor %}</div><div class="no-results" id="goatNoResults">No matching Goat owner accounts found.</div>{% else %}<div class="empty">No {{ goat_status|title }} goats are available for these owner accounts.</div>{% endif %}
     </div>
 </div>
 {% endblock %}
@@ -231,6 +195,15 @@
     const tabButtons=Array.from(document.querySelectorAll('.tab-btn'));
     const panels=Array.from(document.querySelectorAll('.tab-panel'));
     tabButtons.forEach(function(btn){btn.addEventListener('click',function(){tabButtons.forEach(function(x){x.classList.remove('active')});panels.forEach(function(x){x.classList.remove('active')});btn.classList.add('active');const panel=document.getElementById(btn.dataset.target);if(panel)panel.classList.add('active')})});
+
+    function activateTab(targetId){
+        tabButtons.forEach(function(x){x.classList.toggle('active',x.dataset.target===targetId)});
+        panels.forEach(function(x){x.classList.toggle('active',x.id===targetId)});
+    }
+    const params=new URLSearchParams(window.location.search);
+    if(window.location.hash==='#goatAccounts'||params.has('goat_status')){
+        activateTab('goatAccounts');
+    }
 
     function bindSearch(inputId, cardSelector, emptyId){
         const input=document.getElementById(inputId);const cards=Array.from(document.querySelectorAll(cardSelector));const empty=document.getElementById(emptyId);if(!input||!cards.length)return;

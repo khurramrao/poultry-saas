@@ -806,3 +806,51 @@ class GoatAccountPayment(models.Model):
     def __str__(self):
         owner_name = self.owner.get_full_name().strip() or self.owner.username
         return f"{owner_name} - Rs {self.amount}"
+
+class GoatSalePayout(models.Model):
+    """Money paid out from an owner's goat-sale proceeds.
+
+    For an investor owner this is a Farm -> Investor sale payout.
+    For an Admin/Farm owner this is an Admin/Farm sale withdrawal.
+    It is intentionally separate from GoatAccountPayment, which records
+    owner contributions toward goat purchase/operating costs.
+    """
+
+    PAYMENT_METHOD_CHOICES = GoatAccountPayment.PAYMENT_METHOD_CHOICES
+
+    owner = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        related_name="goat_sale_payouts",
+    )
+    payout_date = models.DateField(default=timezone.localdate)
+    amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.01"))],
+    )
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default="bank_transfer",
+    )
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_goat_sale_payouts",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-payout_date", "-id"]
+        verbose_name = "Goat Sale Payout / Withdrawal"
+        verbose_name_plural = "Goat Sale Payouts / Withdrawals"
+
+    def __str__(self):
+        owner_name = self.owner.get_full_name().strip() or self.owner.username
+        return f"{owner_name} - Goat sale payout Rs {self.amount}"
+
