@@ -3,7 +3,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -751,6 +751,13 @@ def investor_accounts(request):
     is_admin = _is_admin(request.user)
     investor_profile = getattr(request.user, "investor_profile", None)
 
+    # Poultry account list defaults to ACTIVE batches so old/closed batches
+    # do not clutter day-to-day contribution and sale-balance tracking.
+    # Closed and All remain available as explicit filters.
+    status_filter = (request.GET.get("status") or "active").lower()
+    if status_filter not in {"active", "closed", "all"}:
+        status_filter = "active"
+
     if not is_admin and investor_profile is None:
         messages.error(
             request,
@@ -768,6 +775,17 @@ def investor_accounts(request):
 
     if not is_admin:
         allocations = allocations.filter(investor=investor_profile)
+
+    if status_filter == "active":
+        allocations = allocations.filter(
+            batch__is_active=True,
+            batch__status="active",
+        )
+    elif status_filter == "closed":
+        allocations = allocations.filter(
+            Q(batch__is_active=False)
+            | Q(batch__status__in=["sold", "closed"])
+        )
 
     allocations = allocations.order_by(
         "-batch__start_date",
@@ -820,8 +838,25 @@ def investor_accounts(request):
             Batch.objects
             .select_related("shed")
             .exclude(shed__shed_type="goat")
-            .order_by("-start_date", "batch_number", "id")
         )
+
+        if status_filter == "active":
+            farm_batches = farm_batches.filter(
+                is_active=True,
+                status="active",
+            )
+        elif status_filter == "closed":
+            farm_batches = farm_batches.filter(
+                Q(is_active=False)
+                | Q(status__in=["sold", "closed"])
+            )
+
+        farm_batches = farm_batches.order_by(
+            "-start_date",
+            "batch_number",
+            "id",
+        )
+
         for batch in farm_batches:
             snapshot = _farm_account_snapshot(batch)
             has_history = (
@@ -935,6 +970,7 @@ def investor_accounts(request):
             "farm_total_sale_share": farm_total_sale_share,
             "farm_total_sale_withdrawn": farm_total_sale_withdrawn,
             "farm_total_sale_due": farm_total_sale_due,
+            "status_filter": status_filter,
             "goat_total_cost": goat_total_cost,
             "goat_total_paid": goat_total_paid,
             "goat_total_outstanding": goat_total_outstanding,

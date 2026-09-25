@@ -14,7 +14,7 @@
 
     .account-tabs{display:inline-flex;gap:6px;padding:5px;margin-bottom:16px;border:1px solid #dbe5ef;border-radius:13px;background:#eef3f8}.tab-btn{min-height:40px;padding:0 16px;border:0;border-radius:9px;background:transparent;color:#5d6e82;font-size:13px;font-weight:850;cursor:pointer}.tab-btn.active{background:#fff;color:#0e4c82;box-shadow:0 2px 8px rgba(25,63,100,.08)}.tab-panel{display:none}.tab-panel.active{display:block}
 
-    .section-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px}.section-bar h2{margin:0;color:#123f6c;font-size:20px}.section-bar p{margin:4px 0 0;color:#748397;font-size:11px}.section-totals{display:flex;gap:8px;flex-wrap:wrap}.mini-total{padding:8px 10px;border-radius:9px;background:#fff;border:1px solid #e0e8f2;color:#607388;font-size:10px;font-weight:800}.mini-total strong{color:#123f6c}
+    .section-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px}.section-bar h2{margin:0;color:#123f6c;font-size:20px}.section-bar p{margin:4px 0 0;color:#748397;font-size:11px}.section-totals{display:flex;gap:8px;flex-wrap:wrap}.mini-total{padding:8px 10px;border-radius:9px;background:#fff;border:1px solid #e0e8f2;color:#607388;font-size:10px;font-weight:800}.mini-total strong{color:#123f6c}.batch-filter{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 14px}.batch-filter a{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 13px;border:1px solid #d9e4ef;border-radius:9px;background:#fff;color:#607388;text-decoration:none;font-size:11px;font-weight:850}.batch-filter a:hover{border-color:#b8cee3;color:#145e9f}.batch-filter a.active{background:#1669c5;border-color:#1669c5;color:#fff}.filter-note{color:#7a8899;font-size:10px;margin-left:3px}
     .search-wrap{position:relative;width:min(100%,330px)}.search-wrap i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#7a8999;font-size:12px}.search-input{width:100%;height:41px;border:1px solid #d6e1ec;border-radius:10px;padding:0 12px 0 36px;font-size:12px;outline:none;background:#fff}.search-input:focus{border-color:#2e78c8;box-shadow:0 0 0 3px rgba(46,120,200,.09)}
 
     .accounts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.account-card{background:#fff;border:1px solid #e0e8f2;border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(17,49,82,.04)}.account-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:15px 16px;border-bottom:1px solid #edf2f6}.account-name{font-size:17px;color:#123f6c;font-weight:900}.account-meta{margin-top:4px;color:#748397;font-size:10px}.account-type{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:#eef6ff;color:#2462a1;font-size:8px;font-weight:900;margin-top:7px}.account-type.goat{background:#e8f7ed;color:#197940}.account-type.farm{background:#eef8f1;color:#13763a}.farm-section{margin:0 0 18px;padding:14px;border:1px solid #cfe6d6;border-radius:15px;background:linear-gradient(135deg,#fbfffc,#f2fbf5)}.farm-section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:11px}.farm-section-head h3{margin:0;color:#135d34;font-size:16px}.farm-section-head p{margin:4px 0 0;color:#6c7e72;font-size:10px}.farm-account-card{border-color:#d2e8d9}.farm-account-card .account-head{background:#fbfffc}.farm-totals{display:flex;gap:6px;flex-wrap:wrap}.farm-totals .mini-total{background:#fff}.money-box.invested .money-value{color:#11783a}.money-box.withdrawn .money-value{color:#168046}
@@ -71,6 +71,14 @@
                 <span class="mini-total">Sale Due <strong>Rs {{ poultry_total_sale_due|floatformat:0|intcomma }}</strong></span>
             </div>
         </div>
+
+        <div class="batch-filter" aria-label="Poultry batch account filter">
+            <a href="?status=active" class="{% if status_filter == 'active' %}active{% endif %}">Active</a>
+            <a href="?status=closed" class="{% if status_filter == 'closed' %}active{% endif %}">Closed</a>
+            <a href="?status=all" class="{% if status_filter == 'all' %}active{% endif %}">All</a>
+            <span class="filter-note">Active batches are shown by default.</span>
+        </div>
+
         {% if is_admin and farm_accounts %}
         <section class="farm-section">
             <div class="farm-section-head">
@@ -165,7 +173,7 @@
                 {% endfor %}
             </div>
             <div class="no-results" id="poultryNoResults">No matching Poultry accounts found.</div>
-        {% else %}<div class="empty">No Poultry investor accounts are available.</div>{% endif %}
+        {% else %}<div class="empty">No {{ status_filter|title }} Poultry investor accounts are available.</div>{% endif %}
     </div>
 
     <div class="tab-panel" id="goatAccounts">
