@@ -17,7 +17,7 @@
     .section-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:13px}.section-bar h2{margin:0;color:#123f6c;font-size:20px}.section-bar p{margin:4px 0 0;color:#748397;font-size:11px}.section-totals{display:flex;gap:8px;flex-wrap:wrap}.mini-total{padding:8px 10px;border-radius:9px;background:#fff;border:1px solid #e0e8f2;color:#607388;font-size:10px;font-weight:800}.mini-total strong{color:#123f6c}
     .search-wrap{position:relative;width:min(100%,330px)}.search-wrap i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:#7a8999;font-size:12px}.search-input{width:100%;height:41px;border:1px solid #d6e1ec;border-radius:10px;padding:0 12px 0 36px;font-size:12px;outline:none;background:#fff}.search-input:focus{border-color:#2e78c8;box-shadow:0 0 0 3px rgba(46,120,200,.09)}
 
-    .accounts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.account-card{background:#fff;border:1px solid #e0e8f2;border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(17,49,82,.04)}.account-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:15px 16px;border-bottom:1px solid #edf2f6}.account-name{font-size:17px;color:#123f6c;font-weight:900}.account-meta{margin-top:4px;color:#748397;font-size:10px}.account-type{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:#eef6ff;color:#2462a1;font-size:8px;font-weight:900;margin-top:7px}.account-type.goat{background:#e8f7ed;color:#197940}
+    .accounts-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.account-card{background:#fff;border:1px solid #e0e8f2;border-radius:16px;overflow:hidden;box-shadow:0 6px 18px rgba(17,49,82,.04)}.account-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:15px 16px;border-bottom:1px solid #edf2f6}.account-name{font-size:17px;color:#123f6c;font-weight:900}.account-meta{margin-top:4px;color:#748397;font-size:10px}.account-type{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:999px;background:#eef6ff;color:#2462a1;font-size:8px;font-weight:900;margin-top:7px}.account-type.goat{background:#e8f7ed;color:#197940}.account-type.farm{background:#eef8f1;color:#13763a}.farm-section{margin:0 0 18px;padding:14px;border:1px solid #cfe6d6;border-radius:15px;background:linear-gradient(135deg,#fbfffc,#f2fbf5)}.farm-section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:11px}.farm-section-head h3{margin:0;color:#135d34;font-size:16px}.farm-section-head p{margin:4px 0 0;color:#6c7e72;font-size:10px}.farm-account-card{border-color:#d2e8d9}.farm-account-card .account-head{background:#fbfffc}.farm-totals{display:flex;gap:6px;flex-wrap:wrap}.farm-totals .mini-total{background:#fff}.money-box.invested .money-value{color:#11783a}.money-box.withdrawn .money-value{color:#168046}
     .status{padding:6px 9px;border-radius:999px;font-size:9px;font-weight:900}.status-paid{background:#e7f7ed;color:#11783a}.status-partial,.status-outstanding,.status-unpaid{background:#fff3df;color:#a96100}.status-credit{background:#eaf2ff;color:#1b62a8}.status-no_cost{background:#eef2f6;color:#66788d}
     .account-body{padding:14px 16px}.money-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.money-box{padding:9px;border:1px solid #edf2f6;border-radius:10px;background:#fafcfe}.money-label{font-size:8px;color:#7c8999;font-weight:900;text-transform:uppercase}.money-value{margin-top:4px;color:#173b61;font-size:14px;font-weight:900}.money-box.paid .money-value{color:#11783a}.money-box.due .money-value{color:#aa6300}.money-box.credit .money-value{color:#1b62a8}
     .breakdown{margin-top:11px;padding-top:11px;border-top:1px solid #edf2f6}.breakdown-title{font-size:10px;color:#4d6176;font-weight:900;margin-bottom:7px}.breakdown-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}.break-item{padding:7px;border-radius:8px;background:#f6f9fc}.break-item span{display:block;font-size:7px;color:#8390a0;font-weight:900;text-transform:uppercase}.break-item strong{display:block;margin-top:3px;font-size:10px;color:#173b61}
@@ -63,14 +63,67 @@
         <div class="section-bar">
             <div><h2>{% if is_admin %}Poultry Investor Accounts{% else %}My Poultry Accounts{% endif %}</h2><p>Each batch remains a separate percentage-based account and statement.</p></div>
             <div class="section-totals">
-                <span class="mini-total">Cost <strong>Rs {{ poultry_total_cost|floatformat:0|intcomma }}</strong></span>
-                <span class="mini-total">Cost Paid <strong>Rs {{ poultry_total_paid|floatformat:0|intcomma }}</strong></span>
-                <span class="mini-total">Cost Due <strong>Rs {{ poultry_total_outstanding|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">{% if is_admin %}Investor Cost{% else %}Cost{% endif %} <strong>Rs {{ poultry_total_cost|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">{% if is_admin %}Investor Paid{% else %}Cost Paid{% endif %} <strong>Rs {{ poultry_total_paid|floatformat:0|intcomma }}</strong></span>
+                <span class="mini-total">{% if is_admin %}Investor Due{% else %}Cost Due{% endif %} <strong>Rs {{ poultry_total_outstanding|floatformat:0|intcomma }}</strong></span>
                 <span class="mini-total">Sales Share <strong>Rs {{ poultry_total_sale_share|floatformat:0|intcomma }}</strong></span>
                 <span class="mini-total">Sale Paid <strong>Rs {{ poultry_total_sale_paid|floatformat:0|intcomma }}</strong></span>
                 <span class="mini-total">Sale Due <strong>Rs {{ poultry_total_sale_due|floatformat:0|intcomma }}</strong></span>
             </div>
         </div>
+        {% if is_admin and farm_accounts %}
+        <section class="farm-section">
+            <div class="farm-section-head">
+                <div><h3><i class="fa-solid fa-building-columns"></i> Admin / Farm Accounts</h3><p>The Farm owns the starting birds left after investor allocations. Investment and sale withdrawals are tracked separately.</p></div>
+                <div class="farm-totals">
+                    <span class="mini-total">Farm Cost <strong>Rs {{ farm_total_cost|floatformat:0|intcomma }}</strong></span>
+                    <span class="mini-total">Farm Invested <strong>Rs {{ farm_total_invested|floatformat:0|intcomma }}</strong></span>
+                    <span class="mini-total">Farm Due <strong>Rs {{ farm_total_outstanding|floatformat:0|intcomma }}</strong></span>
+                    <span class="mini-total">Sales Share <strong>Rs {{ farm_total_sale_share|floatformat:0|intcomma }}</strong></span>
+                    <span class="mini-total">Withdrawn <strong>Rs {{ farm_total_sale_withdrawn|floatformat:0|intcomma }}</strong></span>
+                    <span class="mini-total">Sale Balance <strong>Rs {{ farm_total_sale_due|floatformat:0|intcomma }}</strong></span>
+                </div>
+            </div>
+            <div class="accounts-grid">
+                {% for account in farm_accounts %}
+                    <article class="account-card farm-account-card">
+                        <div class="account-head">
+                            <div>
+                                <div class="account-name">Admin / Farm</div>
+                                <div class="account-meta">{{ account.batch.shed.shed_type|title }} Batch #{{ account.batch.batch_number }} · {{ account.share_percentage }}% · {{ account.birds_owned|intcomma }} starting birds</div>
+                                <span class="account-type farm"><i class="fa-solid fa-building-columns"></i> Farm Ownership</span>
+                            </div>
+                            <span class="status status-{{ account.status }}">{{ account.status_label }}</span>
+                        </div>
+                        <div class="account-body">
+                            <div class="money-grid">
+                                <div class="money-box"><div class="money-label">Farm Cost Share</div><div class="money-value">Rs {{ account.total_cost_share|floatformat:0|intcomma }}</div></div>
+                                <div class="money-box invested"><div class="money-label">Farm Invested</div><div class="money-value">Rs {{ account.total_invested|floatformat:0|intcomma }}</div></div>
+                                {% if account.credit > 0 %}<div class="money-box credit"><div class="money-label">Farm Credit</div><div class="money-value">Rs {{ account.credit|floatformat:0|intcomma }}</div></div>{% else %}<div class="money-box due"><div class="money-label">Farm Funding Due</div><div class="money-value">Rs {{ account.outstanding|floatformat:0|intcomma }}</div></div>{% endif %}
+                            </div>
+                            <div class="sale-money-grid">
+                                <div class="money-box sale"><div class="money-label">Farm Sales Share</div><div class="money-value">Rs {{ account.total_sale_share|floatformat:0|intcomma }}</div></div>
+                                <div class="money-box withdrawn"><div class="money-label">Withdrawn by Farm</div><div class="money-value">Rs {{ account.total_sale_withdrawn|floatformat:0|intcomma }}</div></div>
+                                <div class="money-box sale-due"><div class="money-label">Sale Balance</div><div class="money-value">Rs {{ account.sale_balance_due|floatformat:0|intcomma }}</div></div>
+                            </div>
+                            <div class="breakdown">
+                                <div class="breakdown-title">Farm Cost Share Breakdown</div>
+                                <div class="breakdown-grid">
+                                    <div class="break-item"><span>Chicks</span><strong>Rs {{ account.chick_cost_share|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Carriage</span><strong>Rs {{ account.carriage_cost_share|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Feed</span><strong>Rs {{ account.feed_cost_share|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Medicine</span><strong>Rs {{ account.medicine_cost_share|floatformat:0|intcomma }}</strong></div>
+                                    <div class="break-item"><span>Expenses</span><strong>Rs {{ account.expense_cost_share|floatformat:0|intcomma }}</strong></div>
+                                </div>
+                            </div>
+                            <div class="card-foot"><span class="small-note">Open the statement to record Farm contributions and Admin/Farm sale withdrawals.</span><a class="view-btn" href="{% url 'farm_account_detail' account.batch.id %}"><i class="fa-regular fa-file-lines"></i> View Farm Statement</a></div>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
         <div class="search-wrap" style="margin-bottom:13px"><i class="fa-solid fa-magnifying-glass"></i><input id="poultrySearch" class="search-input" placeholder="Search investor, batch, shed, status..."></div>
 
         {% if poultry_accounts %}

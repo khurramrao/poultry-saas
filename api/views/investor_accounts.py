@@ -13,11 +13,14 @@ from api.models.investors import (
     InvestorAccountPayment,
     InvestorAllocation,
     InvestorSalePayout,
+    FarmAccountPayment,
+    FarmSaleWithdrawal,
     MedicineEntry,
 )
 from api.models.sales import ChickCostEntry, Expense, SaleRecord
 from api.models.goats import Goat, GoatCostAllocation
 from api.models.eggs import EggSale
+from api.models.sensor import Batch
 
 
 ZERO = Decimal("0.00")
@@ -90,6 +93,118 @@ def _batch_cost_totals(batch):
     return totals
 
 
+
+
+
+def _farm_share_ratio(batch):
+    """Residual Admin/Farm ownership after investor starting-bird allocations."""
+    starting_birds = int(batch.bird_count_initial or 0)
+    if starting_birds <= 0:
+        return ZERO
+
+    allocated_birds = (
+        InvestorAllocation.objects.filter(batch=batch)
+        .aggregate(total=Sum("birds_owned"))["total"]
+        or 0
+    )
+    farm_birds = max(starting_birds - int(allocated_birds), 0)
+    return Decimal(farm_birds) / Decimal(starting_birds)
+
+
+def _farm_sale_proceeds_snapshot(batch):
+    ratio = _farm_share_ratio(batch)
+
+    bird_sale_share = _money(sum(
+        (_money(sale.total_amount * ratio) for sale in SaleRecord.objects.filter(batch=batch)),
+        ZERO,
+    ))
+    egg_sale_share = _money(sum(
+        (_money(sale.total_amount * ratio) for sale in EggSale.objects.filter(batch=batch)),
+        ZERO,
+    ))
+    total_sale_share = _money(bird_sale_share + egg_sale_share)
+    total_sale_withdrawn = _money(
+        batch.farm_sale_withdrawals.aggregate(total=Sum("amount"))["total"] or ZERO
+    )
+    sale_balance_due = _money(max(total_sale_share - total_sale_withdrawn, ZERO))
+    sale_overdrawn = _money(max(total_sale_withdrawn - total_sale_share, ZERO))
+
+    return {
+        "bird_sale_share": bird_sale_share,
+        "egg_sale_share": egg_sale_share,
+        "total_sale_share": total_sale_share,
+        "total_sale_withdrawn": total_sale_withdrawn,
+        "sale_balance_due": sale_balance_due,
+        "sale_overdrawn": sale_overdrawn,
+    }
+
+
+def _farm_account_snapshot(batch):
+    ratio = _farm_share_ratio(batch)
+    starting_birds = int(batch.bird_count_initial or 0)
+    investor_birds = (
+        InvestorAllocation.objects.filter(batch=batch)
+        .aggregate(total=Sum("birds_owned"))["total"]
+        or 0
+    )
+    farm_birds = max(starting_birds - int(investor_birds), 0)
+
+    batch_costs = _batch_cost_totals(batch)
+    shares = {
+        key: _money(value * ratio)
+        for key, value in batch_costs.items()
+        if key != "total_cost"
+    }
+    shares["total_cost"] = _money(sum(shares.values(), ZERO))
+
+    total_invested = _money(
+        batch.farm_account_payments.aggregate(total=Sum("amount"))["total"] or ZERO
+    )
+    raw_balance = _money(shares["total_cost"] - total_invested)
+    if abs(raw_balance) < ACCOUNT_TOLERANCE:
+        raw_balance = ZERO
+
+    outstanding = _money(max(raw_balance, ZERO))
+    credit = _money(max(-raw_balance, ZERO))
+
+    if credit > ZERO:
+        status = "credit"
+        status_label = "Credit"
+    elif outstanding <= ZERO and shares["total_cost"] > ZERO:
+        status = "paid"
+        status_label = "Funded"
+    elif total_invested > ZERO:
+        status = "partial"
+        status_label = "Partial"
+    elif shares["total_cost"] > ZERO:
+        status = "unpaid"
+        status_label = "Unfunded"
+    else:
+        status = "no_cost"
+        status_label = "No Cost"
+
+    sale_proceeds = _farm_sale_proceeds_snapshot(batch)
+
+    return {
+        "batch": batch,
+        "share_ratio": ratio,
+        "share_percentage": (ratio * Decimal("100")).quantize(
+            Decimal("0.1"), rounding=ROUND_HALF_UP
+        ),
+        "birds_owned": farm_birds,
+        "chick_cost_share": shares["chick_cost"],
+        "carriage_cost_share": shares["carriage_cost"],
+        "feed_cost_share": shares["feed_cost"],
+        "medicine_cost_share": shares["medicine_cost"],
+        "expense_cost_share": shares["expense_cost"],
+        "total_cost_share": shares["total_cost"],
+        "total_invested": total_invested,
+        "outstanding": outstanding,
+        "credit": credit,
+        "status": status,
+        "status_label": status_label,
+        **sale_proceeds,
+    }
 
 def _sale_proceeds_snapshot(allocation):
     """Revenue owed to this investor, kept separate from cost contributions."""
@@ -476,6 +591,161 @@ def _build_sale_statement(allocation):
     return rows
 
 
+def _build_farm_statement(batch):
+    ratio = _farm_share_ratio(batch)
+    rows = []
+
+    for entry in ChickCostEntry.objects.filter(batch=batch).order_by("entry_date", "id"):
+        if entry.chick_cost and entry.chick_cost > ZERO:
+            rows.append({
+                "date": entry.entry_date,
+                "sort_type": 0,
+                "sort_id": entry.id * 10,
+                "entry_type": "charge",
+                "category": "Chick Cost",
+                "description": entry.notes or "Chick purchase",
+                "charge": _money(entry.chick_cost * ratio),
+                "payment": ZERO,
+            })
+        if entry.carriage_cost and entry.carriage_cost > ZERO:
+            rows.append({
+                "date": entry.entry_date,
+                "sort_type": 0,
+                "sort_id": entry.id * 10 + 1,
+                "entry_type": "charge",
+                "category": "Carriage",
+                "description": entry.notes or "Chick carriage / delivery",
+                "charge": _money(entry.carriage_cost * ratio),
+                "payment": ZERO,
+            })
+
+    for entry in FeedEntry.objects.filter(batch=batch).order_by("entry_date", "id"):
+        rows.append({
+            "date": entry.entry_date,
+            "sort_type": 0,
+            "sort_id": 100000 + entry.id,
+            "entry_type": "charge",
+            "category": "Feed",
+            "description": entry.notes or "Feed purchase",
+            "charge": _money(entry.amount * ratio),
+            "payment": ZERO,
+        })
+
+    for entry in MedicineEntry.objects.filter(batch=batch).order_by("entry_date", "id"):
+        description = f"{entry.get_medicine_type_display()} · {entry.medicine_name}"
+        if entry.notes:
+            description += f" — {entry.notes}"
+        rows.append({
+            "date": entry.entry_date,
+            "sort_type": 0,
+            "sort_id": 200000 + entry.id,
+            "entry_type": "charge",
+            "category": "Medicine",
+            "description": description,
+            "charge": _money(entry.amount * ratio),
+            "payment": ZERO,
+        })
+
+    for entry in Expense.objects.filter(batch=batch).order_by("expense_date", "id"):
+        description = entry.get_category_display()
+        if entry.description:
+            description += f" — {entry.description}"
+        rows.append({
+            "date": entry.expense_date,
+            "sort_type": 0,
+            "sort_id": 300000 + entry.id,
+            "entry_type": "charge",
+            "category": "Expense",
+            "description": description,
+            "charge": _money(entry.amount * ratio),
+            "payment": ZERO,
+        })
+
+    for payment in batch.farm_account_payments.all().order_by("payment_date", "id"):
+        description = payment.get_payment_method_display()
+        if payment.reference:
+            description += f" · {payment.reference}"
+        if payment.notes:
+            description += f" — {payment.notes}"
+        rows.append({
+            "date": payment.payment_date,
+            "sort_type": 1,
+            "sort_id": 400000 + payment.id,
+            "entry_type": "payment",
+            "category": "Farm Contribution",
+            "description": description,
+            "charge": ZERO,
+            "payment": _money(payment.amount),
+        })
+
+    rows.sort(key=lambda row: (row["date"], row["sort_type"], row["sort_id"]))
+    running_balance = ZERO
+    for row in rows:
+        running_balance = _money(running_balance + row["charge"] - row["payment"])
+        row["running_balance"] = running_balance
+    return rows
+
+
+def _build_farm_sale_statement(batch):
+    ratio = _farm_share_ratio(batch)
+    rows = []
+
+    for sale in SaleRecord.objects.filter(batch=batch).order_by("sale_date", "id"):
+        if getattr(sale, "sale_mode", "counted") == "weight_only":
+            details = f"Weight-only bird sale · {sale.total_weight_kg} KG @ Rs {sale.rate_per_kg}/KG"
+        else:
+            details = f"Bird sale · {int(sale.birds_sold or 0)} birds · {sale.total_weight_kg} KG @ Rs {sale.rate_per_kg}/KG"
+        rows.append({
+            "date": sale.sale_date,
+            "sort_type": 0,
+            "sort_id": sale.id,
+            "entry_type": "sale",
+            "category": "Bird Sale",
+            "description": details,
+            "sale_share": _money(sale.total_amount * ratio),
+            "withdrawal": ZERO,
+        })
+
+    for sale in EggSale.objects.filter(batch=batch).order_by("sale_date", "id"):
+        details = f"Egg sale · {sale.eggs_sold} eggs @ Rs {sale.rate_per_egg}/egg"
+        if sale.buyer_name:
+            details += f" · {sale.buyer_name}"
+        rows.append({
+            "date": sale.sale_date,
+            "sort_type": 0,
+            "sort_id": 100000 + sale.id,
+            "entry_type": "sale",
+            "category": "Egg Sale",
+            "description": details,
+            "sale_share": _money(sale.total_amount * ratio),
+            "withdrawal": ZERO,
+        })
+
+    for withdrawal in batch.farm_sale_withdrawals.all().order_by("withdrawal_date", "id"):
+        description = withdrawal.get_payment_method_display()
+        if withdrawal.reference:
+            description += f" · {withdrawal.reference}"
+        if withdrawal.notes:
+            description += f" — {withdrawal.notes}"
+        rows.append({
+            "date": withdrawal.withdrawal_date,
+            "sort_type": 1,
+            "sort_id": 200000 + withdrawal.id,
+            "entry_type": "withdrawal",
+            "category": "Farm Withdrawal",
+            "description": description,
+            "sale_share": ZERO,
+            "withdrawal": _money(withdrawal.amount),
+        })
+
+    rows.sort(key=lambda row: (row["date"], row["sort_type"], row["sort_id"]))
+    running_balance = ZERO
+    for row in rows:
+        running_balance = _money(running_balance + row["sale_share"] - row["withdrawal"])
+        row["running_balance"] = running_balance
+    return rows
+
+
 @login_required
 def investor_accounts(request):
     is_admin = _is_admin(request.user)
@@ -532,6 +802,57 @@ def investor_accounts(request):
     poultry_total_sale_due = _money(sum(
         (item["sale_balance_due"] for item in poultry_accounts), ZERO,
     ))
+
+    # ---------------------------------------------------------
+    # ADMIN / FARM POULTRY ACCOUNTS - residual batch ownership
+    # ---------------------------------------------------------
+    farm_accounts = []
+    farm_total_cost = ZERO
+    farm_total_invested = ZERO
+    farm_total_outstanding = ZERO
+    farm_total_credit = ZERO
+    farm_total_sale_share = ZERO
+    farm_total_sale_withdrawn = ZERO
+    farm_total_sale_due = ZERO
+
+    if is_admin:
+        farm_batches = (
+            Batch.objects
+            .select_related("shed")
+            .exclude(shed__shed_type="goat")
+            .order_by("-start_date", "batch_number", "id")
+        )
+        for batch in farm_batches:
+            snapshot = _farm_account_snapshot(batch)
+            has_history = (
+                snapshot["share_ratio"] > ZERO
+                or batch.farm_account_payments.exists()
+                or batch.farm_sale_withdrawals.exists()
+            )
+            if has_history:
+                farm_accounts.append(snapshot)
+
+        farm_total_cost = _money(sum(
+            (item["total_cost_share"] for item in farm_accounts), ZERO,
+        ))
+        farm_total_invested = _money(sum(
+            (item["total_invested"] for item in farm_accounts), ZERO,
+        ))
+        farm_total_outstanding = _money(sum(
+            (item["outstanding"] for item in farm_accounts), ZERO,
+        ))
+        farm_total_credit = _money(sum(
+            (item["credit"] for item in farm_accounts), ZERO,
+        ))
+        farm_total_sale_share = _money(sum(
+            (item["total_sale_share"] for item in farm_accounts), ZERO,
+        ))
+        farm_total_sale_withdrawn = _money(sum(
+            (item["total_sale_withdrawn"] for item in farm_accounts), ZERO,
+        ))
+        farm_total_sale_due = _money(sum(
+            (item["sale_balance_due"] for item in farm_accounts), ZERO,
+        ))
 
     # ---------------------------------------------------------
     # GOAT ACCOUNTS - individual goat ownership
@@ -606,6 +927,14 @@ def investor_accounts(request):
             "poultry_total_sale_share": poultry_total_sale_share,
             "poultry_total_sale_paid": poultry_total_sale_paid,
             "poultry_total_sale_due": poultry_total_sale_due,
+            "farm_accounts": farm_accounts,
+            "farm_total_cost": farm_total_cost,
+            "farm_total_invested": farm_total_invested,
+            "farm_total_outstanding": farm_total_outstanding,
+            "farm_total_credit": farm_total_credit,
+            "farm_total_sale_share": farm_total_sale_share,
+            "farm_total_sale_withdrawn": farm_total_sale_withdrawn,
+            "farm_total_sale_due": farm_total_sale_due,
             "goat_total_cost": goat_total_cost,
             "goat_total_paid": goat_total_paid,
             "goat_total_outstanding": goat_total_outstanding,
@@ -768,3 +1097,125 @@ def record_investor_sale_payout(request, allocation_id):
     )
     return redirect("investor_account_detail", allocation_id=allocation.id)
 
+
+
+@login_required
+def farm_account_detail(request, batch_id):
+    if not _is_admin(request.user):
+        messages.error(request, "Only Admin can view the Farm account.")
+        return redirect("investor_accounts")
+
+    batch = get_object_or_404(Batch.objects.select_related("shed"), id=batch_id)
+    account = _farm_account_snapshot(batch)
+    statement_rows = _build_farm_statement(batch)
+    sale_statement_rows = _build_farm_sale_statement(batch)
+
+    return render(
+        request,
+        "api/farm_account_detail.html",
+        {
+            "account": account,
+            "statement_rows": statement_rows,
+            "sale_statement_rows": sale_statement_rows,
+            "payment_methods": FarmAccountPayment.PAYMENT_METHOD_CHOICES,
+            "withdrawal_methods": FarmSaleWithdrawal.PAYMENT_METHOD_CHOICES,
+            "today": timezone.localdate().isoformat(),
+            "is_admin": True,
+        },
+    )
+
+
+@login_required
+@require_POST
+def record_farm_account_payment(request, batch_id):
+    if not _is_admin(request.user):
+        messages.error(request, "Only Admin can record Farm contributions.")
+        return redirect("investor_accounts")
+
+    batch = get_object_or_404(Batch, id=batch_id)
+
+    try:
+        amount = Decimal(str(request.POST.get("amount", "0") or "0")).quantize(MONEY)
+    except (InvalidOperation, TypeError, ValueError):
+        messages.error(request, "Enter a valid contribution amount.")
+        return redirect("farm_account_detail", batch_id=batch.id)
+
+    if amount <= ZERO:
+        messages.error(request, "Contribution amount must be greater than zero.")
+        return redirect("farm_account_detail", batch_id=batch.id)
+
+    payment_date = request.POST.get("payment_date") or timezone.localdate()
+    payment_method = request.POST.get("payment_method") or "bank_transfer"
+    valid_methods = {key for key, _ in FarmAccountPayment.PAYMENT_METHOD_CHOICES}
+    if payment_method not in valid_methods:
+        payment_method = "other"
+
+    FarmAccountPayment.objects.create(
+        batch=batch,
+        payment_date=payment_date,
+        amount=amount,
+        payment_method=payment_method,
+        reference=(request.POST.get("reference") or "").strip(),
+        notes=(request.POST.get("notes") or "").strip(),
+        recorded_by=request.user,
+    )
+
+    messages.success(
+        request,
+        f"Farm contribution of Rs {amount:,.2f} recorded for Batch #{batch.batch_number}.",
+    )
+    return redirect("farm_account_detail", batch_id=batch.id)
+
+
+@login_required
+@require_POST
+def record_farm_sale_withdrawal(request, batch_id):
+    if not _is_admin(request.user):
+        messages.error(request, "Only Admin can record Farm sale withdrawals.")
+        return redirect("investor_accounts")
+
+    batch = get_object_or_404(Batch, id=batch_id)
+    sale_position = _farm_sale_proceeds_snapshot(batch)
+
+    try:
+        amount = Decimal(str(request.POST.get("amount", "0") or "0")).quantize(MONEY)
+    except (InvalidOperation, TypeError, ValueError):
+        messages.error(request, "Enter a valid withdrawal amount.")
+        return redirect("farm_account_detail", batch_id=batch.id)
+
+    if amount <= ZERO:
+        messages.error(request, "Withdrawal amount must be greater than zero.")
+        return redirect("farm_account_detail", batch_id=batch.id)
+
+    if sale_position["sale_balance_due"] <= ZERO:
+        messages.error(request, "There is currently no Farm sale balance available to withdraw.")
+        return redirect("farm_account_detail", batch_id=batch.id)
+
+    if amount > sale_position["sale_balance_due"] + MONEY:
+        messages.error(
+            request,
+            f"Withdrawal cannot exceed the current Farm sale balance of Rs {sale_position['sale_balance_due']:,.2f}.",
+        )
+        return redirect("farm_account_detail", batch_id=batch.id)
+
+    withdrawal_date = request.POST.get("withdrawal_date") or timezone.localdate()
+    payment_method = request.POST.get("payment_method") or "bank_transfer"
+    valid_methods = {key for key, _ in FarmSaleWithdrawal.PAYMENT_METHOD_CHOICES}
+    if payment_method not in valid_methods:
+        payment_method = "other"
+
+    FarmSaleWithdrawal.objects.create(
+        batch=batch,
+        withdrawal_date=withdrawal_date,
+        amount=amount,
+        payment_method=payment_method,
+        reference=(request.POST.get("reference") or "").strip(),
+        notes=(request.POST.get("notes") or "").strip(),
+        recorded_by=request.user,
+    )
+
+    messages.success(
+        request,
+        f"Farm sale withdrawal of Rs {amount:,.2f} recorded for Batch #{batch.batch_number}.",
+    )
+    return redirect("farm_account_detail", batch_id=batch.id)

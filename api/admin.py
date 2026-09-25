@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from api.models import InvestorProfile, InvestorAllocation, InvestorAccountPayment, InvestorSalePayout, BatchCost, FeedEntry, MedicineEntry, UserProfile
+from api.models.investors import FarmAccountPayment, FarmSaleWithdrawal
 from api.models.sensor import (
     Shed,
     Device,
@@ -393,3 +394,33 @@ class GoatKiddingRecordAdmin(admin.ModelAdmin):
     @admin.display(description="Kids")
     def kid_count_display(self, obj):
         return obj.kids.count()
+
+
+@admin.register(FarmAccountPayment)
+class FarmAccountPaymentAdmin(admin.ModelAdmin):
+    list_display = (
+        "payment_date",
+        "batch",
+        "amount",
+        "payment_method",
+        "reference",
+        "recorded_by",
+    )
+    list_filter = ("payment_method", "payment_date")
+    search_fields = ("batch__batch_number", "reference", "notes")
+    ordering = ("-payment_date", "-id")
+
+
+@admin.register(FarmSaleWithdrawal)
+class FarmSaleWithdrawalAdmin(admin.ModelAdmin):
+    list_display = (
+        "withdrawal_date",
+        "batch",
+        "amount",
+        "payment_method",
+        "reference",
+        "recorded_by",
+    )
+    list_filter = ("payment_method", "withdrawal_date")
+    search_fields = ("batch__batch_number", "reference", "notes")
+    ordering = ("-withdrawal_date", "-id")

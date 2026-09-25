@@ -266,3 +266,79 @@ class InvestorSalePayout(models.Model):
             f"Batch {self.allocation.batch.batch_number} - Sale payout Rs {self.amount}"
         )
 
+
+
+class FarmAccountPayment(models.Model):
+    """Cash contributed by Admin/Farm toward its residual poultry batch cost share."""
+
+    PAYMENT_METHOD_CHOICES = InvestorAccountPayment.PAYMENT_METHOD_CHOICES
+
+    batch = models.ForeignKey(
+        Batch,
+        on_delete=models.CASCADE,
+        related_name="farm_account_payments",
+    )
+    payment_date = models.DateField(default=timezone.localdate)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default="bank_transfer",
+    )
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_farm_account_payments",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-payment_date", "-id"]
+        verbose_name = "Farm Contribution Payment"
+        verbose_name_plural = "Farm Contribution Payments"
+
+    def __str__(self):
+        return f"Farm - Batch {self.batch.batch_number} - Rs {self.amount}"
+
+
+class FarmSaleWithdrawal(models.Model):
+    """Money withdrawn by Admin/Farm from its own poultry sale proceeds."""
+
+    PAYMENT_METHOD_CHOICES = InvestorAccountPayment.PAYMENT_METHOD_CHOICES
+
+    batch = models.ForeignKey(
+        Batch,
+        on_delete=models.CASCADE,
+        related_name="farm_sale_withdrawals",
+    )
+    withdrawal_date = models.DateField(default=timezone.localdate)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default="bank_transfer",
+    )
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_farm_sale_withdrawals",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-withdrawal_date", "-id"]
+        verbose_name = "Farm Sale Withdrawal"
+        verbose_name_plural = "Farm Sale Withdrawals"
+
+    def __str__(self):
+        return f"Farm - Batch {self.batch.batch_number} - Sale withdrawal Rs {self.amount}"
