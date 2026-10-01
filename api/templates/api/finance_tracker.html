@@ -1348,9 +1348,14 @@
                     </div>
                     <div class="mini-stat cost-per-live-bird-stat">
                         {% if row.is_layer_batch %}
-                            <span>Point-of-Lay Cost</span>
-                            <strong>Rs {% if is_admin %}{{ row.point_of_lay_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.point_of_lay_cost|floatformat:0|intcomma }}{% endif %}</strong>
-                            <small>{% if row.laying_start_date %}Frozen {{ row.laying_start_date|date:"M d, Y" }} · first egg entry{% else %}Rearing phase · freezes at first egg entry{% endif %}</small>
+                            <span>Cost / Bird at Lay</span>
+                            {% if row.cost_per_bird_at_lay is not None %}
+                                <strong>Rs {{ row.cost_per_bird_at_lay|floatformat:2|intcomma }}</strong>
+                                <small>{{ row.birds_at_lay_start }} birds entered lay · rearing cost only</small>
+                            {% else %}
+                                <strong>Pending</strong>
+                                <small>{% if row.pre_lay_count_uncertain %}Pre-lay weight-only sale count is unresolved{% else %}Set Active Laying Hens / first egg date{% endif %}</small>
+                            {% endif %}
                         {% else %}
                             <span>Cost / Live Bird</span>
                             <strong>
@@ -1453,14 +1458,16 @@
                             <div class="layer-finance-title"><i class="fa-solid fa-egg"></i> Layer Finance Position</div>
                             <div class="layer-finance-note">
                                 {% if row.laying_start_date %}
-                                    Rearing cost froze on {{ row.laying_start_date|date:"M d, Y" }} (first egg entry). Feed, medicine and expenses from that date forward are Egg Operations.
+                                    Rearing cutoff: {{ row.laying_start_date|date:"M d, Y" }} · {{ row.laying_start_source }}.
+                                    Point-of-lay total Rs {{ row.point_of_lay_cost|floatformat:0|intcomma }} − pre-lay realized bird COGS Rs {{ row.pre_lay_locked_cogs|floatformat:0|intcomma }} = Rs {{ row.point_of_lay_cost_carried|floatformat:0|intcomma }} carried into the laying flock.
                                 {% else %}
-                                    Rearing phase is still open. Point-of-lay cost will freeze automatically on the first egg-production date.
+                                    Rearing phase is still open. The cutoff will use the earliest Active Laying Hens effective date or first egg-production date.
                                 {% endif %}
                             </div>
                         </div>
                         <div class="layer-finance-grid">
-                            <div class="layer-stat"><span>Point-of-Lay Cost</span><strong>Rs {% if is_admin %}{{ row.point_of_lay_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.point_of_lay_cost|floatformat:0|intcomma }}{% endif %}</strong></div>
+                            <div class="layer-stat"><span>Cost / Bird at Lay</span><strong>{% if row.cost_per_bird_at_lay is not None %}Rs {{ row.cost_per_bird_at_lay|floatformat:2|intcomma }}{% else %}Pending{% endif %}</strong></div>
+                            <div class="layer-stat"><span>Rearing Cost in Layers</span><strong>Rs {{ row.point_of_lay_cost_carried|floatformat:0|intcomma }}</strong></div>
                             <div class="layer-stat"><span>Egg Net Sales</span><strong>Rs {% if is_admin %}{{ row.egg_net_sales|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.egg_revenue|floatformat:0|intcomma }}{% endif %}</strong></div>
                             <div class="layer-stat"><span>Laying Costs</span><strong>Rs {% if is_admin %}{{ row.laying_operating_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.laying_operating_cost|floatformat:0|intcomma }}{% endif %}</strong></div>
                             <div class="layer-stat profit"><span>Egg Operations P/L</span>{% if is_admin %}<strong class="{% if row.egg_operating_profit < 0 %}money-negative{% endif %}">Rs {{ row.egg_operating_profit|floatformat:0|intcomma }}</strong>{% else %}<strong class="{% if row.current_user_owner.egg_operating_profit < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.egg_operating_profit|floatformat:0|intcomma }}</strong>{% endif %}</div>
@@ -1690,7 +1697,9 @@
                                             <div class="detail-row"><span>Gross Revenue</span><strong>Rs {{ sale.gross_revenue|floatformat:0|intcomma }}</strong></div>
                                             <div class="detail-row"><span>Discount</span><strong>Rs {{ sale.discount|floatformat:0|intcomma }}</strong></div>
                                             <div class="detail-row"><span>Net Revenue</span><strong>Rs {{ sale.net_revenue|floatformat:0|intcomma }}</strong></div>
+                                            {% if row.is_layer_batch %}<div class="detail-row"><span>Sale Phase</span><strong>{% if sale.sale_phase == 'pre_lay' %}Pre-Lay / Rearing{% elif sale.sale_phase == 'laying' %}Laying Phase{% else %}Rearing{% endif %}</strong></div>{% endif %}
                                             <div class="detail-row"><span>COGS</span><strong>{% if sale.cogs_locked %}Rs {{ sale.locked_cogs|floatformat:0|intcomma }}{% else %}<span class="pending-text">Pending</span>{% endif %}</strong></div>
+                                            {% if sale.cogs_per_bird_at_sale is not None %}<div class="detail-row"><span>COGS / Bird at Sale</span><strong>Rs {{ sale.cogs_per_bird_at_sale|floatformat:2|intcomma }}</strong></div>{% endif %}
                                             <div class="detail-row total"><span>Sale Margin</span><strong>{% if sale.cogs_locked %}<span class="{% if sale.sale_margin < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ sale.sale_margin|floatformat:0|intcomma }}</span>{% else %}<span class="pending-text">Pending reconciliation</span>{% endif %}</strong></div>
                                         </div>
                                     </details>
@@ -1880,8 +1889,12 @@
                                     </span>
                                 </summary>
                                 <div class="detail-body">
-                                    <div class="detail-row"><span>Laying Start</span><strong>{% if row.laying_start_date %}{{ row.laying_start_date|date:"M d, Y" }}{% else %}Not started{% endif %}</strong></div>
+                                    <div class="detail-row"><span>Laying Start</span><strong>{% if row.laying_start_date %}{{ row.laying_start_date|date:"M d, Y" }} · {{ row.laying_start_source }}{% else %}Not started{% endif %}</strong></div>
                                     <div class="detail-row total"><span>Point-of-Lay / Rearing Cost</span><strong>Rs {{ row.point_of_lay_cost|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Pre-Lay Bird COGS Already Realized</span><strong>Rs {{ row.pre_lay_locked_cogs|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Rearing Cost Carried Into Layers</span><strong>Rs {{ row.point_of_lay_cost_carried|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Birds at Laying Start</span><strong>{% if row.birds_at_lay_start is not None %}{{ row.birds_at_lay_start }}{% else %}Pending reconciliation{% endif %}</strong></div>
+                                    <div class="detail-row total"><span>Cost / Bird at Lay</span><strong>{% if row.cost_per_bird_at_lay is not None %}Rs {{ row.cost_per_bird_at_lay|floatformat:2|intcomma }}{% else %}Pending{% endif %}</strong></div>
                                     <div class="detail-row"><span>Laying Feed Cost</span><strong>Rs {{ row.laying_feed_cost|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Laying Medicine Cost</span><strong>Rs {{ row.laying_medicine_cost|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Other Laying Costs</span><strong>Rs {{ row.laying_expense_cost|floatformat:0|intcomma }}</strong></div>
@@ -2016,7 +2029,9 @@
                                                     <div class="detail-row"><span>Gross Amount</span><strong>Rs {{ sale.gross_amount|floatformat:0|intcomma }}</strong></div>
                                                     <div class="detail-row"><span>Discount</span><strong>Rs {{ sale.discount_amount|floatformat:0|intcomma }}</strong></div>
                                                     <div class="detail-row"><span>Net Sale</span><strong>Rs {{ sale.total_amount|floatformat:0|intcomma }}</strong></div>
+                                                    {% if row.is_layer_batch %}<div class="detail-row"><span>Sale Phase</span><strong>{% if sale.sale_phase == 'pre_lay' %}Pre-Lay / Rearing{% elif sale.sale_phase == 'laying' %}Laying Phase{% else %}Rearing{% endif %}</strong></div>{% endif %}
                                                     <div class="detail-row"><span>COGS</span><strong>{% if sale.cogs_locked %}Rs {{ sale.cogs_allocated|floatformat:0|intcomma }}{% else %}<span class="pending-text">Pending</span>{% endif %}</strong></div>
+                                                    {% if sale.cogs_locked and sale.birds_sold %}<div class="detail-row"><span>COGS / Bird at Sale</span><strong>Rs {{ sale.cogs_per_bird_at_sale|floatformat:2|intcomma }}</strong></div>{% endif %}
                                                     <div class="detail-row total"><span>Sale Profit / Loss</span><strong>{% if sale.cogs_locked %}<span class="{% if sale.gross_profit < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ sale.gross_profit|floatformat:0|intcomma }}</span>{% else %}<span class="pending-text">Pending reconciliation</span>{% endif %}</strong></div>
                                                 </div>
                                             </details>

@@ -12,7 +12,7 @@ import re
 from api.models.sensor import Batch, MortalityRecord
 from api.models.sales import ChickCostEntry, SaleRecord, Expense, BatchBirdSaleReconciliation
 from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
-from api.models.eggs import EggProductionEntry, EggSale
+from api.models.eggs import EggProductionEntry, EggSale, LayerHenCountHistory
 
 from io import BytesIO
 from django.http import HttpResponse
@@ -36,7 +36,7 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-from api.services.finance_reconciliation import build_finance_data, build_report_position
+from api.services.finance_reconciliation import build_finance_data, build_report_position, get_layer_laying_start_info
 from api.services.poultry_inventory import get_active_reconciliation, get_batch_bird_position
 from django.contrib.staticfiles import finders
 from reportlab.platypus import Image
@@ -175,12 +175,7 @@ def add_sale_record(request):
                 is_layer_batch = getattr(batch.shed, "shed_type", "") == "layer"
                 laying_start_date = None
                 if is_layer_batch:
-                    laying_start_date = (
-                        EggProductionEntry.objects.filter(batch=batch)
-                        .order_by("production_date", "id")
-                        .values_list("production_date", flat=True)
-                        .first()
-                    )
+                    laying_start_date = get_layer_laying_start_info(batch)["date"]
 
                 feed_qs = FeedEntry.objects.filter(batch=batch)
                 medicine_qs = MedicineEntry.objects.filter(batch=batch)

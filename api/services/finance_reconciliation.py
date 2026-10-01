@@ -9,8 +9,45 @@ from django.db.models import Sum, Q
 from api.models.sensor import Batch, MortalityRecord
 from api.models.sales import ChickCostEntry, SaleRecord, Expense
 from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
-from api.models.eggs import EggProductionEntry, EggSale
+from api.models.eggs import EggProductionEntry, EggSale, LayerHenCountHistory
 from api.services.poultry_inventory import get_batch_bird_position
+
+
+def get_layer_laying_start_info(batch):
+    """Return the earliest reliable laying-start signal for a Layer batch.
+
+    Active Laying Hens history is the preferred operational signal when it
+    starts before the first egg entry.  The first egg-production entry remains
+    a safe fallback.  This avoids forcing the finance cutoff to the first day
+    staff happened to enter egg production.
+    """
+    first_hen_date = (
+        LayerHenCountHistory.objects.filter(batch=batch)
+        .order_by("effective_date", "id")
+        .values_list("effective_date", flat=True)
+        .first()
+    )
+    first_egg_date = (
+        EggProductionEntry.objects.filter(batch=batch)
+        .order_by("production_date", "id")
+        .values_list("production_date", flat=True)
+        .first()
+    )
+
+    dates = [d for d in (first_hen_date, first_egg_date) if d]
+    if not dates:
+        return {"date": None, "source": None}
+
+    start_date = min(dates)
+    if first_hen_date == start_date and first_egg_date == start_date:
+        source = "Active Hens + First Egg"
+    elif first_hen_date == start_date:
+        source = "Active Hens"
+    else:
+        source = "First Egg Entry"
+
+    return {"date": start_date, "source": source}
+
 
 def build_finance_data(user, status_filter="all", batch_ids=None):
     """
@@ -274,16 +311,15 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         egg_net_sales = zero_money
         egg_sale_history = []
         laying_start_date = None
+        laying_start_source = None
 
         if is_layer_batch:
-            # Automatic accounting cutoff: the first recorded egg-production
-            # date separates flock rearing from ongoing egg operations.
-            laying_start_date = (
-                EggProductionEntry.objects.filter(batch=batch)
-                .order_by("production_date", "id")
-                .values_list("production_date", flat=True)
-                .first()
-            )
+            # Automatic accounting cutoff.  Prefer the earliest Active
+            # Laying Hens effective date when available; otherwise fall back
+            # to the first egg-production entry.
+            laying_start_info = get_layer_laying_start_info(batch)
+            laying_start_date = laying_start_info["date"]
+            laying_start_source = laying_start_info["source"]
 
             egg_production = EggProductionEntry.objects.filter(
                 batch=batch
@@ -490,6 +526,67 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             + laying_expense_cost
         )
 
+
+        # -----------------------------------------------------
+        # POINT-OF-LAY UNIT COST BRIDGE
+        # -----------------------------------------------------
+        # Roosters / other birds sold before laying keep the COGS that was
+        # locked on their actual sale date.  Only the remaining rearing cost
+        # is carried into the flock that reaches laying.  This produces a
+        # clean frozen "cost per bird at lay" reference for later hen sales.
+        pre_lay_mortality = 0
+        pre_lay_counted_sold = 0
+        pre_lay_locked_cogs = zero_money
+        point_of_lay_cost_carried = point_of_lay_cost
+        birds_at_lay_start = None
+        cost_per_bird_at_lay = None
+        pre_lay_count_uncertain = False
+
+        if is_layer_batch and laying_start_date:
+            pre_lay_mortality = int(
+                MortalityRecord.objects.filter(
+                    batch=batch,
+                    date__lt=laying_start_date,
+                ).aggregate(total=Sum("count"))["total"]
+                or 0
+            )
+
+            pre_lay_sales = [
+                sale for sale in sales_records
+                if sale.sale_date < laying_start_date
+            ]
+            pre_lay_counted_sold = sum(
+                int(sale.birds_sold or 0) for sale in pre_lay_sales
+            )
+            pre_lay_locked_cogs = money(sum(
+                (money(sale.cogs_allocated) for sale in pre_lay_sales
+                 if getattr(sale, "cogs_locked", True)),
+                zero_money,
+            ))
+            pre_lay_count_uncertain = any(
+                getattr(sale, "sale_mode", "counted") == "weight_only"
+                and not sale.birds_sold
+                for sale in pre_lay_sales
+            )
+
+            point_of_lay_cost_carried = max(
+                point_of_lay_cost - pre_lay_locked_cogs,
+                zero_money,
+            )
+
+            if not pre_lay_count_uncertain:
+                birds_at_lay_start = max(
+                    batch_start_birds
+                    - pre_lay_mortality
+                    - pre_lay_counted_sold,
+                    0,
+                )
+                if birds_at_lay_start > 0:
+                    cost_per_bird_at_lay = money(
+                        point_of_lay_cost_carried
+                        / Decimal(birds_at_lay_start)
+                    )
+
         # Lifetime cost still includes every rupee. The split only changes
         # where the cost is shown and how bird-sale COGS is carried.
         total_cogs = money(point_of_lay_cost + laying_operating_cost)
@@ -684,6 +781,14 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                 "discount_amount": money(sale.discount_amount),
                 "total_amount": money(sale.total_amount),
                 "cogs_allocated": money(sale.cogs_allocated),
+                "cogs_per_bird_at_sale": money(getattr(sale, "cogs_per_bird_at_sale", 0)),
+                "sale_phase": (
+                    "pre_lay"
+                    if is_layer_batch and laying_start_date and sale.sale_date < laying_start_date
+                    else "laying"
+                    if is_layer_batch and laying_start_date
+                    else "rearing"
+                ),
                 "gross_profit": (
                     money(money(sale.total_amount) - money(sale.cogs_allocated))
                     if getattr(sale, "cogs_locked", True) else None
@@ -870,6 +975,18 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                     "discount": discount_amounts[index],
                     "net_revenue": owner_net_revenue,
                     "locked_cogs": owner_sale_cogs,
+                    "cogs_per_bird_at_sale": (
+                        money(owner_sale_cogs / Decimal(per_sale_birds[index]))
+                        if getattr(sale, "cogs_locked", True) and per_sale_birds[index] > 0
+                        else None
+                    ),
+                    "sale_phase": (
+                        "pre_lay"
+                        if is_layer_batch and laying_start_date and sale.sale_date < laying_start_date
+                        else "laying"
+                        if is_layer_batch and laying_start_date
+                        else "rearing"
+                    ),
                     "sale_margin": (
                         money(owner_net_revenue - owner_sale_cogs)
                         if getattr(sale, "cogs_locked", True) else None
@@ -1038,7 +1155,15 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             "egg_discount": egg_discount,
             "egg_net_sales": egg_net_sales,
             "laying_start_date": laying_start_date,
+            "laying_start_source": laying_start_source,
             "point_of_lay_cost": point_of_lay_cost,
+            "pre_lay_mortality": pre_lay_mortality,
+            "pre_lay_counted_sold": pre_lay_counted_sold,
+            "pre_lay_locked_cogs": pre_lay_locked_cogs,
+            "point_of_lay_cost_carried": point_of_lay_cost_carried,
+            "birds_at_lay_start": birds_at_lay_start,
+            "cost_per_bird_at_lay": cost_per_bird_at_lay,
+            "pre_lay_count_uncertain": pre_lay_count_uncertain,
             "rearing_feed_cost": rearing_feed_cost,
             "rearing_medicine_cost": rearing_medicine_cost,
             "rearing_expense_cost": rearing_expense_cost,
