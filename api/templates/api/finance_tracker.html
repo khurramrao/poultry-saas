@@ -1466,8 +1466,7 @@
                             </div>
                         </div>
                         <div class="layer-finance-grid">
-                            <div class="layer-stat"><span>Cost / Bird at Lay</span><strong>{% if row.cost_per_bird_at_lay is not None %}Rs {{ row.cost_per_bird_at_lay|floatformat:2|intcomma }}{% else %}Pending{% endif %}</strong></div>
-                            <div class="layer-stat"><span>Rearing Cost in Layers</span><strong>Rs {{ row.point_of_lay_cost_carried|floatformat:0|intcomma }}</strong></div>
+                            <div class="layer-stat"><span>Rearing Cost Carried to Layers</span><strong>Rs {{ row.point_of_lay_cost_carried|floatformat:0|intcomma }}</strong></div>
                             <div class="layer-stat"><span>Egg Net Sales</span><strong>Rs {% if is_admin %}{{ row.egg_net_sales|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.egg_revenue|floatformat:0|intcomma }}{% endif %}</strong></div>
                             <div class="layer-stat"><span>Laying Costs</span><strong>Rs {% if is_admin %}{{ row.laying_operating_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.laying_operating_cost|floatformat:0|intcomma }}{% endif %}</strong></div>
                             <div class="layer-stat profit"><span>Egg Operations P/L</span>{% if is_admin %}<strong class="{% if row.egg_operating_profit < 0 %}money-negative{% endif %}">Rs {{ row.egg_operating_profit|floatformat:0|intcomma }}</strong>{% else %}<strong class="{% if row.current_user_owner.egg_operating_profit < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.egg_operating_profit|floatformat:0|intcomma }}</strong>{% endif %}</div>
