@@ -19,9 +19,15 @@
         <div class="automation-grid">
             <div class="information-item"><span>Mode</span><strong>{{ automation_status.mode_label }}</strong></div>
             {% if relay.automation_type == "sensor_schedule" %}
+                {% if relay.load_type == "motor" %}
+                <div class="information-item"><span>Temperature rule</span><strong>FAN ON ≥ {{ relay.sensor_on_threshold }}°C · OFF ≤ {{ relay.sensor_off_threshold }}°C</strong></div>
+                <div class="information-item"><span>Automation window</span><strong>{{ automation_status.schedule_start_display }} → {{ automation_status.schedule_end_display }}</strong></div>
+                <div class="information-item"><span>Current temperature</span><strong>{% if automation_status.sensor_value != None %}{{ automation_status.sensor_value|floatformat:1 }}°C{% else %}No fresh reading{% endif %}</strong></div>
+                {% else %}
                 <div class="information-item"><span>Light thresholds</span><strong>ON ≤ {{ relay.sensor_on_threshold }}% · OFF ≥ {{ relay.sensor_off_threshold }}%</strong></div>
                 <div class="information-item"><span>Automation window</span><strong>{{ automation_status.schedule_start_display }} → {{ automation_status.schedule_end_display }}</strong></div>
                 <div class="information-item"><span>Current light</span><strong>{% if automation_status.sensor_value != None %}{{ automation_status.sensor_value }}%{% else %}No fresh reading{% endif %}</strong></div>
+                {% endif %}
             {% elif relay.automation_type == "daily" %}
                 <div class="information-item"><span>ON / OFF</span><strong>{{ automation_status.schedule_start_display }} → {{ automation_status.schedule_end_display }}</strong></div>
             {% elif relay.automation_type == "repeating" %}

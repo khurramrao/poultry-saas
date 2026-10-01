@@ -901,21 +901,10 @@
     margin-top:4px;
 }
 
-       .shed-main > div:last-child{
-    min-width:0;
-    flex:1;
-}
-
-.device-update{
-    white-space:normal;
-    display:flex;
-    flex-wrap:wrap;
-    align-items:center;
-    gap:2px 4px;
+        .device-update{
+    white-space:nowrap;
     font-size:12px !important;
-    line-height:1.35;
     margin-top:5px !important;
-    overflow-wrap:anywhere;
 }
 
 .device-update span:first-child{
@@ -1258,7 +1247,7 @@
     background:#fff0f0;
 }
 
-        /* GOAT FARM OVERVIEW */
+        /* GOAT FARM OVERVIEW - keep this inside the goat shed */
         .goat-dashboard-overview{margin:16px 0 20px;padding:15px;border:1px solid #d4e9da;border-radius:16px;background:linear-gradient(135deg,#f5fcf7,#eef9f1);}
         .goat-overview-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;}
         .goat-overview-title{display:flex;align-items:center;gap:9px;color:#176b38;font-size:16px;font-weight:900;}
@@ -1328,111 +1317,175 @@
         </div>
 
         <nav class="sidebar-nav" id="sidebarNav">
-            <a href="{% url 'dashboard' %}" class="active">
+
+            {# ========================================================= #}
+            {# ADMIN / POULTRY INVESTOR NAVIGATION                       #}
+            {# ========================================================= #}
+
+            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile.allocations.exists %}
+            <a
+                href="{% url 'dashboard' %}"
+                class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}"
+            >
                 <i class="fa-solid fa-house"></i>
                 <span>Dashboard</span>
             </a>
-            {% if is_admin %}
-                <a href="{% url 'relay_control' %}">
-                    <i class="fa-solid fa-toggle-on"></i>
-                    <span>Electrical Controls</span>
-                </a>
             {% endif %}
 
-            <a href="{% url 'daily_log' %}">
+
+            {# Electrical controls stay Admin-only. #}
+            {% if request.user.is_superuser or request.user.is_staff %}
+            <a
+                href="{% url 'relay_control' %}"
+                class="{% if request.resolver_match.url_name == 'relay_control' or request.resolver_match.url_name == 'set_relay_state' %}active{% endif %}"
+            >
+                <i class="fa-solid fa-toggle-on"></i>
+                <span>Electrical Controls</span>
+            </a>
+            {% endif %}
+
+
+            {# Daily Log belongs to poultry investment/farm operations. #}
+            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile.allocations.exists %}
+            <a
+                href="{% url 'daily_log' %}"
+                class="{% if request.resolver_match.url_name == 'daily_log' %}active{% endif %}"
+            >
                 <i class="fa-regular fa-calendar-check"></i>
                 <span>Daily Log</span>
-                  {% if new_log_count > 0 %}
-                <span class="nav-badge"> {{ new_log_count }}</span>
+
+                {% if new_log_count > 0 %}
+                    <span class="nav-badge">{{ new_log_count }}</span>
                 {% endif %}
             </a>
+            {% endif %}
 
 
-{% if is_admin %}
-             <a href="{% url 'user_activity' %}">
-                <i class="fa-solid fa-user-clock"></i>
-                <span>User Activity</span>
-            </a>
+            {# Admin operational links. #}
+            {% if request.user.is_superuser or request.user.is_staff %}
 
-            <a href="{% url 'active_batches' %}"
-               class="{% if request.resolver_match.url_name == 'active_batches' %}active{% endif %}">
-                <i class="fa-solid fa-list-check"></i>
-                <span>Active Batches</span>
-            </a>
+                <a
+                    href="{% url 'user_activity' %}"
+                    class="{% if request.resolver_match.url_name == 'user_activity' %}active{% endif %}"
+                >
+                    <i class="fa-solid fa-user-clock"></i>
+                    <span>User Activity</span>
+                </a>
 
-             <a href="{% url 'ownership_shares' %}">
-                <i class="fa-solid fa-chart-pie"></i>
-                <span>Ownership Shares</span>
-            </a>
+                <a
+                    href="{% url 'active_batches' %}"
+                    class="{% if request.resolver_match.url_name == 'active_batches' %}active{% endif %}"
+                >
+                    <i class="fa-solid fa-list-check"></i>
+                    <span>Active Batches</span>
+                </a>
+
+                <a
+                    href="{% url 'ownership_shares' %}"
+                    class="{% if request.resolver_match.url_name == 'ownership_shares' %}active{% endif %}"
+                >
+                    <i class="fa-solid fa-chart-pie"></i>
+                    <span>Ownership Shares</span>
+                </a>
+
+                <a
+                    href="{% url 'add_sale_record' %}"
+                    class="{% if request.resolver_match.url_name == 'add_sale_record' or request.resolver_match.url_name == 'sale_records' or request.resolver_match.url_name == 'meat_sales_summary' or request.resolver_match.url_name == 'meat_sale_detail' %}active{% endif %}"
+                >
+                    <i class="fa-solid fa-circle-down"></i>
+                    <span>Sales</span>
+                </a>
+
+                <a href="#">
+                    <i class="fa-solid fa-gear"></i>
+                    <span>Settings</span>
+                </a>
+
+            {% endif %}
 
 
-            <a href="{% url 'add_sale_record' %}">
-                <i class="fa-solid fa-circle-down"></i>
-                <span>Sales</span>
-            </a>
-             <a href="#">
-                <i class="fa-solid fa-syringe"></i>
-                <span>Vaccine Records</span>
-            </a>
-              <a href="#">
-                <i class="fa-solid fa-gear"></i>
-                <span>Settings</span>
-            </a>
-{% endif %}
-
-            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile %}
-            <a href="{% url 'egg_dashboard' %}">
+            {# Egg Management only for Admin or an investor who actually owns birds in a Layer batch. #}
+            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile.allocations.exists %}
+            <a
+                href="{% url 'egg_dashboard' %}"
+                class="{% if request.resolver_match.url_name == 'egg_dashboard' or request.resolver_match.url_name == 'add_egg_production' or request.resolver_match.url_name == 'add_egg_sale' %}active{% endif %}"
+            >
                 <i class="fa-solid fa-egg"></i>
                 <span>Egg Management</span>
             </a>
             {% endif %}
 
-            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile %}
-            <a href="{% url 'goat_dashboard' %}">
+
+            {# Egg POS is independent from investment ownership. #}
+            {% if request.user.is_superuser or request.user.is_staff %}
+            <a
+                href="{% url 'egg_pos_dashboard' %}"
+                class="{% if request.resolver_match.url_name|slice:':8' == 'egg_pos_' %}active{% endif %}"
+            >
+                <i class="fa-solid fa-cash-register"></i>
+                <span>Egg POS</span>
+            </a>
+            {% elif request.user.egg_pos_access.is_active %}
+                {% if request.user.egg_pos_access.can_sell or request.user.egg_pos_access.can_manage %}
+                <a
+                    href="{% url 'egg_pos_dashboard' %}"
+                    class="{% if request.resolver_match.url_name|slice:':8' == 'egg_pos_' %}active{% endif %}"
+                >
+                    <i class="fa-solid fa-cash-register"></i>
+                    <span>Egg POS</span>
+                </a>
+                {% endif %}
+            {% endif %}
+
+
+            {# Goat Farm only when the user actually owns at least one goat. #}
+            {% if request.user.is_superuser or request.user.is_staff or request.user.owned_goats.exists %}
+            <a
+                href="{% url 'goat_dashboard' %}"
+                class="{% if request.resolver_match.url_name == 'goat_dashboard' or request.resolver_match.url_name == 'add_goat' or request.resolver_match.url_name == 'goat_detail' or request.resolver_match.url_name == 'add_goat_weight' or request.resolver_match.url_name == 'goat_costs' or request.resolver_match.url_name == 'add_goat_cost' or request.resolver_match.url_name == 'goat_finance' or request.resolver_match.url_name == 'add_goat_sale' %}active{% endif %}"
+            >
                 <i class="fa-solid fa-paw"></i>
                 <span>Goat Farm</span>
             </a>
             {% endif %}
 
-            <a href="{% url 'finance_tracker' %}">
+
+            {# These menus are poultry-investment views, not Sales Staff menus. #}
+            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile.allocations.exists %}
+
+            <a
+                href="{% url 'finance_tracker' %}"
+                class="{% if request.resolver_match.url_name == 'finance_tracker' %}active{% endif %}"
+            >
                 <i class="fa-regular fa-money-bill-1"></i>
                 <span>Finance Tracker</span>
             </a>
 
-            {% if request.user.is_superuser or request.user.is_staff or request.user.investor_profile %}
-            <a href="{% url 'investor_accounts' %}">
+            <a
+                href="{% url 'investor_accounts' %}"
+                class="{% if request.resolver_match.url_name == 'investor_accounts' or request.resolver_match.url_name == 'investor_account_detail' or request.resolver_match.url_name == 'record_investor_account_payment' or request.resolver_match.url_name == 'goat_accounts' or request.resolver_match.url_name == 'goat_account_detail' or request.resolver_match.url_name == 'record_goat_account_payment' %}active{% endif %}"
+            >
                 <i class="fa-solid fa-wallet"></i>
                 <span>Investor Accounts</span>
             </a>
-            {% endif %}
 
-            <a href="{% url 'feed_list' %}">
-                <i class="fa-solid fa-bucket"></i>
-                <span>Feed Management</span>
-            </a>
-
-            <a href="{% url 'medicine_list' %}">
-                <i class="fa-solid fa-suitcase-medical"></i>
-                <span>Medicine</span>
-            </a>
-
-            <a href="{% url 'expense_list' %}">
+            <a
+                href="{% url 'expense_list' %}"
+                class="{% if request.resolver_match.url_name == 'expense_list' or request.resolver_match.url_name == 'add_expense' %}active{% endif %}"
+            >
                 <i class="fa-regular fa-clipboard"></i>
                 <span>Expenses</span>
             </a>
 
-
-
-
-
-
-
-
-            <a href="{% url 'batch_report' %}">
+            <a
+                href="{% url 'batch_report' %}"
+                class="{% if request.resolver_match.url_name == 'batch_report' %}active{% endif %}"
+            >
                 <i class="fa-regular fa-chart-bar"></i>
                 <span>Reports</span>
             </a>
 
+            {% endif %}
 
         </nav>
 
@@ -1820,9 +1873,6 @@
                                 {% elif row.temperature_status == "no_rule" %}
                                     <span class="sensor-pill na-pill">No Temperature Rule</span>
 
-                                {% elif row.temperature_status == "monitoring" %}
-                                    <span class="sensor-pill normal-pill">Monitoring</span>
-
                                 {% else %}
                                     <span class="sensor-pill normal-pill">Normal</span>
                                 {% endif %}
@@ -2057,7 +2107,7 @@
 
                 </div>
          {% if row.shed.shed_type == "goat" %}
-                {# Keep individual goat inventory on the dedicated Goat Farm page. #}
+                {# Goat shed uses goat inventory/finance KPIs instead of poultry batch rows. #}
                 {% if goat_active_count > 0 or is_admin %}
                 <section class="goat-dashboard-overview goat-overview-inside-shed">
                     <div class="goat-overview-head">
@@ -2100,7 +2150,10 @@
                 {% endif %}
          {% elif row.batches %}
                 <div class="batch-table-wrap">
-                    <div class="batch-caption">Active Batches in {{ row.shed.shed_type|title }} Shed</div>
+                       <div class="batch-caption">Active Batches in  {{ row.shed.shed_type|title }} Shed</div>
+
+
+
                     <table class="batch-table">
                         <thead>
                             <tr>
@@ -2116,52 +2169,91 @@
                                 <th>Vaccine</th>
                             </tr>
                         </thead>
+                {% for batch_row in row.batches %}
                         <tbody>
-                        {% for batch_row in row.batches %}
                             <tr>
-                                <td class="batch-code">{{ batch_row.batch.batch_type|title }} Batch #{{ batch_row.batch.batch_number }}</td>
-                                <td>
-                                    <span class="type-tag {% if batch_row.batch.batch_type == 'layer' %}layer-tag{% else %}meat-tag{% endif %}">
-                                        {{ batch_row.batch.batch_type|title }}
-                                    </span>
-                                </td>
+                              <td class="batch-code">
+                                {{ batch_row.batch.batch_type|title }} Batch #{{ batch_row.batch.batch_number }}
+                            </td>
+
+                            <td>
+                                <span class="type-tag
+                                    {% if batch_row.batch.batch_type == 'layer' %}
+                                        layer-tag
+                                    {% else %}
+                                        meat-tag
+                                    {% endif %}">
+                                    {{ batch_row.batch.batch_type|title }}
+                                </span>
+                            </td>
                                 <td>{{ batch_row.batch.start_date }}</td>
-                                <td><div class="age-days">{{ batch_row.age_days }}</div><div class="age-weeks">({{ batch_row.age_weeks }} weeks)</div></td>
-                                {% if is_admin %}
-                                    <td>{{ batch_row.batch.bird_count_initial }}</td>
-                                    <td>{{ batch_row.current_birds }}</td>
-                                    <td class="danger-text">{{ batch_row.total_mortality }} ({{ batch_row.mortality_percent }}%)</td>
-                                    <td>{{ batch_row.display_sold }}</td>
-                                    <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
-                                {% else %}
-                                    <td>{{ batch_row.initial_birds_allocated }}</td>
-                                    <td>{{ batch_row.current_birds }}</td>
-                                    <td class="danger-text">{{ batch_row.display_mortality }} ({{ batch_row.display_mortality_percent|floatformat:2 }}%)</td>
-                                    <td>{{ batch_row.display_sold }}</td>
-                                    <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
-                                {% endif %}
-                                <td class="vaccine-cell">
-                                    <div class="vaccine-summary">
-                                        {% if batch_row.overdue_vaccines %}
-                                            <span class="vaccine-pill vaccine-overdue"><i class="fa-solid fa-triangle-exclamation"></i>{{ batch_row.overdue_vaccines|length }} Overdue</span>
-                                        {% elif batch_row.due_today %}
-                                            <span class="vaccine-pill vaccine-today"><i class="fa-solid fa-syringe"></i>{{ batch_row.due_today|length }} Due Today</span>
-                                        {% elif batch_row.due_tomorrow %}
-                                            <span class="vaccine-pill vaccine-tomorrow"><i class="fa-regular fa-clock"></i>{{ batch_row.due_tomorrow|length }} Tomorrow</span>
-                                        {% else %}
-                                            <span class="vaccine-pill vaccine-ok"><i class="fa-solid fa-circle-check"></i>Up to Date</span>
-                                        {% endif %}
-                                        <a href="{% url 'vaccine_records' batch_row.batch.id %}" class="vaccine-view-btn" title="View Vaccine Details"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
-                                    </div>
+                                <td>
+                                    <div class="age-days">{{ batch_row.age_days }}</div>
+                                    <div class="age-weeks">({{ batch_row.age_weeks }} weeks)</div>
                                 </td>
+                                  {% if is_admin %}
+                                        <td>{{ batch_row.batch.bird_count_initial }}</td>
+                                        <td>{{ batch_row.current_birds }}</td>
+
+                                        <td class="danger-text">{{ batch_row.total_mortality }} ({{ batch_row.mortality_percent }}%)</td>
+                                        <td>{{ batch_row.display_sold }}</td>
+                                       <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
+                                 {% else %}
+                                        <td>{{ batch_row.initial_birds_allocated }}</td>
+                                        <td>{{ batch_row.current_birds }}</td>
+                                        <td class="danger-text">{{batch_row.display_mortality}} ({{ batch_row.display_mortality_percent|floatformat:2  }}%)</td>
+                                        <td>{{ batch_row.display_sold }}</td>
+                                      <td><span class="active-tag"><span class="active-dot">●</span>Active</span></td>
+                                {% endif %}
+
+
+ <td class="vaccine-cell">
+    <div class="vaccine-summary">
+
+        {% if batch_row.overdue_vaccines %}
+            <span class="vaccine-pill vaccine-overdue">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                {{ batch_row.overdue_vaccines|length }} Overdue
+            </span>
+
+        {% elif batch_row.due_today %}
+            <span class="vaccine-pill vaccine-today">
+                <i class="fa-solid fa-syringe"></i>
+                {{ batch_row.due_today|length }} Due Today
+            </span>
+
+        {% elif batch_row.due_tomorrow %}
+            <span class="vaccine-pill vaccine-tomorrow">
+                <i class="fa-regular fa-clock"></i>
+                {{ batch_row.due_tomorrow|length }} Tomorrow
+            </span>
+
+        {% else %}
+            <span class="vaccine-pill vaccine-ok">
+                <i class="fa-solid fa-circle-check"></i>
+                Up to Date
+            </span>
+        {% endif %}
+
+       <a href="{% url 'vaccine_records' batch_row.batch.id %}"
+   class="vaccine-view-btn"
+   title="View Vaccine Details">
+    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+</a>
+
+    </div>
+</td>
                             </tr>
-                        {% endfor %}
                         </tbody>
+                         {% endfor %}
                     </table>
+
+                       {% else %}
+                <p>No active batches in this shed.</p>
+            {% endif %}
+
+
                 </div>
-         {% else %}
-                <div class="batch-table-wrap"><p>No active batches in this shed.</p></div>
-         {% endif %}
                  {% endfor %}
 
 

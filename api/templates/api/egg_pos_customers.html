@@ -1,0 +1,103 @@
+{% extends "api/egg_pos_base.html" %}
+{% load humanize %}
+
+{% block egg_pos_content %}
+<style>
+.cust-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.cust-head h2{margin:0;color:#173b61;font-size:20px}.cust-head p{margin:4px 0 0;color:#718095;font-size:9px}
+.cust-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.cust-kpi{padding:14px;border:1px solid #dfe7ef;border-radius:13px;background:#fff}
+.cust-kpi span{display:block;color:#718095;font-size:8px;font-weight:900;text-transform:uppercase}
+.cust-kpi strong{display:block;margin-top:6px;color:#173b61;font-size:20px}
+.cust-kpi.due{background:#fffaf3;border-color:#efd2ac}.cust-kpi.due strong{color:#b25d00}
+.cust-kpi.good{background:#f7fff9;border-color:#cfe9d7}.cust-kpi.good strong{color:#10783a}
+.cust-toolbar{display:grid;grid-template-columns:minmax(0,1fr) 170px auto;gap:8px;padding:12px;border-bottom:1px solid #e5ecf2;background:#fbfdff}
+.cust-search,.cust-select{height:42px;border:1px solid #cfdae5;border-radius:9px;background:#fff;color:#173b61;padding:0 10px;outline:none}
+.cust-btn{min-height:42px;padding:0 13px;border:1px solid #d4e0ea;border-radius:9px;background:#fff;color:#27516f;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:7px;font-size:9px;font-weight:900;cursor:pointer}
+.cust-btn.primary{background:#10944a;border-color:#10944a;color:#fff}.cust-btn.blue{background:#1767c6;border-color:#1767c6;color:#fff}
+.cust-list{padding:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.cust-card{padding:13px;border:1px solid #dfe7ef;border-radius:13px;background:#fff}
+.cust-card-top{display:flex;justify-content:space-between;gap:10px}
+.cust-name{color:#143858;font-size:13px;font-weight:900;text-decoration:none}.cust-company{margin-top:3px;color:#74879a;font-size:9px}
+.cust-due{text-align:right}.cust-due span{display:block;color:#7c8c9b;font-size:7px;text-transform:uppercase;font-weight:900}.cust-due strong{display:block;margin-top:3px;color:#b45b00;font-size:15px}.cust-due.clear strong{color:#11803d}
+.cust-contact{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;color:#5f7488;font-size:9px}
+.cust-foot{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:11px;padding-top:9px;border-top:1px solid #edf2f6;color:#718095;font-size:8px}
+.cust-empty{grid-column:1/-1;padding:34px;text-align:center;color:#7f8e9e}
+.add-panel{margin-top:12px}.add-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.add-grid .full{grid-column:1/-1}
+@media(max-width:760px){.cust-kpis{grid-template-columns:1fr 1fr}.cust-kpis .due{grid-column:1/-1}.cust-toolbar{grid-template-columns:1fr}.cust-list{grid-template-columns:1fr}.add-grid{grid-template-columns:1fr}.add-grid .full{grid-column:auto}.cust-head{flex-direction:column}}
+</style>
+
+<div class="cust-head">
+  <div>
+    <h2><i class="fa-solid fa-users"></i> Customers</h2>
+    <p>Customer contact details and Egg POS outstanding balances.</p>
+  </div>
+  <a class="cust-btn primary" href="#newCustomer"><i class="fa-solid fa-user-plus"></i> New Customer</a>
+</div>
+
+<section class="cust-kpis">
+  <div class="cust-kpi"><span>Active Customers</span><strong>{{ total_customer_count|intcomma }}</strong></div>
+  <div class="cust-kpi good"><span>Customers Clear</span><strong>{{ total_customer_count|add:"-"|add:customers_with_balance|intcomma }}</strong></div>
+  <div class="cust-kpi due"><span>Total Customer Outstanding</span><strong>Rs {{ total_outstanding|floatformat:0|intcomma }}</strong></div>
+</section>
+
+<section class="ep-panel">
+  <form class="cust-toolbar" method="get">
+    <input class="cust-search" type="search" name="q" value="{{ q }}" placeholder="Search name, company or phone...">
+    <select class="cust-select" name="balance">
+      <option value="all" {% if balance_filter == "all" %}selected{% endif %}>All Customers</option>
+      <option value="outstanding" {% if balance_filter == "outstanding" %}selected{% endif %}>Outstanding Only</option>
+      <option value="clear" {% if balance_filter == "clear" %}selected{% endif %}>Clear Balance</option>
+    </select>
+    <button class="cust-btn blue" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+  </form>
+
+  <div class="cust-list">
+    {% for row in rows %}
+    <article class="cust-card">
+      <div class="cust-card-top">
+        <div>
+          <a class="cust-name" href="{% url 'egg_pos_customer_detail' row.customer.id %}">{{ row.customer.name }}</a>
+          {% if row.customer.company_name %}<div class="cust-company">{{ row.customer.company_name }}</div>{% endif %}
+        </div>
+        <div class="cust-due {% if row.overall.outstanding <= 0 %}clear{% endif %}">
+          <span>Outstanding</span>
+          <strong>Rs {{ row.overall.outstanding|floatformat:0|intcomma }}</strong>
+        </div>
+      </div>
+
+      <div class="cust-contact">
+        <span><i class="fa-solid fa-phone"></i> {{ row.customer.phone|default:"No phone" }}</span>
+        {% if row.customer.address %}<span><i class="fa-solid fa-location-dot"></i> {{ row.customer.address|truncatechars:45 }}</span>{% endif %}
+      </div>
+
+      <div class="cust-foot">
+        {% if can_manage_pos %}
+          <span>{{ row.overall.invoice_count }} invoice{{ row.overall.invoice_count|pluralize }} · Sales Rs {{ row.overall.invoiced|floatformat:0|intcomma }}</span>
+        {% else %}
+          <span>Your invoices: {{ row.visible.invoice_count }}{% if row.last_sale_date %} · Last {{ row.last_sale_date|date:"d M Y" }}{% endif %}</span>
+        {% endif %}
+        <a href="{% url 'egg_pos_customer_detail' row.customer.id %}">View Account →</a>
+      </div>
+    </article>
+    {% empty %}
+    <div class="cust-empty">No customers match this filter.</div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="ep-panel add-panel" id="newCustomer">
+  <div class="ep-panel-head">Add Customer</div>
+  <form method="post" class="ep-panel-body">
+    {% csrf_token %}
+    <div class="add-grid">
+      <div class="ep-field"><label>Customer Name *</label><input class="ep-input" name="name" required></div>
+      <div class="ep-field"><label>Company / Shop</label><input class="ep-input" name="company_name"></div>
+      <div class="ep-field"><label>Phone / WhatsApp</label><input class="ep-input" name="phone" inputmode="tel"></div>
+      <div class="ep-field"><label>Address</label><input class="ep-input" name="address"></div>
+      <div class="ep-field full"><label>Notes</label><textarea class="ep-textarea" name="notes"></textarea></div>
+    </div>
+    <button class="cust-btn primary" type="submit" style="margin-top:10px"><i class="fa-solid fa-check"></i> Save Customer</button>
+  </form>
+</section>
+{% endblock %}

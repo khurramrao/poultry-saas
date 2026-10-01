@@ -173,17 +173,59 @@ def _automation_target(relay, local_now, latest_sensor=None):
             return False, "Outside sensor schedule - forced OFF", next_text, None
 
         sensor = latest_sensor or _latest_sensor(relay)
-        sensor_value = None
-        if sensor:
-            sensor_value = int(sensor.light_percent or 0)
 
         if not _sensor_is_usable(sensor, local_now):
             return (
                 False,
                 "Sensor data missing or stale - safety OFF",
                 f"Force OFF at {_fmt_dt(end_dt)}",
+                None,
+            )
+
+        # Motor / Fan outputs use the same SHT30 temperature reading already
+        # shown on the dashboard. The ESP32 reports this value in °C.
+        if relay.load_type == "motor":
+            if sensor.temperature is None:
+                return (
+                    False,
+                    "Temperature reading missing - safety OFF",
+                    f"Force OFF at {_fmt_dt(end_dt)}",
+                    None,
+                )
+
+            sensor_value = round(float(sensor.temperature), 1)
+
+            # Fan hysteresis:
+            # high temperature -> fan ON
+            # lower temperature -> fan OFF
+            if sensor_value >= relay.sensor_on_threshold:
+                return (
+                    True,
+                    f"Temperature {sensor_value:.1f}°C >= {relay.sensor_on_threshold}°C",
+                    f"Force OFF at {_fmt_dt(end_dt)}",
+                    sensor_value,
+                )
+
+            if sensor_value <= relay.sensor_off_threshold:
+                return (
+                    False,
+                    f"Temperature {sensor_value:.1f}°C <= {relay.sensor_off_threshold}°C",
+                    f"Force OFF at {_fmt_dt(end_dt)}",
+                    sensor_value,
+                )
+
+            return (
+                relay.desired_state,
+                (
+                    f"Temperature {sensor_value:.1f}°C is between thresholds; "
+                    "holding current state"
+                ),
+                f"Force OFF at {_fmt_dt(end_dt)}",
                 sensor_value,
             )
+
+        # Normal outputs keep the original light-sensor behavior.
+        sensor_value = int(sensor.light_percent or 0)
 
         if sensor_value <= relay.sensor_on_threshold:
             return (
@@ -201,7 +243,6 @@ def _automation_target(relay, local_now, latest_sensor=None):
                 sensor_value,
             )
 
-        # Hysteresis band: preserve the current requested state.
         return (
             relay.desired_state,
             (
@@ -530,16 +571,35 @@ def validate_automation_values(data):
         required=end_required,
     )
 
+    sensor_kind = (data.get("sensor_kind") or "light").strip().lower()
+
     try:
-        sensor_on = int(data.get("sensor_on_threshold") or 60)
-        sensor_off = int(data.get("sensor_off_threshold") or 70)
+        if sensor_kind == "temperature":
+            sensor_on = int(data.get("sensor_on_threshold") or 30)
+            sensor_off = int(data.get("sensor_off_threshold") or 27)
+        else:
+            sensor_on = int(data.get("sensor_on_threshold") or 60)
+            sensor_off = int(data.get("sensor_off_threshold") or 70)
     except (TypeError, ValueError) as exc:
+        if sensor_kind == "temperature":
+            raise ValueError("Temperature thresholds must be whole degrees Celsius.") from exc
         raise ValueError("Light thresholds must be whole percentages.") from exc
 
-    if not 0 <= sensor_on <= 100 or not 0 <= sensor_off <= 100:
-        raise ValueError("Light thresholds must be between 0% and 100%.")
-    if mode == "sensor_schedule" and sensor_off <= sensor_on:
-        raise ValueError("OFF threshold must be higher than ON threshold to prevent relay chatter.")
+    if sensor_kind == "temperature":
+        if not 0 <= sensor_on <= 60 or not 0 <= sensor_off <= 60:
+            raise ValueError("Temperature thresholds must be between 0°C and 60°C.")
+        if mode == "sensor_schedule" and sensor_off >= sensor_on:
+            raise ValueError(
+                "Fan OFF temperature must be lower than the ON temperature "
+                "(for example ON at 30°C and OFF at 27°C)."
+            )
+    else:
+        if not 0 <= sensor_on <= 100 or not 0 <= sensor_off <= 100:
+            raise ValueError("Light thresholds must be between 0% and 100%.")
+        if mode == "sensor_schedule" and sensor_off <= sensor_on:
+            raise ValueError(
+                "OFF threshold must be higher than ON threshold to prevent relay chatter."
+            )
 
     try:
         hours_value = (data.get("repeat_interval_hours") or "").strip()

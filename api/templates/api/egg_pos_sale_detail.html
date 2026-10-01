@@ -1,0 +1,305 @@
+{% extends "api/egg_pos_base.html" %}
+{% load humanize %}
+
+{% block egg_pos_css %}
+<style>
+.ep-sale-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:14px;
+  margin-bottom:14px;
+  flex-wrap:wrap;
+}
+.ep-sale-head-left h2{
+  margin:0;
+  color:#163a63;
+  font-size:24px;
+}
+.ep-sale-head-left p{
+  margin:6px 0 0;
+  color:#6f8295;
+  font-size:12px;
+}
+.ep-invoice-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-top:10px;
+  padding:8px 14px;
+  border-radius:999px;
+  background:linear-gradient(135deg,#eaf5ff,#f4faff);
+  border:1px solid #cfe2f5;
+  color:#1767c6;
+  font-size:12px;
+  font-weight:900;
+}
+.ep-sale-status{
+  display:inline-flex;
+  align-items:center;
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:900;
+  border:1px solid transparent;
+}
+.ep-sale-status.paid{
+  background:#e8f7ed;
+  color:#13793a;
+  border-color:#cae9d3;
+}
+.ep-sale-status.partial{
+  background:#fff3df;
+  color:#b06a00;
+  border-color:#f2dbac;
+}
+.ep-sale-status.unpaid{
+  background:#fff0f0;
+  color:#b93838;
+  border-color:#efcccc;
+}
+.ep-kpi.color-1{
+  background:linear-gradient(135deg,#1b75d0,#2898f0);
+  color:#fff;
+}
+.ep-kpi.color-1 strong,
+.ep-kpi.color-1 span,
+.ep-kpi.color-1 .ep-kpi-note{
+  color:#fff !important;
+}
+.ep-kpi.color-2{
+  background:linear-gradient(135deg,#139b4b,#29bf6d);
+  color:#fff;
+}
+.ep-kpi.color-2 strong,
+.ep-kpi.color-2 span,
+.ep-kpi.color-2 .ep-kpi-note{
+  color:#fff !important;
+}
+.ep-kpi.color-3{
+  background:linear-gradient(135deg,#e28a00,#f2ac2f);
+  color:#fff;
+}
+.ep-kpi.color-3 strong,
+.ep-kpi.color-3 span,
+.ep-kpi.color-3 .ep-kpi-note{
+  color:#fff !important;
+}
+.ep-kpi.color-4{
+  background:#f7fbff;
+  border:1px solid #d8e6f2;
+}
+.ep-kpi.color-5{
+  background:#f1fff5;
+  border:1px solid #cfead6;
+}
+.ep-panel-soft{
+  background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);
+  border:1px solid #dde7f1;
+  border-radius:16px;
+  overflow:hidden;
+}
+.ep-payment-row{
+  padding:12px 14px;
+  border-bottom:1px solid #edf2f6;
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  align-items:center;
+}
+.ep-payment-row:last-child{
+  border-bottom:0;
+}
+.ep-customer-strip{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+}
+.ep-customer-box{
+  border:1px solid #dce6ef;
+  border-radius:12px;
+  background:#fbfdff;
+  padding:14px;
+}
+.ep-customer-box span{
+  display:block;
+  font-size:10px;
+  color:#728499;
+  text-transform:uppercase;
+  font-weight:900;
+  margin-bottom:6px;
+}
+.ep-customer-box strong{
+  color:#173b61;
+  font-size:14px;
+}
+@media(max-width:900px){
+  .ep-customer-strip{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+@media(max-width:640px){
+  .ep-sale-head{
+    flex-direction:column;
+  }
+  .ep-customer-strip{
+    grid-template-columns:1fr;
+  }
+}
+</style>
+{% endblock %}
+
+{% block egg_pos_content %}
+<div class="ep-sale-head">
+  <div class="ep-sale-head-left">
+    <h2>Egg Sale Detail</h2>
+    <p>Payment, invoice and customer balance information.</p>
+
+    <div class="ep-invoice-badge">
+      <i class="fa-solid fa-receipt"></i>
+      Invoice {{ sale.sale_number }}
+    </div>
+  </div>
+
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <span class="ep-sale-status {{ sale.payment_status }}">
+      {{ sale.payment_status_label }}
+    </span>
+    <a class="ep-btn blue" href="{% url 'egg_pos_sale_invoice' sale.id %}">
+      <i class="fa-solid fa-print"></i> View / Print Invoice
+    </a>
+  </div>
+</div>
+
+<section class="ep-kpis">
+  <div class="ep-kpi color-1">
+    <span>Net Sale</span>
+    <strong>Rs {{ sale.net_total|floatformat:0|intcomma }}</strong>
+    <div class="ep-kpi-note">Total invoice amount</div>
+  </div>
+
+  <div class="ep-kpi color-2">
+    <span>Paid</span>
+    <strong>Rs {{ sale.amount_paid|floatformat:0|intcomma }}</strong>
+    <div class="ep-kpi-note">Amount received</div>
+  </div>
+
+  <div class="ep-kpi color-3">
+    <span>Balance Due</span>
+    <strong>Rs {{ sale.balance_due|floatformat:0|intcomma }}</strong>
+    <div class="ep-kpi-note">{{ sale.payment_status_label }}</div>
+  </div>
+
+  {% if can_manage_pos %}
+  <div class="ep-kpi color-4">
+    <span>Locked COGS</span>
+    <strong>Rs {{ sale.cogs_total|floatformat:0|intcomma }}</strong>
+    <div class="ep-kpi-note">FIFO inventory cost</div>
+  </div>
+
+  <div class="ep-kpi color-5">
+    <span>Gross Profit</span>
+    <strong>Rs {{ sale.profit_total|floatformat:0|intcomma }}</strong>
+    <div class="ep-kpi-note">Net sale minus COGS</div>
+  </div>
+  {% endif %}
+</section>
+
+<section class="ep-panel ep-panel-soft" style="margin-top:12px;">
+  <div class="ep-panel-head">Customer / Sale Information</div>
+  <div class="ep-panel-body">
+    <div class="ep-customer-strip">
+      <div class="ep-customer-box">
+        <span>Customer</span>
+        <strong>{{ sale.customer_name|default:"Walk-in" }}</strong>
+      </div>
+      <div class="ep-customer-box">
+        <span>Phone</span>
+        <strong>{{ sale.customer_phone|default:"—" }}</strong>
+      </div>
+      <div class="ep-customer-box">
+        <span>Due Date</span>
+        <strong>{% if sale.credit_due_date %}{{ sale.credit_due_date|date:"d M Y" }}{% else %}—{% endif %}</strong>
+      </div>
+      <div class="ep-customer-box">
+        <span>Staff</span>
+        <strong>{{ sale.created_by.username }}</strong>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="ep-grid-2" style="margin-top:12px;">
+  <section class="ep-panel ep-panel-soft">
+    <div class="ep-panel-head">Sale Items</div>
+    <div class="ep-table-wrap">
+      <table class="ep-table">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Qty</th>
+            <th>Rate</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in sale.items.all %}
+          <tr>
+            <td>{{ item.product.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>Rs {{ item.unit_price }}</td>
+            <td><strong>Rs {{ item.line_total|floatformat:0|intcomma }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ep-panel ep-panel-soft">
+    <div class="ep-panel-head">Payment History</div>
+    {% for p in sale.payments.all %}
+      <div class="ep-payment-row">
+        <span>{{ p.payment_date|date:"d M Y" }} · {{ p.get_payment_method_display }}</span>
+        <strong>Rs {{ p.amount|floatformat:0|intcomma }}</strong>
+      </div>
+    {% empty %}
+      <div class="ep-empty">No payment received yet.</div>
+    {% endfor %}
+  </section>
+</div>
+
+{% if sale.balance_due > 0 %}
+<section class="ep-panel ep-panel-soft" style="margin-top:12px">
+  <div class="ep-panel-head">Receive Outstanding Payment</div>
+  <form class="ep-panel-body" method="post" action="{% url 'egg_pos_record_sale_payment' sale.id %}">
+    {% csrf_token %}
+    <div class="ep-form-grid">
+      <div class="ep-field">
+        <label>Date</label>
+        <input class="ep-input" type="date" name="payment_date" value="{{ today|date:'Y-m-d' }}" required>
+      </div>
+      <div class="ep-field">
+        <label>Amount</label>
+        <input class="ep-input" type="number" step="0.01" min="0.01" max="{{ sale.balance_due }}" name="amount" required>
+      </div>
+      <div class="ep-field">
+        <label>Method</label>
+        <select class="ep-select" name="payment_method">
+          {% for value,label in payment_methods %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="ep-field">
+        <label>Reference</label>
+        <input class="ep-input" name="reference">
+      </div>
+    </div>
+    <button class="ep-btn primary" style="margin-top:10px">
+      <i class="fa-solid fa-check"></i> Record Payment
+    </button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}}

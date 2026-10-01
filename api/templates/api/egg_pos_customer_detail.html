@@ -1,0 +1,81 @@
+{% extends "api/egg_pos_base.html" %}
+{% load humanize %}
+
+{% block egg_pos_content %}
+<style>
+.cd-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}.cd-head h2{margin:0;color:#173b61;font-size:20px}.cd-head p{margin:4px 0 0;color:#718095;font-size:9px}
+.cd-actions{display:flex;gap:8px;flex-wrap:wrap}.cd-btn{min-height:40px;padding:0 12px;border:1px solid #d7e2eb;border-radius:9px;background:#fff;color:#28516f;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-size:9px;font-weight:900}.cd-btn.primary{background:#10944a;border-color:#10944a;color:#fff}
+.cd-info{display:grid;grid-template-columns:1.2fr 1fr;gap:10px;margin-bottom:12px}.cd-card{padding:14px;border:1px solid #dfe7ef;border-radius:13px;background:#fff}.cd-card h3{margin:0 0 9px;color:#173b61;font-size:12px}.cd-contact{display:grid;grid-template-columns:1fr 1fr;gap:9px}.cd-contact div span{display:block;color:#7a8b9b;font-size:7px;font-weight:900;text-transform:uppercase}.cd-contact div strong{display:block;margin-top:4px;color:#294862;font-size:10px}
+.cd-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}.cd-kpi{padding:12px;border:1px solid #dfe7ef;border-radius:11px;background:#fff}.cd-kpi span{display:block;color:#75889a;font-size:7px;text-transform:uppercase;font-weight:900}.cd-kpi strong{display:block;margin-top:5px;color:#173b61;font-size:17px}.cd-kpi.due{background:#fff8ef;border-color:#efd0a5}.cd-kpi.due strong{color:#b45d00}.cd-kpi.paid strong{color:#10803e}
+.cd-note{margin-top:8px;color:#7d8c9a;font-size:8px}
+.cd-invoice{display:grid;grid-template-columns:110px 95px 1fr 100px 100px 100px 95px;gap:8px;align-items:center;padding:11px 13px;border-top:1px solid #edf2f6;font-size:9px}.cd-invoice.head{border-top:0;background:#f8fbfd;color:#6b7d8e;font-size:7px;font-weight:900;text-transform:uppercase}.cd-invoice a{color:#126bb0;text-decoration:none;font-weight:900}.cd-status{display:inline-flex;justify-content:center;padding:4px 7px;border-radius:999px;font-size:7px;font-weight:900}.cd-status.paid{background:#e8f7ed;color:#14783a}.cd-status.partial{background:#fff3df;color:#a96600}.cd-status.unpaid{background:#fff0f0;color:#b63838}
+@media(max-width:900px){.cd-info{grid-template-columns:1fr}.cd-kpis{grid-template-columns:1fr 1fr}.cd-invoice.head{display:none}.cd-invoice{grid-template-columns:1fr 1fr;border:1px solid #e2e9ef;border-radius:10px;margin:8px}.cd-invoice .wide{grid-column:1/-1}}
+@media(max-width:600px){.cd-head{flex-direction:column}.cd-actions{width:100%}.cd-actions .cd-btn{flex:1}.cd-contact{grid-template-columns:1fr}.cd-kpis{grid-template-columns:1fr 1fr}}
+</style>
+
+<div class="cd-head">
+  <div>
+    <h2>{{ customer.name }}</h2>
+    <p>{% if customer.company_name %}{{ customer.company_name }} · {% endif %}Customer account and outstanding balance.</p>
+  </div>
+  <div class="cd-actions">
+    <a class="cd-btn" href="{% url 'egg_pos_customers' %}"><i class="fa-solid fa-arrow-left"></i> Customers</a>
+    <a class="cd-btn primary" href="{% url 'egg_pos_new_sale' %}?customer={{ customer.id }}"><i class="fa-solid fa-cart-plus"></i> New Sale</a>
+  </div>
+</div>
+
+<div class="cd-info">
+  <section class="cd-card">
+    <h3>Customer Details</h3>
+    <div class="cd-contact">
+      <div><span>Name</span><strong>{{ customer.name }}</strong></div>
+      <div><span>Company / Shop</span><strong>{{ customer.company_name|default:"—" }}</strong></div>
+      <div><span>Phone / WhatsApp</span><strong>{{ customer.phone|default:"—" }}</strong></div>
+      <div><span>Address</span><strong>{{ customer.address|default:"—" }}</strong></div>
+    </div>
+    {% if customer.notes %}<div class="cd-note"><strong>Notes:</strong> {{ customer.notes }}</div>{% endif %}
+  </section>
+
+  <section class="cd-card">
+    <h3>{% if can_manage_pos %}Customer Account{% else %}Outstanding Position{% endif %}</h3>
+    {% if can_manage_pos %}
+    <div class="cd-kpis">
+      <div class="cd-kpi"><span>Invoices</span><strong>{{ overall.invoice_count }}</strong></div>
+      <div class="cd-kpi"><span>Total Sales</span><strong>Rs {{ overall.invoiced|floatformat:0|intcomma }}</strong></div>
+      <div class="cd-kpi paid"><span>Paid</span><strong>Rs {{ overall.paid|floatformat:0|intcomma }}</strong></div>
+      <div class="cd-kpi due"><span>Outstanding</span><strong>Rs {{ overall.outstanding|floatformat:0|intcomma }}</strong></div>
+    </div>
+    {% else %}
+    <div class="cd-kpis">
+      <div class="cd-kpi due"><span>Customer Outstanding</span><strong>Rs {{ overall.outstanding|floatformat:0|intcomma }}</strong></div>
+      <div class="cd-kpi"><span>Your Invoices</span><strong>{{ visible.invoice_count }}</strong></div>
+      <div class="cd-kpi paid"><span>Paid on Your Sales</span><strong>Rs {{ visible.paid|floatformat:0|intcomma }}</strong></div>
+      <div class="cd-kpi due"><span>Due on Your Sales</span><strong>Rs {{ visible.outstanding|floatformat:0|intcomma }}</strong></div>
+    </div>
+    <div class="cd-note">Customer Outstanding is the overall Egg POS balance. Invoice details below remain limited to sales created by your login.</div>
+    {% endif %}
+  </section>
+</div>
+
+<section class="ep-panel">
+  <div class="ep-panel-head">{% if can_manage_pos %}Invoice History{% else %}Your Invoice History{% endif %}</div>
+
+  <div class="cd-invoice head">
+    <div>Date</div><div>Invoice</div><div>Items</div><div>Net</div><div>Paid</div><div>Due</div><div>Status</div>
+  </div>
+
+  {% for sale in sales %}
+  <div class="cd-invoice">
+    <div>{{ sale.sale_date|date:"d M Y" }}</div>
+    <div><a href="{% url 'egg_pos_sale_detail' sale.id %}">{{ sale.sale_number }}</a></div>
+    <div class="wide">{% for item in sale.items.all %}{{ item.product.name }} × {{ item.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+    <div>Rs {{ sale.net_total|floatformat:0|intcomma }}</div>
+    <div>Rs {{ sale.amount_paid|floatformat:0|intcomma }}</div>
+    <div><strong>Rs {{ sale.balance_due|floatformat:0|intcomma }}</strong></div>
+    <div><span class="cd-status {{ sale.payment_status }}">{{ sale.payment_status_label }}</span></div>
+  </div>
+  {% empty %}
+  <div class="ep-empty">No linked invoices for this customer yet.</div>
+  {% endfor %}
+</section>
+{% endblock %}

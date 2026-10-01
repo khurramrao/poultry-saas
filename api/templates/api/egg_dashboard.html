@@ -1,4 +1,5 @@
 {% extends "api/base_dashboard.html" %}
+{% load humanize %}
 
 {% block title %}Egg Management | RayNoor Organic Farms{% endblock %}
 
@@ -47,6 +48,7 @@
     .egg-btn-production { background:#1d9b51; color:#fff; box-shadow:0 7px 16px rgba(29,155,81,.16); }
     .egg-btn-sale { background:#176bc1; color:#fff; box-shadow:0 7px 16px rgba(23,107,193,.16); }
     .egg-btn-hens { background:#7a4fd4; color:#fff; box-shadow:0 7px 16px rgba(122,79,212,.16); }
+    .egg-btn-pos { background:#b87900; color:#fff; box-shadow:0 7px 16px rgba(184,121,0,.16); }
 
     .kpi-grid {
         display:grid;
@@ -192,9 +194,155 @@
     .monthly-warning { color:#b26b00; font-size:10px; display:block; margin-top:2px; }
     .hens-not-set { color:#b26b00; font-weight:800; }
 
+    .internal-receivable {
+        margin-bottom:20px;
+        padding:16px;
+        border:1px solid #ead8ad;
+        border-radius:17px;
+        background:linear-gradient(135deg,#fffaf0 0%,#fffdf9 48%,#ffffff 100%);
+        box-shadow:0 8px 24px rgba(119,81,13,.05);
+    }
+    .internal-receivable-head {
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:14px;
+        margin-bottom:13px;
+    }
+    .internal-receivable-title {
+        display:flex;
+        align-items:flex-start;
+        gap:10px;
+        min-width:0;
+    }
+    .internal-receivable-icon {
+        width:38px;
+        height:38px;
+        min-width:38px;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:11px;
+        background:#fff1cf;
+        color:#9b6500;
+        font-size:15px;
+    }
+    .internal-receivable-copy strong {
+        display:block;
+        color:#684508;
+        font-size:14px;
+    }
+    .internal-receivable-copy span {
+        display:block;
+        max-width:720px;
+        margin-top:4px;
+        color:#806d4b;
+        font-size:10px;
+        line-height:1.45;
+    }
+    .internal-receivable-action {
+        min-height:38px;
+        padding:0 12px;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        gap:7px;
+        border:1px solid #d9bb78;
+        border-radius:10px;
+        background:#fff;
+        color:#79510a;
+        text-decoration:none;
+        font-size:9px;
+        font-weight:900;
+        white-space:nowrap;
+    }
+    .internal-receivable-action:hover { background:#fff8e9; }
+    .internal-receivable-grid {
+        display:grid;
+        grid-template-columns:repeat(4,minmax(0,1fr));
+        gap:10px;
+    }
+    .internal-box {
+        position:relative;
+        min-height:94px;
+        padding:13px 14px;
+        overflow:hidden;
+        border:1px solid #eadfca;
+        border-radius:13px;
+        background:#fff;
+    }
+    .internal-box:after {
+        content:"";
+        position:absolute;
+        right:-18px;
+        bottom:-24px;
+        width:72px;
+        height:72px;
+        border-radius:50%;
+        background:#fff7e6;
+    }
+    .internal-box span {
+        position:relative;
+        z-index:1;
+        display:block;
+        color:#7d705d;
+        font-size:8px;
+        font-weight:900;
+        text-transform:uppercase;
+        letter-spacing:.03em;
+    }
+    .internal-box strong {
+        position:relative;
+        z-index:1;
+        display:block;
+        margin-top:8px;
+        color:#65440a;
+        font-size:20px;
+        line-height:1;
+    }
+    .internal-box small {
+        position:relative;
+        z-index:1;
+        display:block;
+        margin-top:7px;
+        color:#9a8b70;
+        font-size:8px;
+    }
+    .internal-box.received {
+        border-color:#cce8d5;
+        background:#fbfffc;
+    }
+    .internal-box.received:after { background:#eaf8ef; }
+    .internal-box.received strong { color:#14783a; }
+    .internal-box.due {
+        border-color:#efcfaa;
+        background:#fffaf3;
+    }
+    .internal-box.due:after { background:#fff0dc; }
+    .internal-box.due strong { color:#b25f00; }
+    .transfer-history { margin:0 14px 14px; border:1px solid #eadfca; border-radius:12px; overflow:hidden; }
+    .transfer-history-head { padding:10px 12px; background:#fffaf2; color:#77510d; font-size:10px; font-weight:900; text-transform:uppercase; }
+    .transfer-history-row { display:grid; grid-template-columns:110px 110px 1fr 110px 110px 110px; gap:8px; padding:10px 12px; border-top:1px solid #f1eadf; align-items:center; font-size:10px; }
+    .transfer-status { display:inline-flex; justify-content:center; padding:4px 7px; border-radius:999px; font-size:8px; font-weight:900; }
+    .transfer-status.paid { background:#e8f7ed; color:#14783a; }
+    .transfer-status.partial { background:#fff3df; color:#a96500; }
+    .transfer-status.unpaid { background:#fff0f0; color:#b73535; }
+    @media(max-width:900px){
+        .internal-receivable-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+        .internal-receivable-head{flex-direction:column}
+        .internal-receivable-action{width:100%}
+    }
+    @media(max-width:500px){
+        .internal-receivable{padding:13px}
+        .internal-receivable-grid{grid-template-columns:1fr 1fr;gap:8px}
+        .internal-box{min-height:88px;padding:12px}
+        .internal-box strong{font-size:18px}
+    }
+    @media(max-width:800px){ .transfer-history-row{grid-template-columns:1fr 1fr}.transfer-history-row .wide{grid-column:1/-1} }
+
     @media(max-width:1100px) {
         .egg-header { flex-direction:column; align-items:stretch; }
-        .egg-actions { width:100%; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .egg-actions { width:100%; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); }
         .egg-btn { width:100%; }
         .kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
         .batch-kpis { grid-template-columns:repeat(3,minmax(0,1fr)); }
@@ -218,6 +366,12 @@
         .history-row { grid-template-columns:1fr auto; }
         .history-date { grid-column:1 / -1; }
     }
+
+.monthly-table tfoot td {
+    background: #f3f7fc;
+    border-top: 2px solid #cbd9e8;
+    font-weight: 700;
+}
 </style>
 {% endblock %}
 
@@ -253,33 +407,33 @@
     <section class="kpi-grid">
         <div class="kpi-card">
             <div class="kpi-label">Eggs Collected</div>
-            <div class="kpi-value">{{ overview.collected }}</div>
-            <div class="kpi-help">All production entries.</div>
+            <div class="kpi-value">{{ overview.month_collected }}</div>
+            <div class="kpi-help">{{ current_month|date:"M Y" }} production only.</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-label">Damaged</div>
-            <div class="kpi-value">{{ overview.damaged }}</div>
-            <div class="kpi-help">Broken / damaged eggs.</div>
+            <div class="kpi-value">{{ overview.month_damaged }}</div>
+            <div class="kpi-help">{{ current_month|date:"M Y" }} damaged eggs.</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-label">Usable Produced</div>
-            <div class="kpi-value">{{ overview.usable }}</div>
-            <div class="kpi-help">Collected minus damaged.</div>
+            <div class="kpi-value">{{ overview.month_usable }}</div>
+            <div class="kpi-help">{{ current_month|date:"M Y" }} collected minus damaged.</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-label">Eggs Sold</div>
-            <div class="kpi-value">{{ overview.sold }}</div>
-            <div class="kpi-help">Total recorded sales quantity.</div>
+            <div class="kpi-value">{{ overview.month_sold }}</div>
+            <div class="kpi-help">{{ current_month|date:"M Y" }} direct egg sales quantity.</div>
         </div>
         <div class="kpi-card stock">
             <div class="kpi-label">Current Egg Stock</div>
             <div class="kpi-value">{{ overview.stock }}</div>
-            <div class="kpi-help">Usable eggs remaining for sale.</div>
+            <div class="kpi-help">Current stock stays cumulative across all months.</div>
         </div>
         <div class="kpi-card sales">
             <div class="kpi-label">{% if is_admin %}Net Egg Sales{% else %}Your Egg Sales Share{% endif %}</div>
-            <div class="kpi-value">Rs {{ overview.net_sales|floatformat:0 }}</div>
-            <div class="kpi-help">Sales after discounts.</div>
+            <div class="kpi-value">Rs {{ overview.month_net_sales|floatformat:0 }}</div>
+            <div class="kpi-help">{{ current_month|date:"M Y" }} sales after discounts.</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-label">Active Laying Hens</div>
@@ -290,6 +444,50 @@
             <div class="kpi-label">This Month Production %</div>
             <div class="kpi-value">{% if overview.month_production_percent != None %}{{ overview.month_production_percent|floatformat:1 }}%{% else %}—{% endif %}</div>
             <div class="kpi-help">Collected eggs ÷ active-hen days for recorded days.{% if overview.month_missing_hen_days %} Set Active Hens to complete {{ overview.month_missing_hen_days }} day{{ overview.month_missing_hen_days|pluralize }}.{% endif %}</div>
+        </div>
+    </section>
+
+    <section class="internal-receivable">
+        <div class="internal-receivable-head">
+            <div class="internal-receivable-title">
+                <div class="internal-receivable-icon"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+                <div class="internal-receivable-copy">
+                    <strong>Egg POS Internal Receivable</strong>
+                    <span>Farm → Egg POS transfers are internal supplier invoices. Payments are recorded from Egg POS and this receivable updates automatically.</span>
+                </div>
+            </div>
+            {% if is_admin %}
+            <a class="internal-receivable-action" href="{% url 'egg_pos_farm_transfer' %}">
+                <i class="fa-solid fa-money-bill-transfer"></i>
+                Manage / Record Payment
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="internal-receivable-grid">
+            <div class="internal-box">
+                <span>Eggs Transferred</span>
+                <strong>{{ overview.transferred_to_pos|intcomma }}</strong>
+                <small>Moved from farm stock into Egg POS.</small>
+            </div>
+
+            <div class="internal-box">
+                <span>{% if is_admin %}Transfer Value{% else %}Your Transfer Share{% endif %}</span>
+                <strong>Rs {{ overview.pos_transfer_value|floatformat:0|intcomma }}</strong>
+                <small>Internal invoices raised to Egg POS.</small>
+            </div>
+
+            <div class="internal-box received">
+                <span>Received from Egg POS</span>
+                <strong>Rs {{ overview.pos_transfer_received|floatformat:0|intcomma }}</strong>
+                <small>Payments already received.</small>
+            </div>
+
+            <div class="internal-box due">
+                <span>Outstanding Receivable</span>
+                <strong>Rs {{ overview.pos_transfer_receivable|floatformat:0|intcomma }}</strong>
+                <small>Still payable by Egg POS.</small>
+            </div>
         </div>
     </section>
 
@@ -329,14 +527,18 @@
             </div>
 
             <div class="batch-kpis">
-                <div class="batch-kpi"><div class="batch-kpi-label">Collected</div><div class="batch-kpi-value">{{ row.totals.collected }}</div></div>
-                <div class="batch-kpi"><div class="batch-kpi-label">Damaged</div><div class="batch-kpi-value">{{ row.totals.damaged }}</div></div>
-                <div class="batch-kpi"><div class="batch-kpi-label">Usable</div><div class="batch-kpi-value">{{ row.totals.usable }}</div></div>
-                <div class="batch-kpi"><div class="batch-kpi-label">Sold</div><div class="batch-kpi-value">{{ row.totals.sold }}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">This Month Collected</div><div class="batch-kpi-value">{% if row.current_month %}{{ row.current_month.collected }}{% else %}0{% endif %}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">This Month Damaged</div><div class="batch-kpi-value">{% if row.current_month %}{{ row.current_month.damaged }}{% else %}0{% endif %}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">This Month Usable</div><div class="batch-kpi-value">{% if row.current_month %}{{ row.current_month.usable }}{% else %}0{% endif %}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">This Month Sold</div><div class="batch-kpi-value">{% if row.current_month %}{{ row.current_month.sold }}{% else %}0{% endif %}</div></div>
                 <div class="batch-kpi highlight"><div class="batch-kpi-label">Current Stock</div><div class="batch-kpi-value">{{ row.totals.stock }}</div></div>
-                <div class="batch-kpi"><div class="batch-kpi-label">{% if is_admin %}Net Sales{% else %}Your Sales Share{% endif %}</div><div class="batch-kpi-value">Rs {% if is_admin %}{{ row.totals.net_sales|floatformat:0 }}{% else %}{{ row.egg_sales_share|floatformat:0 }}{% endif %}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">{% if is_admin %}This Month Direct Egg Sales{% else %}Your This Month Sales Share{% endif %}</div><div class="batch-kpi-value">Rs {% if row.current_month %}{{ row.current_month.net_sales|floatformat:0 }}{% else %}0{% endif %}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">Transferred to Egg POS</div><div class="batch-kpi-value">{{ row.totals.transferred_to_pos }}</div></div>
+                <div class="batch-kpi"><div class="batch-kpi-label">POS Transfer Value</div><div class="batch-kpi-value">Rs {% if is_admin %}{{ row.totals.pos_transfer_value|floatformat:0 }}{% else %}{{ row.egg_transfer_value_share|floatformat:0 }}{% endif %}</div></div>
+                <div class="batch-kpi highlight"><div class="batch-kpi-label">POS Receivable</div><div class="batch-kpi-value">Rs {% if is_admin %}{{ row.totals.pos_transfer_receivable|floatformat:0 }}{% else %}{{ row.egg_transfer_receivable_share|floatformat:0 }}{% endif %}</div></div>
                 <div class="batch-kpi"><div class="batch-kpi-label">Active Hens</div><div class="batch-kpi-value">{% if row.current_active_hens %}{{ row.current_active_hens }}{% else %}<span class="hens-not-set">Not Set</span>{% endif %}</div></div>
                 <div class="batch-kpi"><div class="batch-kpi-label">Month Production %</div><div class="batch-kpi-value">{% if row.current_month and row.current_month.production_percent != None %}{{ row.current_month.production_percent|floatformat:1 }}%{% else %}—{% endif %}</div></div>
+                <div class="batch-kpi highlight"><div class="batch-kpi-label">Lifetime Production %</div><div class="batch-kpi-value">{% if row.lifetime.production_percent != None %}{{ row.lifetime.production_percent|floatformat:1 }}%{% else %}—{% endif %}</div></div>
             </div>
 
             <div class="history-grid">
@@ -387,6 +589,22 @@
                 </div>
             </div>
 
+            {% if row.recent_transfers %}
+            <div class="transfer-history">
+                <div class="transfer-history-head">Egg POS Internal Transfer History</div>
+                {% for t in row.recent_transfers %}
+                <div class="transfer-history-row">
+                    <strong>{{ t.transfer_date|date:"d M Y" }}</strong>
+                    <strong>{{ t.transfer_number }}</strong>
+                    <span class="wide">{{ t.quantity }} eggs transferred</span>
+                    <span>Value<br><strong>Rs {{ t.display_value|floatformat:0 }}</strong></span>
+                    <span>Received<br><strong>Rs {{ t.display_paid|floatformat:0 }}</strong></span>
+                    <span><span class="transfer-status {{ t.payment_status }}">{{ t.payment_status_label }}</span><br><strong>Due Rs {{ t.display_due|floatformat:0 }}</strong></span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <div class="monthly-panel">
                 <div class="history-head">
                     <strong><i class="fa-solid fa-chart-line"></i> Monthly Egg Performance</strong>
@@ -403,6 +621,7 @@
                                 <th>Collected</th>
                                 <th>Damaged</th>
                                 <th>Usable</th>
+                                <th>Sold</th>
                                 <th>Production %</th>
                                 <th>{% if is_admin %}Net Sales{% else %}Your Sales Share{% endif %}</th>
                             </tr>
@@ -416,6 +635,7 @@
                                 <td>{{ month.collected }}</td>
                                 <td>{{ month.damaged }}</td>
                                 <td>{{ month.usable }}</td>
+                                <td>{{ month.sold }}</td>
                                 <td class="monthly-rate">
                                     {% if month.production_percent != None %}{{ month.production_percent|floatformat:1 }}%{% else %}—{% endif %}
                                     {% if month.missing_hen_days %}<span class="monthly-warning">{{ month.missing_hen_days }} day{{ month.missing_hen_days|pluralize }} missing hen count</span>{% endif %}
@@ -424,6 +644,22 @@
                             </tr>
                             {% endfor %}
                         </tbody>
+                        <tfoot>
+                            <tr>
+                                <td><strong>Lifetime / Overall</strong></td>
+                                <td>{% if row.lifetime.avg_hens != None %}{{ row.lifetime.avg_hens|floatformat:1 }}{% else %}—{% endif %}</td>
+                                <td>{{ row.lifetime.days_recorded }}</td>
+                                <td><strong>{{ row.lifetime.collected }}</strong></td>
+                                <td>{{ row.lifetime.damaged }}</td>
+                                <td>{{ row.lifetime.usable }}</td>
+                                <td>{{ row.lifetime.sold }}</td>
+                                <td class="monthly-rate">
+                                    <strong>{% if row.lifetime.production_percent != None %}{{ row.lifetime.production_percent|floatformat:1 }}%{% else %}—{% endif %}</strong>
+                                    {% if row.lifetime.missing_hen_days %}<span class="monthly-warning">{{ row.lifetime.missing_hen_days }} day{{ row.lifetime.missing_hen_days|pluralize }} missing hen count</span>{% endif %}
+                                </td>
+                                <td><strong>Rs {{ row.lifetime.net_sales|floatformat:0 }}</strong></td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
                 {% else %}

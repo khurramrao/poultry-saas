@@ -1,0 +1,141 @@
+from decimal import Decimal
+
+from django.db import transaction
+from django.db.models import Q, Sum
+from django.utils import timezone
+
+from api.models.egg_pos import (
+    EggPOSFarmTransfer,
+    EggPOSInventoryLot,
+    EggPOSSaleAllocation,
+)
+from api.models.eggs import EggProductionEntry, EggSale
+
+
+ZERO = Decimal("0.00")
+CENT = Decimal("0.01")
+
+
+def money(value):
+    return Decimal(value or 0).quantize(CENT)
+
+
+def is_admin(user):
+    return bool(user.is_superuser or user.is_staff)
+
+
+def can_sell(user):
+    if not user.is_authenticated:
+        return False
+    if is_admin(user):
+        return True
+    access = getattr(user, "egg_pos_access", None)
+    return bool(access and access.is_active and access.can_sell)
+
+
+def can_manage(user):
+    if not user.is_authenticated:
+        return False
+    if is_admin(user):
+        return True
+    access = getattr(user, "egg_pos_access", None)
+    return bool(access and access.is_active and access.can_manage)
+
+
+def available_product_stock(product, as_of_date=None):
+    as_of_date = as_of_date or timezone.localdate()
+    qs = EggPOSInventoryLot.objects.filter(
+        product=product,
+        quantity_remaining__gt=0,
+        received_date__lte=as_of_date,
+    ).filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=as_of_date))
+    return int(qs.aggregate(total=Sum("quantity_remaining"))["total"] or 0)
+
+
+def total_product_stock(product):
+    return int(
+        EggPOSInventoryLot.objects.filter(
+            product=product,
+            quantity_remaining__gt=0,
+        ).aggregate(total=Sum("quantity_remaining"))["total"]
+        or 0
+    )
+
+
+def farm_egg_stock(batch):
+    production = EggProductionEntry.objects.filter(batch=batch).aggregate(
+        collected=Sum("eggs_collected"),
+        damaged=Sum("damaged_eggs"),
+    )
+    collected = int(production["collected"] or 0)
+    damaged = int(production["damaged"] or 0)
+    usable = max(collected - damaged, 0)
+    old_direct_sales = int(
+        EggSale.objects.filter(batch=batch).aggregate(total=Sum("eggs_sold"))["total"]
+        or 0
+    )
+    transferred = 0
+    for transfer in EggPOSFarmTransfer.objects.filter(batch=batch).prefetch_related("items"):
+        transferred += sum(int(item.quantity or 0) for item in transfer.items.all())
+    return {
+        "usable": usable,
+        "direct_sales": old_direct_sales,
+        "transferred": transferred,
+        "available": max(usable - old_direct_sales - transferred, 0),
+    }
+
+
+def make_lot_code(prefix, source_id, item_number):
+    return f"{prefix}-{timezone.localdate():%y%m%d}-{int(source_id):05d}-{int(item_number):02d}"
+
+
+@transaction.atomic
+def allocate_fifo_to_sale_item(sale_item, sale_date):
+    quantity_needed = int(sale_item.quantity or 0)
+    if quantity_needed <= 0:
+        raise ValueError("Sale quantity must be greater than zero.")
+
+    lots = list(
+        EggPOSInventoryLot.objects.select_for_update()
+        .filter(
+            product=sale_item.product,
+            quantity_remaining__gt=0,
+            received_date__lte=sale_date,
+        )
+        .filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=sale_date))
+        .order_by("received_date", "id")
+    )
+
+    available = sum(int(lot.quantity_remaining or 0) for lot in lots)
+    if available < quantity_needed:
+        raise ValueError(
+            f"Only {available} {sale_item.product.name} eggs are available; "
+            f"{quantity_needed} requested."
+        )
+
+    cogs = ZERO
+    remaining = quantity_needed
+    for lot in lots:
+        if remaining <= 0:
+            break
+        take = min(remaining, int(lot.quantity_remaining or 0))
+        if take <= 0:
+            continue
+
+        lot.quantity_remaining -= take
+        lot.save(update_fields=["quantity_remaining"])
+
+        allocation_cogs = money(Decimal(take) * Decimal(lot.unit_cost or 0))
+        EggPOSSaleAllocation.objects.create(
+            sale_item=sale_item,
+            lot=lot,
+            quantity=take,
+            unit_cost=lot.unit_cost,
+            cogs_amount=allocation_cogs,
+        )
+        cogs += allocation_cogs
+        remaining -= take
+
+    sale_item.cogs_amount = money(cogs)
+    sale_item.save(update_fields=["cogs_amount"])
+    return sale_item.cogs_amount

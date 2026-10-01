@@ -12,6 +12,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from api.models.eggs import EggProductionEntry, EggSale, LayerHenCountHistory
+from api.models.egg_pos import EggPOSFarmTransfer, EggPOSFarmTransferItem
 from api.models.investors import InvestorAllocation
 from api.models.sensor import Batch
 
@@ -109,6 +110,7 @@ def _monthly_performance(production_days, sales, display_ratio):
             "collected": 0,
             "damaged": 0,
             "usable": 0,
+            "sold": 0,
             "days_recorded": 0,
             "days_with_hens": 0,
             "hen_days": 0,
@@ -129,6 +131,7 @@ def _monthly_performance(production_days, sales, display_ratio):
 
     for sale in sales:
         month = sale.sale_date.replace(day=1)
+        monthly[month]["sold"] += int(sale.eggs_sold or 0)
         monthly[month]["net_sales"] += (
             _money(sale.total_amount) * display_ratio
         ).quantize(MONEY_UNIT)
@@ -155,6 +158,7 @@ def _monthly_performance(production_days, sales, display_ratio):
             "collected": row["collected"],
             "damaged": row["damaged"],
             "usable": row["usable"],
+            "sold": row["sold"],
             "days_recorded": row["days_recorded"],
             "days_with_hens": row["days_with_hens"],
             "hen_days": row["hen_days"],
@@ -165,6 +169,55 @@ def _monthly_performance(production_days, sales, display_ratio):
         })
 
     return rows
+
+
+def _lifetime_performance(monthly_rows):
+    """Return the all-time performance summary for one Layer batch.
+
+    Production % is weighted correctly by active-hen days across the whole
+    batch lifetime, rather than averaging monthly percentages.  If any
+    production day is missing an active-hen count, the lifetime percentage is
+    left unavailable so we do not show a misleading figure.
+    """
+    summary = {
+        "collected": 0,
+        "damaged": 0,
+        "usable": 0,
+        "sold": 0,
+        "days_recorded": 0,
+        "hen_days": 0,
+        "missing_hen_days": 0,
+        "avg_hens": None,
+        "production_percent": None,
+        "net_sales": MONEY_ZERO,
+    }
+
+    for row in monthly_rows:
+        summary["collected"] += int(row.get("collected") or 0)
+        summary["damaged"] += int(row.get("damaged") or 0)
+        summary["usable"] += int(row.get("usable") or 0)
+        summary["sold"] += int(row.get("sold") or 0)
+        summary["days_recorded"] += int(row.get("days_recorded") or 0)
+        summary["hen_days"] += int(row.get("hen_days") or 0)
+        summary["missing_hen_days"] += int(row.get("missing_hen_days") or 0)
+        summary["net_sales"] += _money(row.get("net_sales"))
+
+    if (
+        summary["days_recorded"] > 0
+        and summary["missing_hen_days"] == 0
+        and summary["hen_days"] > 0
+    ):
+        summary["production_percent"] = _percent(
+            summary["collected"],
+            summary["hen_days"],
+        )
+        summary["avg_hens"] = (
+            Decimal(summary["hen_days"])
+            / Decimal(summary["days_recorded"])
+        ).quantize(Decimal("0.1"))
+
+    summary["net_sales"] = _money(summary["net_sales"])
+    return summary
 
 
 def _available_layer_batches(user, include_closed=True):
@@ -217,7 +270,22 @@ def _batch_egg_totals(batch):
     )
 
     sold = sum(int(sale.eggs_sold or 0) for sale in sales)
-    stock = max(usable - sold, 0)
+    transferred = int(
+        EggPOSFarmTransferItem.objects.filter(transfer__batch=batch)
+        .aggregate(total=Sum("quantity"))["total"]
+        or 0
+    )
+    transfers = list(
+        EggPOSFarmTransfer.objects
+        .filter(batch=batch)
+        .select_related("created_by")
+        .prefetch_related("items", "payments")
+        .order_by("-transfer_date", "-id")
+    )
+    pos_transfer_value = _money(sum((Decimal(t.total_amount or 0) for t in transfers), MONEY_ZERO))
+    pos_transfer_received = _money(sum((Decimal(t.amount_paid or 0) for t in transfers), MONEY_ZERO))
+    pos_transfer_receivable = _money(sum((Decimal(t.balance_due or 0) for t in transfers), MONEY_ZERO))
+    stock = max(usable - sold - transferred, 0)
 
     gross_sales = sum(
         (_money(sale.gross_amount) for sale in sales),
@@ -237,6 +305,11 @@ def _batch_egg_totals(batch):
         "damaged": damaged,
         "usable": usable,
         "sold": sold,
+        "transferred_to_pos": transferred,
+        "pos_transfer_value": pos_transfer_value,
+        "pos_transfer_received": pos_transfer_received,
+        "pos_transfer_receivable": pos_transfer_receivable,
+        "transfers": transfers,
         "stock": stock,
         "gross_sales": _money(gross_sales),
         "discount": _money(discount),
@@ -264,8 +337,16 @@ def egg_dashboard(request):
         "sold": 0,
         "stock": 0,
         "net_sales": MONEY_ZERO,
+        "transferred_to_pos": 0,
+        "pos_transfer_value": MONEY_ZERO,
+        "pos_transfer_received": MONEY_ZERO,
+        "pos_transfer_receivable": MONEY_ZERO,
         "active_hens": 0,
         "month_collected": 0,
+        "month_damaged": 0,
+        "month_usable": 0,
+        "month_sold": 0,
+        "month_net_sales": MONEY_ZERO,
         "month_hen_days": 0,
         "month_missing_hen_days": 0,
         "month_production_percent": None,
@@ -290,6 +371,9 @@ def egg_dashboard(request):
 
         ownership_percent = None
         egg_sales_share = None
+        egg_transfer_value_share = None
+        egg_transfer_received_share = None
+        egg_transfer_receivable_share = None
         recent_sales = []
         ratio = Decimal("1")
 
@@ -312,6 +396,15 @@ def egg_dashboard(request):
             egg_sales_share = (
                 totals["net_sales"] * ratio
             ).quantize(MONEY_UNIT)
+            egg_transfer_value_share = (
+                totals["pos_transfer_value"] * ratio
+            ).quantize(MONEY_UNIT)
+            egg_transfer_received_share = (
+                totals["pos_transfer_received"] * ratio
+            ).quantize(MONEY_UNIT)
+            egg_transfer_receivable_share = (
+                totals["pos_transfer_receivable"] * ratio
+            ).quantize(MONEY_UNIT)
 
         display_ratio = Decimal("1") if is_admin else ratio
         for sale in totals["sales"][:12]:
@@ -328,6 +421,20 @@ def egg_dashboard(request):
                 ).quantize(MONEY_UNIT),
             })
 
+        recent_transfers = []
+        for transfer in totals["transfers"][:8]:
+            recent_transfers.append({
+                "id": transfer.id,
+                "transfer_number": transfer.transfer_number or f"RNET-{transfer.id:05d}",
+                "transfer_date": transfer.transfer_date,
+                "quantity": transfer.total_quantity,
+                "display_value": (_money(transfer.total_amount) * display_ratio).quantize(MONEY_UNIT),
+                "display_paid": (_money(transfer.amount_paid) * display_ratio).quantize(MONEY_UNIT),
+                "display_due": (_money(transfer.balance_due) * display_ratio).quantize(MONEY_UNIT),
+                "payment_status": transfer.payment_status,
+                "payment_status_label": transfer.payment_status_label,
+            })
+
         monthly_rows = _monthly_performance(
             production_days,
             totals["sales"],
@@ -337,6 +444,7 @@ def egg_dashboard(request):
             (row for row in monthly_rows if row["month"] == current_month),
             None,
         )
+        lifetime = _lifetime_performance(monthly_rows)
 
         batch_rows.append({
             "batch": batch,
@@ -345,30 +453,50 @@ def egg_dashboard(request):
             "recent_sales": recent_sales,
             "ownership_percent": ownership_percent,
             "egg_sales_share": egg_sales_share,
+            "egg_transfer_value_share": egg_transfer_value_share,
+            "egg_transfer_received_share": egg_transfer_received_share,
+            "egg_transfer_receivable_share": egg_transfer_receivable_share,
+            "recent_transfers": recent_transfers,
             "current_active_hens": current_active_hens,
             "hen_history": list(reversed(hen_history[-6:])),
             "monthly_rows": monthly_rows[:12],
             "current_month": current_month_row,
+            "lifetime": lifetime,
         })
 
         overview["collected"] += totals["collected"]
         overview["damaged"] += totals["damaged"]
         overview["usable"] += totals["usable"]
         overview["sold"] += totals["sold"]
+        overview["transferred_to_pos"] += totals["transferred_to_pos"]
         overview["stock"] += totals["stock"]
         overview["active_hens"] += current_active_hens or 0
 
         if current_month_row:
             overview["month_collected"] += current_month_row["collected"]
+            overview["month_damaged"] += current_month_row["damaged"]
+            overview["month_usable"] += current_month_row["usable"]
+            overview["month_sold"] += current_month_row["sold"]
+            overview["month_net_sales"] += current_month_row["net_sales"]
             overview["month_hen_days"] += current_month_row["hen_days"]
             overview["month_missing_hen_days"] += current_month_row["missing_hen_days"]
 
         if is_admin:
             overview["net_sales"] += totals["net_sales"]
+            overview["pos_transfer_value"] += totals["pos_transfer_value"]
+            overview["pos_transfer_received"] += totals["pos_transfer_received"]
+            overview["pos_transfer_receivable"] += totals["pos_transfer_receivable"]
         else:
             overview["net_sales"] += egg_sales_share or MONEY_ZERO
+            overview["pos_transfer_value"] += egg_transfer_value_share or MONEY_ZERO
+            overview["pos_transfer_received"] += egg_transfer_received_share or MONEY_ZERO
+            overview["pos_transfer_receivable"] += egg_transfer_receivable_share or MONEY_ZERO
 
     overview["net_sales"] = _money(overview["net_sales"])
+    overview["month_net_sales"] = _money(overview["month_net_sales"])
+    overview["pos_transfer_value"] = _money(overview["pos_transfer_value"])
+    overview["pos_transfer_received"] = _money(overview["pos_transfer_received"])
+    overview["pos_transfer_receivable"] = _money(overview["pos_transfer_receivable"])
     if (
         overview["month_hen_days"]
         and overview["month_missing_hen_days"] == 0
@@ -413,20 +541,116 @@ def active_hens_history(request):
             messages.error(request, "Active hens can only be updated for an active Layer batch.")
             return redirect("active_hens_history")
 
+        change_type = (request.POST.get("change_type") or "set").strip().lower()
+        allowed_change_types = {"set", "died", "sold", "added"}
+        if change_type not in allowed_change_types:
+            messages.error(request, "Choose a valid active-hen adjustment type.")
+            return redirect("active_hens_history")
+
         try:
             effective_date = date.fromisoformat(
                 request.POST.get("effective_date") or str(today)
             )
-            active_hens = int(request.POST.get("active_hens") or 0)
+            hen_value = int(request.POST.get("hen_value") or 0)
         except (TypeError, ValueError):
-            messages.error(request, "Enter a valid effective date and active hen count.")
+            messages.error(request, "Enter a valid effective date and hen quantity.")
             return redirect("active_hens_history")
+
+        if effective_date > today:
+            messages.error(request, "Effective date cannot be in the future.")
+            return redirect("active_hens_history")
+
+        if hen_value <= 0:
+            messages.error(request, "Hen quantity must be greater than zero.")
+            return redirect("active_hens_history")
+
+        existing = LayerHenCountHistory.objects.filter(
+            batch=batch,
+            effective_date=effective_date,
+        ).first()
+
+        user_notes = (request.POST.get("notes") or "").strip()
+
+        if change_type == "set":
+            active_hens = hen_value
+            audit_note = user_notes or "Exact active laying-hen count set."
+            success_text = (
+                f"Active laying hens set to {active_hens} from "
+                f"{effective_date:%d %b %Y}."
+            )
+        else:
+            # If today's/date's count already exists, apply the next adjustment
+            # to that saved value. Otherwise use the latest count before the
+            # effective date. This allows multiple real events on the same day
+            # without forcing Admin to calculate the new total manually.
+            if existing:
+                base_hens = int(existing.active_hens or 0)
+            else:
+                prior = (
+                    LayerHenCountHistory.objects.filter(
+                        batch=batch,
+                        effective_date__lt=effective_date,
+                    )
+                    .order_by("-effective_date", "-id")
+                    .first()
+                )
+                if not prior:
+                    messages.error(
+                        request,
+                        "Set the exact active hen count first before recording a hen sale, mortality, or addition.",
+                    )
+                    return redirect("active_hens_history")
+                base_hens = int(prior.active_hens or 0)
+
+            labels = {
+                "died": "Hen mortality",
+                "sold": "Hens sold",
+                "added": "Hens added",
+            }
+            delta = hen_value if change_type == "added" else -hen_value
+            active_hens = base_hens + delta
+
+            if active_hens < 0:
+                messages.error(
+                    request,
+                    f"This adjustment would make active hens negative. Current effective count is {base_hens}.",
+                )
+                return redirect("active_hens_history")
+
+            if active_hens == 0:
+                messages.error(
+                    request,
+                    "This would reduce active hens to zero. For now, set/close the Layer flock status before recording zero laying hens.",
+                )
+                return redirect("active_hens_history")
+
+            sign = "+" if delta > 0 else "-"
+            audit_note = f"{labels[change_type]}: {sign}{hen_value} hen{'s' if hen_value != 1 else ''}."
+            if user_notes:
+                audit_note = f"{audit_note} {user_notes}"
+
+            success_text = (
+                f"{labels[change_type]} recorded: {base_hens} → {active_hens} active hens "
+                f"from {effective_date:%d %b %Y}."
+            )
+
+        if active_hens > int(batch.bird_count_initial or 0):
+            messages.error(
+                request,
+                "Active hens cannot exceed the batch starting bird count.",
+            )
+            return redirect("active_hens_history")
+
+        # Preserve prior same-day notes when another adjustment is made later
+        # on the same date.
+        if existing and change_type != "set" and existing.notes:
+            audit_note = f"{existing.notes} | {audit_note}"
 
         entry = LayerHenCountHistory(
             batch=batch,
             effective_date=effective_date,
             active_hens=active_hens,
-            notes=(request.POST.get("notes") or "").strip(),
+            notes=audit_note,
             recorded_by=request.user,
         )
         try:
@@ -435,13 +659,9 @@ def active_hens_history(request):
             messages.error(request, "; ".join(error.messages))
             return redirect("active_hens_history")
 
-        existing = LayerHenCountHistory.objects.filter(
-            batch=batch,
-            effective_date=effective_date,
-        ).first()
         if existing:
             existing.active_hens = active_hens
-            existing.notes = entry.notes
+            existing.notes = audit_note
             existing.recorded_by = request.user
             try:
                 existing.full_clean()
@@ -449,15 +669,10 @@ def active_hens_history(request):
             except ValidationError as error:
                 messages.error(request, "; ".join(error.messages))
                 return redirect("active_hens_history")
-            action = "updated"
         else:
             entry.save()
-            action = "recorded"
 
-        messages.success(
-            request,
-            f"Active hens {action}: {active_hens} hens from {effective_date:%d %b %Y}.",
-        )
+        messages.success(request, success_text)
         return redirect("active_hens_history")
 
     history_rows = list(

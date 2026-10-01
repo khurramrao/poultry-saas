@@ -17,7 +17,7 @@
         <div class="mode-grid">
             <div class="mode-option"><input id="mode-manual" type="radio" name="automation_type" value="manual" {% if relay.automation_type == 'manual' %}checked{% endif %}><label for="mode-manual"><span class="mode-title">Manual Only</span><span class="mode-help">Relay changes only when Admin presses ON or OFF.</span></label></div>
             <div class="mode-option"><input id="mode-daily" type="radio" name="automation_type" value="daily" {% if relay.automation_type == 'daily' %}checked{% endif %}><label for="mode-daily"><span class="mode-title">Daily ON/OFF Schedule</span><span class="mode-help">Turn ON at one time and OFF at another every day.</span></label></div>
-            <div class="mode-option"><input id="mode-sensor" type="radio" name="automation_type" value="sensor_schedule" {% if relay.automation_type == 'sensor_schedule' %}checked{% endif %}><label for="mode-sensor"><span class="mode-title">Sensor + Schedule</span><span class="mode-help">Use the shed light sensor inside a fixed daily time window.</span></label></div>
+            <div class="mode-option"><input id="mode-sensor" type="radio" name="automation_type" value="sensor_schedule" {% if relay.automation_type == 'sensor_schedule' %}checked{% endif %}><label for="mode-sensor"><span class="mode-title">{% if relay.load_type == "motor" %}Temperature + Schedule{% else %}Sensor + Schedule{% endif %}</span><span class="mode-help">{% if relay.load_type == "motor" %}Use the shed temperature sensor in °C inside a fixed daily time window.{% else %}Use the shed light sensor inside a fixed daily time window.{% endif %}</span></label></div>
             <div class="mode-option"><input id="mode-repeat" type="radio" name="automation_type" value="repeating" {% if relay.automation_type == 'repeating' %}checked{% endif %}><label for="mode-repeat"><span class="mode-title">Repeating Cycle</span><span class="mode-help">Example: exhaust fan every 4 hours for 30 minutes.</span></label></div>
         </div>
 
@@ -32,13 +32,33 @@
         </div>
 
         <div id="sensor_schedule-settings" class="settings-box">
+            <input type="hidden" name="sensor_kind" value="{% if relay.load_type == 'motor' %}temperature{% else %}light{% endif %}">
             <div class="settings-grid">
-                <div class="field"><label>Automation starts</label><input type="time" name="sensor_schedule_start" value="{% if relay.schedule_start_time %}{{ relay.schedule_start_time|time:'H:i' }}{% endif %}"><small>Example: 5:00 PM.</small></div>
-                <div class="field"><label>Force OFF at</label><input type="time" name="sensor_schedule_end" value="{% if relay.schedule_end_time %}{{ relay.schedule_end_time|time:'H:i' }}{% endif %}"><small>Example: 10:00 PM. An earlier manual ON cannot pass this cutoff.</small></div>
+                <div class="field"><label>Automation starts</label><input type="time" name="sensor_schedule_start" value="{% if relay.schedule_start_time %}{{ relay.schedule_start_time|time:'H:i' }}{% endif %}"><small>Choose when automatic sensor control starts.</small></div>
+                <div class="field"><label>Force OFF at</label><input type="time" name="sensor_schedule_end" value="{% if relay.schedule_end_time %}{{ relay.schedule_end_time|time:'H:i' }}{% endif %}"><small>An earlier manual ON cannot pass this cutoff.</small></div>
+
+                {% if relay.load_type == "motor" %}
+                <div class="field">
+                    <label>Turn FAN ON at / above (°C)</label>
+                    <input type="number" min="0" max="60" step="1" name="sensor_on_threshold" value="{{ relay.sensor_on_threshold }}">
+                    <small>Example: 30°C. Uses the same Celsius temperature shown on the dashboard.</small>
+                </div>
+                <div class="field">
+                    <label>Turn FAN OFF at / below (°C)</label>
+                    <input type="number" min="0" max="60" step="1" name="sensor_off_threshold" value="{{ relay.sensor_off_threshold }}">
+                    <small>Keep this lower than ON, for example ON 30°C / OFF 27°C.</small>
+                </div>
+                {% else %}
                 <div class="field"><label>Turn ON at / below (%)</label><input type="number" min="0" max="100" name="sensor_on_threshold" value="{{ relay.sensor_on_threshold }}"></div>
                 <div class="field"><label>Turn OFF at / above (%)</label><input type="number" min="0" max="100" name="sensor_off_threshold" value="{{ relay.sensor_off_threshold }}"><small>Keep this higher than the ON threshold (for example 60% / 70%) to stop relay chatter.</small></div>
+                {% endif %}
             </div>
-            <div class="rule-preview"><strong>Example:</strong> between 5 PM and 10 PM, light ≤ 60% → ON; light ≥ 70% → OFF. At 10 PM → forced OFF. If power returns at 10:30 PM, the requested state remains OFF.</div>
+
+            {% if relay.load_type == "motor" %}
+            <div class="rule-preview"><strong>Celsius example:</strong> during the selected window, temperature ≥ 30°C → FAN ON; temperature ≤ 27°C → FAN OFF. Between 27°C and 30°C the current state is held to prevent rapid switching.</div>
+            {% else %}
+            <div class="rule-preview"><strong>Example:</strong> between 5 PM and 10 PM, light ≤ 60% → ON; light ≥ 70% → OFF. At 10 PM → forced OFF.</div>
+            {% endif %}
         </div>
 
         <div id="repeating-settings" class="settings-box">

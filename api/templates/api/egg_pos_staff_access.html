@@ -1,0 +1,32 @@
+{% extends "api/egg_pos_base.html" %}
+{% block egg_pos_content %}
+<section class="ep-panel"><div class="ep-panel-head">Egg POS Staff Access</div><div class="ep-panel-body"><div class="ep-message">Sales staff are sent directly to Egg POS after login. Selecting <strong>Can Sell</strong> or <strong>Can Manage</strong> automatically enables <strong>Active</strong>. To remove Egg POS access, clear all three boxes and Save.</div></div><div class="ep-table-wrap"><table class="ep-table"><thead><tr><th>User</th><th>Current</th><th>Update Access</th></tr></thead><tbody>{% for row in rows %}<tr><td><strong>{{ row.user.username }}</strong>{% if row.user.get_full_name %}<br><small>{{ row.user.get_full_name }}</small>{% endif %}</td><td>{% if row.user.is_superuser or row.user.is_staff %}<span class="ep-pill green">Admin / Staff</span>{% elif row.access and row.access.is_active %}<span class="ep-pill">{% if row.access.can_manage %}Manager{% elif row.access.can_sell %}Sales{% else %}No permissions{% endif %}</span>{% else %}<span class="ep-pill orange">No Access</span>{% endif %}</td><td>{% if not row.user.is_superuser and not row.user.is_staff %}<form method="post" class="egg-pos-access-form" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">{% csrf_token %}<input type="hidden" name="user" value="{{ row.user.id }}"><label><input class="access-active" type="checkbox" name="is_active" {% if row.access and row.access.is_active %}checked{% endif %}> Active</label><label><input class="access-permission" type="checkbox" name="can_sell" {% if row.access and row.access.can_sell %}checked{% endif %}> Can Sell</label><label><input class="access-permission" type="checkbox" name="can_manage" {% if row.access and row.access.can_manage %}checked{% endif %}> Can Manage</label><button class="ep-btn blue">Save</button></form>{% else %}Full access from Django staff/admin role.{% endif %}</td></tr>{% endfor %}</tbody></table></div></section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    document.querySelectorAll(".egg-pos-access-form").forEach(function (form) {
+        const active = form.querySelector(".access-active");
+        const permissions = form.querySelectorAll(".access-permission");
+
+        permissions.forEach(function (box) {
+            box.addEventListener("change", function () {
+                if (box.checked && active) {
+                    active.checked = true;
+                }
+            });
+        });
+
+        if (active) {
+            active.addEventListener("change", function () {
+                if (!active.checked) {
+                    permissions.forEach(function (box) {
+                        box.checked = false;
+                    });
+                }
+            });
+        }
+    });
+});
+</script>
+
+{% endblock %}

@@ -1,5 +1,5 @@
 from django.urls import path
-from api.views import sensor, camera, sales, logs, finance_tracker, investor_accounts, eggs, goats, goat_age
+from api.views import sensor, camera, sales, logs, finance_tracker, investor_accounts, eggs, goats, goat_age, egg_pos
 
 
 urlpatterns = [
@@ -64,6 +64,24 @@ path(
     path("eggs/production/add/", eggs.add_egg_production, name="add_egg_production"),
     path("eggs/active-hens/", eggs.active_hens_history, name="active_hens_history"),
     path("eggs/sales/add/", eggs.add_egg_sale, name="add_egg_sale"),
+    path("egg-pos/", egg_pos.dashboard, name="egg_pos_dashboard"),
+    path("egg-pos/inventory/", egg_pos.inventory, name="egg_pos_inventory"),
+    path("egg-pos/products/", egg_pos.products, name="egg_pos_products"),
+    path("egg-pos/suppliers/", egg_pos.suppliers, name="egg_pos_suppliers"),
+    path("egg-pos/purchases/", egg_pos.purchase_list, name="egg_pos_purchase_list"),
+    path("egg-pos/purchases/add/", egg_pos.add_purchase, name="egg_pos_add_purchase"),
+    path("egg-pos/farm-transfer/", egg_pos.farm_transfer, name="egg_pos_farm_transfer"),
+    path("egg-pos/farm-transfer/<int:transfer_id>/", egg_pos.farm_transfer_detail, name="egg_pos_farm_transfer_detail"),
+    path("egg-pos/farm-transfer/<int:transfer_id>/payment/", egg_pos.record_farm_transfer_payment, name="egg_pos_record_farm_transfer_payment"),
+    path("egg-pos/sales/", egg_pos.sales, name="egg_pos_sales"),
+    path("egg-pos/customers/", egg_pos.customers, name="egg_pos_customers"),
+    path("egg-pos/customers/add/", egg_pos.add_customer, name="egg_pos_add_customer"),
+    path("egg-pos/customers/<int:customer_id>/", egg_pos.customer_detail, name="egg_pos_customer_detail"),
+    path("egg-pos/sales/new/", egg_pos.new_sale, name="egg_pos_new_sale"),
+    path("egg-pos/sales/<int:sale_id>/", egg_pos.sale_detail, name="egg_pos_sale_detail"),
+    path("egg-pos/sales/<int:sale_id>/invoice/", egg_pos.sale_invoice, name="egg_pos_sale_invoice"),
+    path("egg-pos/sales/<int:sale_id>/payment/", egg_pos.record_sale_payment, name="egg_pos_record_sale_payment"),
+    path("egg-pos/staff-access/", egg_pos.staff_access, name="egg_pos_staff_access"),
     path("goats/", goats.goat_dashboard, name="goat_dashboard"),
     path("goats/add/", goats.add_goat, name="add_goat"),
     path("goats/<int:goat_id>/", goats.goat_detail, name="goat_detail"),

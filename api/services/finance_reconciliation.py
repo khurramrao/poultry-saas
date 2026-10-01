@@ -273,8 +273,18 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         egg_discount = zero_money
         egg_net_sales = zero_money
         egg_sale_history = []
+        laying_start_date = None
 
         if is_layer_batch:
+            # Automatic accounting cutoff: the first recorded egg-production
+            # date separates flock rearing from ongoing egg operations.
+            laying_start_date = (
+                EggProductionEntry.objects.filter(batch=batch)
+                .order_by("production_date", "id")
+                .values_list("production_date", flat=True)
+                .first()
+            )
+
             egg_production = EggProductionEntry.objects.filter(
                 batch=batch
             ).aggregate(
@@ -422,13 +432,75 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             for entry in medicine_entries
         ]
 
-        total_cogs = money(
+        # -----------------------------------------------------
+        # LAYER PHASE ACCOUNTING
+        # -----------------------------------------------------
+        # Before the first egg-production date, costs build the flock's
+        # rearing / point-of-lay cost. From the first egg date onward, feed,
+        # medicine and batch expenses belong to Egg Operations instead of
+        # continuing to inflate the bird-development cost.
+
+        rearing_feed_cost = feed_cost
+        laying_feed_cost = zero_money
+        rearing_medicine_cost = medicine_cost
+        laying_medicine_cost = zero_money
+        rearing_expense_cost = total_expenses
+        laying_expense_cost = zero_money
+
+        if is_layer_batch and laying_start_date:
+            rearing_feed_cost = money(sum(
+                (money(entry.amount) for entry in feed_entries
+                 if entry.entry_date < laying_start_date),
+                zero_money,
+            ))
+            laying_feed_cost = money(sum(
+                (money(entry.amount) for entry in feed_entries
+                 if entry.entry_date >= laying_start_date),
+                zero_money,
+            ))
+            rearing_medicine_cost = money(sum(
+                (money(entry.amount) for entry in medicine_entries
+                 if entry.entry_date < laying_start_date),
+                zero_money,
+            ))
+            laying_medicine_cost = money(sum(
+                (money(entry.amount) for entry in medicine_entries
+                 if entry.entry_date >= laying_start_date),
+                zero_money,
+            ))
+            rearing_expense_cost = money(
+                expenses.filter(expense_date__lt=laying_start_date)
+                .aggregate(total=Sum("amount"))["total"] or 0
+            )
+            laying_expense_cost = money(
+                expenses.filter(expense_date__gte=laying_start_date)
+                .aggregate(total=Sum("amount"))["total"] or 0
+            )
+
+        point_of_lay_cost = money(
             chick_cost
             + carriage_cost
-            + feed_cost
-            + medicine_cost
-            + total_expenses
+            + rearing_feed_cost
+            + rearing_medicine_cost
+            + rearing_expense_cost
         )
+        laying_operating_cost = money(
+            laying_feed_cost
+            + laying_medicine_cost
+            + laying_expense_cost
+        )
+
+        # Lifetime cost still includes every rupee. The split only changes
+        # where the cost is shown and how bird-sale COGS is carried.
+        total_cogs = money(point_of_lay_cost + laying_operating_cost)
+        bird_cost_basis = point_of_lay_cost if is_layer_batch else total_cogs
+
+        egg_operating_profit = money(egg_net_sales - laying_operating_cost)
+        egg_cost_coverage_percent = None
+        if laying_operating_cost > 0:
+            egg_cost_coverage_percent = (
+                egg_net_sales / laying_operating_cost * Decimal("100")
+            ).quantize(percent_unit)
 
         # -----------------------------------------------------
         # LAYER FINANCIAL POSITION TO DATE
@@ -467,7 +539,7 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         # "All Birds Sold", no live inventory remains and every recorded batch
         # cost is realized at batch level without rewriting historical sales.
         batch_locked_cogs_total = (
-            total_cogs if all_birds_sold else historical_sale_locked_cogs
+            bird_cost_basis if all_birds_sold else historical_sale_locked_cogs
         )
         batch_realized_expenses = zero_money
 
@@ -490,7 +562,7 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         remaining_cogs = (
             zero_money
             if all_birds_sold
-            else max(total_cogs - historical_sale_locked_cogs, zero_money)
+            else max(bird_cost_basis - historical_sale_locked_cogs, zero_money)
         )
 
         # Current cost carried by each live bird.
@@ -514,7 +586,7 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         is_final = is_closed or all_birds_sold
         final_profit = layer_profit_to_date
         final_roi = layer_roi_to_date
-        closing_cost_difference = money(total_cogs - historical_sale_locked_cogs)
+        closing_cost_difference = money(bird_cost_basis - historical_sale_locked_cogs)
         closing_cost_adjustment = closing_cost_difference if current_birds == 0 else zero_money
         remaining_live_inventory_cost = closing_cost_difference if current_birds > 0 else zero_money
         reconciliation_warnings = []
@@ -524,10 +596,10 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             reconciliation_warnings.append("This batch is closed but still has recorded live birds. Confirm their disposal or transfer before treating the result as a fully settled closure.")
         if is_final and egg_stock > 0:
             reconciliation_warnings.append("Unsold eggs remain in stock. Their value is not separately capitalized in this report.")
-        if historical_sale_locked_cogs > total_cogs:
-            reconciliation_warnings.append("Locked sale COGS exceed all currently recorded batch costs. Review historical sale snapshots and cost entries.")
+        if historical_sale_locked_cogs > bird_cost_basis:
+            reconciliation_warnings.append("Locked bird-sale COGS exceed the current bird cost basis. Review historical sale snapshots and rearing cost entries.")
         if is_final and abs(closing_cost_difference) >= money_unit:
-            reconciliation_warnings.append("Recorded COGS and historical sale-locked COGS differ. The final result includes all recorded costs without modifying saved sale snapshots.")
+            reconciliation_warnings.append("Bird cost basis and historical sale-locked COGS differ. Final overall profit still includes all lifetime costs without modifying saved sale snapshots.")
         if pending_cogs_sales and not all_birds_sold:
             reconciliation_warnings.append("One or more bird sales have pending COGS because their bird quantity was not known or the flock count was already uncertain. Use All Birds Sold when physical stock reaches zero to realize the remaining COGS and final profit.")
 
@@ -642,6 +714,12 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                 "feed_cost": feed_cost,
                 "medicine_cost": medicine_cost,
                 "expense_share": total_expenses,
+                "point_of_lay_cost": point_of_lay_cost,
+                "laying_feed_cost": laying_feed_cost,
+                "laying_medicine_cost": laying_medicine_cost,
+                "laying_expense_cost": laying_expense_cost,
+                "laying_operating_cost": laying_operating_cost,
+                "bird_cost_basis": bird_cost_basis,
             }.items()
         }
 
@@ -834,12 +912,21 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             owner["historical_locked_cogs"] = money(sum((h["locked_cogs"] for h in owner["sale_history"] if h["cogs_locked"]), zero_money))
             owner["realized_sale_revenue"] = money(sum((h["net_revenue"] for h in owner["sale_history"] if h["cogs_locked"]), zero_money))
             owner["pending_sale_revenue"] = money(owner["revenue"] - owner["realized_sale_revenue"])
-            owner["locked_cogs"] = owner["recorded_cogs"] if all_birds_sold else owner["historical_locked_cogs"]
+            owner["locked_cogs"] = owner["bird_cost_basis"] if all_birds_sold else owner["historical_locked_cogs"]
             owner["egg_gross_revenue"] = money(sum((h["gross_revenue"] for h in owner["egg_sale_history"]), zero_money))
             owner["egg_discount_share"] = money(sum((h["discount"] for h in owner["egg_sale_history"]), zero_money))
             owner["egg_revenue"] = money(sum((h["net_revenue"] for h in owner["egg_sale_history"]), zero_money))
             owner["total_revenue"] = money(owner["revenue"] + owner["egg_revenue"])
-            owner["remaining_cogs"] = zero_money if all_birds_sold else max(owner["recorded_cogs"] - owner["historical_locked_cogs"], zero_money)
+            owner["egg_operating_profit"] = money(
+                owner["egg_revenue"] - owner["laying_operating_cost"]
+            )
+            owner["egg_cost_coverage_percent"] = None
+            if owner["laying_operating_cost"] > 0:
+                owner["egg_cost_coverage_percent"] = (
+                    owner["egg_revenue"] / owner["laying_operating_cost"]
+                    * Decimal("100")
+                ).quantize(percent_unit)
+            owner["remaining_cogs"] = zero_money if all_birds_sold else max(owner["bird_cost_basis"] - owner["historical_locked_cogs"], zero_money)
             owner["cost_per_live_bird"] = money(owner["remaining_cogs"] / Decimal(owner["current_birds"])) if owner["current_birds"] > 0 else zero_money
             owner["net_income"] = money(
                 (owner["revenue"] if all_birds_sold else owner["realized_sale_revenue"])
@@ -851,8 +938,8 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             owner["layer_roi_to_date"] = (owner["layer_profit_to_date"] / owner["recorded_cogs"] * Decimal("100")).quantize(percent_unit) if owner["recorded_cogs"] > 0 else Decimal("0.0")
             owner["final_profit"] = owner["layer_profit_to_date"]
             owner["final_roi"] = owner["layer_roi_to_date"]
-            owner["closing_cost_adjustment"] = money(owner["recorded_cogs"] - owner["locked_cogs"]) if current_birds == 0 else zero_money
-            owner["remaining_live_inventory_cost"] = money(owner["recorded_cogs"] - owner["locked_cogs"]) if current_birds > 0 else zero_money
+            owner["closing_cost_adjustment"] = money(owner["bird_cost_basis"] - owner["locked_cogs"]) if current_birds == 0 else zero_money
+            owner["remaining_live_inventory_cost"] = money(owner["bird_cost_basis"] - owner["locked_cogs"]) if current_birds > 0 else zero_money
 
         # Investor login sees only that investor's ownership row. Admin sees all.
         if is_admin:
@@ -950,6 +1037,18 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             "egg_gross_sales_revenue": egg_gross_sales_revenue,
             "egg_discount": egg_discount,
             "egg_net_sales": egg_net_sales,
+            "laying_start_date": laying_start_date,
+            "point_of_lay_cost": point_of_lay_cost,
+            "rearing_feed_cost": rearing_feed_cost,
+            "rearing_medicine_cost": rearing_medicine_cost,
+            "rearing_expense_cost": rearing_expense_cost,
+            "laying_feed_cost": laying_feed_cost,
+            "laying_medicine_cost": laying_medicine_cost,
+            "laying_expense_cost": laying_expense_cost,
+            "laying_operating_cost": laying_operating_cost,
+            "egg_operating_profit": egg_operating_profit,
+            "egg_cost_coverage_percent": egg_cost_coverage_percent,
+            "bird_cost_basis": bird_cost_basis,
             "total_batch_revenue": total_batch_revenue,
             "layer_profit_to_date": layer_profit_to_date,
             "layer_roi_to_date": layer_roi_to_date,

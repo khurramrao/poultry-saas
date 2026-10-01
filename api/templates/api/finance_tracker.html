@@ -354,10 +354,9 @@
         margin-bottom:16px;
     }
 
-    /* Layer batches intentionally omit the separate Bird Sale ROI card.
-       Four bird-sale figures stay balanced in one row on desktop. */
+    /* Layer batches separate frozen rearing cost from ongoing egg-operation cost. */
     .batch-money-grid.layer-bird-money-grid{
-        grid-template-columns:repeat(4,minmax(0,1fr));
+        grid-template-columns:repeat(5,minmax(0,1fr));
     }
 
     .mini-stat,
@@ -467,7 +466,7 @@
 
     .layer-finance-grid{
         display:grid;
-        grid-template-columns:repeat(6,minmax(0,1fr));
+        grid-template-columns:repeat(auto-fit,minmax(145px,1fr));
         gap:8px;
     }
 
@@ -1348,11 +1347,17 @@
                         </strong>
                     </div>
                     <div class="mini-stat cost-per-live-bird-stat">
-                        <span>Cost / Live Bird</span>
-                        <strong>
-                            Rs {% if is_admin %}{{ row.cost_per_live_bird|floatformat:2|intcomma }}{% else %}{{ row.current_user_owner.cost_per_live_bird|floatformat:2|intcomma }}{% endif %}
-                        </strong>
-                        <small>Remaining COGS ÷ current birds</small>
+                        {% if row.is_layer_batch %}
+                            <span>Point-of-Lay Cost</span>
+                            <strong>Rs {% if is_admin %}{{ row.point_of_lay_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.point_of_lay_cost|floatformat:0|intcomma }}{% endif %}</strong>
+                            <small>{% if row.laying_start_date %}Frozen {{ row.laying_start_date|date:"M d, Y" }} · first egg entry{% else %}Rearing phase · freezes at first egg entry{% endif %}</small>
+                        {% else %}
+                            <span>Cost / Live Bird</span>
+                            <strong>
+                                Rs {% if is_admin %}{{ row.cost_per_live_bird|floatformat:2|intcomma }}{% else %}{{ row.current_user_owner.cost_per_live_bird|floatformat:2|intcomma }}{% endif %}
+                            </strong>
+                            <small>Remaining COGS ÷ current birds</small>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -1360,8 +1365,8 @@
                     <div class="weight-reconcile-panel{% if row.all_birds_sold %} done{% endif %}">
                         <div class="weight-reconcile-copy">
                             {% if row.all_birds_sold %}
-                                <strong><i class="fa-solid fa-circle-check"></i> ALL BIRDS SOLD - COGS FULLY REALIZED</strong>
-                                <span>{{ row.reconciled_weight_only_birds|intcomma }} previously uncounted birds reconciled to weight-only sales. Physical/current birds = 0. The batch is still {{ row.status_display }} until you close it.</span>
+                                <strong><i class="fa-solid fa-circle-check"></i> ALL BIRDS SOLD - BIRD COST BASIS FULLY REALIZED</strong>
+                                <span>{{ row.reconciled_weight_only_birds|intcomma }} previously uncounted birds reconciled to weight-only sales. Physical/current birds = 0.{% if row.is_layer_batch %} Laying/egg-operation costs remain separate from bird COGS.{% endif %} The batch is still {{ row.status_display }} until you close it.</span>
                             {% else %}
                                 <strong><i class="fa-solid fa-scale-balanced"></i> WEIGHT-ONLY SALES NEED FINAL BIRD RECONCILIATION</strong>
                                 <span>{{ row.weight_only_sale_count }} weight-only sale{{ row.weight_only_sale_count|pluralize }} · {{ row.weight_only_sale_weight|floatformat:2|intcomma }} KG · Rs {{ row.weight_only_sales_revenue|floatformat:0|intcomma }} revenue. Bird quantity and part of COGS/profit are still pending.</span>
@@ -1374,7 +1379,7 @@
                                         {% csrf_token %}<button class="weight-reconcile-btn undo" type="submit"><i class="fa-solid fa-rotate-left"></i> Undo Reconciliation</button>
                                     </form>
                                 {% else %}
-                                    <form method="post" action="{% url 'mark_all_birds_sold' row.batch.id %}" onsubmit="return confirm('Confirm that PHYSICAL BIRDS REMAINING = 0? This will reconcile the remaining {{ row.current_birds }} system-recorded birds as sold through weight-only sales and realize all recorded COGS for final profit/ROI. The batch will remain Active until you close it.');">
+                                    <form method="post" action="{% url 'mark_all_birds_sold' row.batch.id %}" onsubmit="return confirm('Confirm that PHYSICAL BIRDS REMAINING = 0? This will reconcile the remaining {{ row.current_birds }} system-recorded birds as sold through weight-only sales and realize the remaining bird cost basis. The batch will remain Active until you close it.');">
                                         {% csrf_token %}<button class="weight-reconcile-btn" type="submit"><i class="fa-solid fa-check-double"></i> ALL BIRDS SOLD</button>
                                     </form>
                                 {% endif %}
@@ -1386,36 +1391,42 @@
                 <div class="batch-money-grid{% if row.is_layer_batch %} layer-bird-money-grid{% endif %}">
                     <div class="money-stat">
                         <span>{% if row.is_layer_batch %}Net Bird Sales{% else %}Net Sales{% endif %}</span>
-                        <strong>
-                            Rs {% if is_admin %}{{ row.total_sales_revenue|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.revenue|floatformat:0|intcomma }}{% endif %}
-                        </strong>
+                        <strong>Rs {% if is_admin %}{{ row.total_sales_revenue|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.revenue|floatformat:0|intcomma }}{% endif %}</strong>
                     </div>
-                    <div class="money-stat">
-                        <span>{% if row.all_birds_sold %}Final Realized COGS{% elif row.pending_cogs_sale_count %}Locked COGS (Reconciled Sales){% else %}Realized COGS{% endif %}</span>
-                        <strong>
-                            Rs {% if is_admin %}{{ row.batch_locked_cogs_total|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.locked_cogs|floatformat:0|intcomma }}{% endif %}
-                        </strong>
-                    </div>
-                    <div class="money-stat">
-                        <span>Total COGS to Date</span>
-                        <strong>
-                            Rs {% if is_admin %}{{ row.total_cogs|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.recorded_cogs|floatformat:0|intcomma }}{% endif %}
-                        </strong>
-                    </div>
-                    <div class="money-stat net">
-                        <span>{% if row.all_birds_sold %}Final Bird Profit{% else %}Realized Bird Profit{% endif %}</span>
-                        {% if is_admin %}
-                            <strong class="{% if row.batch_net_income < 0 %}money-negative{% endif %}">Rs {{ row.batch_net_income|floatformat:0|intcomma }}</strong>
-                        {% else %}
-                            <strong class="{% if row.current_user_owner.net_income < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.net_income|floatformat:0|intcomma }}</strong>
-                        {% endif %}
-                    </div>
-                    {% if not row.is_layer_batch %}
+
+                    {% if row.is_layer_batch %}
+                        <div class="money-stat">
+                            <span>{% if row.all_birds_sold %}Final Bird COGS{% elif row.pending_cogs_sale_count %}Locked Bird COGS{% else %}Realized Bird COGS{% endif %}</span>
+                            <strong>Rs {% if is_admin %}{{ row.batch_locked_cogs_total|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.locked_cogs|floatformat:0|intcomma }}{% endif %}</strong>
+                        </div>
+                        <div class="money-stat">
+                            <span>Point-of-Lay Cost</span>
+                            <strong>Rs {% if is_admin %}{{ row.point_of_lay_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.point_of_lay_cost|floatformat:0|intcomma }}{% endif %}</strong>
+                        </div>
+                        <div class="money-stat">
+                            <span>Laying Cost to Date</span>
+                            <strong>Rs {% if is_admin %}{{ row.laying_operating_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.laying_operating_cost|floatformat:0|intcomma }}{% endif %}</strong>
+                        </div>
+                        <div class="money-stat net">
+                            <span>{% if row.all_birds_sold %}Final Bird Profit{% else %}Realized Bird Profit{% endif %}</span>
+                            {% if is_admin %}<strong class="{% if row.batch_net_income < 0 %}money-negative{% endif %}">Rs {{ row.batch_net_income|floatformat:0|intcomma }}</strong>{% else %}<strong class="{% if row.current_user_owner.net_income < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.net_income|floatformat:0|intcomma }}</strong>{% endif %}
+                        </div>
+                    {% else %}
+                        <div class="money-stat">
+                            <span>{% if row.all_birds_sold %}Final Realized COGS{% elif row.pending_cogs_sale_count %}Locked COGS (Reconciled Sales){% else %}Realized COGS{% endif %}</span>
+                            <strong>Rs {% if is_admin %}{{ row.batch_locked_cogs_total|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.locked_cogs|floatformat:0|intcomma }}{% endif %}</strong>
+                        </div>
+                        <div class="money-stat">
+                            <span>Total COGS to Date</span>
+                            <strong>Rs {% if is_admin %}{{ row.total_cogs|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.recorded_cogs|floatformat:0|intcomma }}{% endif %}</strong>
+                        </div>
+                        <div class="money-stat net">
+                            <span>{% if row.all_birds_sold %}Final Bird Profit{% else %}Realized Bird Profit{% endif %}</span>
+                            {% if is_admin %}<strong class="{% if row.batch_net_income < 0 %}money-negative{% endif %}">Rs {{ row.batch_net_income|floatformat:0|intcomma }}</strong>{% else %}<strong class="{% if row.current_user_owner.net_income < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.net_income|floatformat:0|intcomma }}</strong>{% endif %}
+                        </div>
                         <div class="money-stat roi">
                             <span>Bird Sale ROI</span>
-                            <strong>
-                                {% if is_admin %}{{ row.batch_roi|floatformat:1 }}{% else %}{{ row.current_user_owner.roi|floatformat:1 }}{% endif %}%
-                            </strong>
+                            <strong>{% if is_admin %}{{ row.batch_roi|floatformat:1 }}{% else %}{{ row.current_user_owner.roi|floatformat:1 }}{% endif %}%</strong>
                         </div>
                     {% endif %}
                 </div>
@@ -1439,46 +1450,24 @@
                 {% if row.is_layer_batch %}
                     <section class="layer-finance-panel">
                         <div class="layer-finance-head">
-                            <div class="layer-finance-title">
-                                <i class="fa-solid fa-egg"></i>
-                                Layer Finance Position
-                            </div>
+                            <div class="layer-finance-title"><i class="fa-solid fa-egg"></i> Layer Finance Position</div>
                             <div class="layer-finance-note">
-                                Overall layer result uses bird revenue + egg revenue against all recorded batch COGS to date.
-                            </div>
-                        </div>
-
-                        <div class="layer-finance-grid">
-                            <div class="layer-stat">
-                                <span>Egg Net Sales</span>
-                                <strong>Rs {% if is_admin %}{{ row.egg_net_sales|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.egg_revenue|floatformat:0|intcomma }}{% endif %}</strong>
-                            </div>
-                            <div class="layer-stat">
-                                <span>Total Revenue</span>
-                                <strong>Rs {% if is_admin %}{{ row.total_batch_revenue|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.total_revenue|floatformat:0|intcomma }}{% endif %}</strong>
-                            </div>
-                            <div class="layer-stat">
-                                <span>Total COGS to Date</span>
-                                <strong>Rs {% if is_admin %}{{ row.total_cogs|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.recorded_cogs|floatformat:0|intcomma }}{% endif %}</strong>
-                            </div>
-                            <div class="layer-stat profit">
-                                <span>Profit / Loss to Date</span>
-                                {% if is_admin %}
-                                    <strong class="{% if row.layer_profit_to_date < 0 %}money-negative{% endif %}">Rs {{ row.layer_profit_to_date|floatformat:0|intcomma }}</strong>
+                                {% if row.laying_start_date %}
+                                    Rearing cost froze on {{ row.laying_start_date|date:"M d, Y" }} (first egg entry). Feed, medicine and expenses from that date forward are Egg Operations.
                                 {% else %}
-                                    <strong class="{% if row.current_user_owner.layer_profit_to_date < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.layer_profit_to_date|floatformat:0|intcomma }}</strong>
+                                    Rearing phase is still open. Point-of-lay cost will freeze automatically on the first egg-production date.
                                 {% endif %}
                             </div>
-                            <div class="layer-stat roi">
-                                <span>Overall Layer ROI</span>
-                                <strong class="{% if is_admin %}{% if row.layer_roi_to_date < 0 %}money-negative{% endif %}{% else %}{% if row.current_user_owner.layer_roi_to_date < 0 %}money-negative{% endif %}{% endif %}">
-                                    {% if is_admin %}{{ row.layer_roi_to_date|floatformat:1 }}{% else %}{{ row.current_user_owner.layer_roi_to_date|floatformat:1 }}{% endif %}%
-                                </strong>
-                            </div>
-                            <div class="layer-stat stock">
-                                <span>Egg Stock</span>
-                                <strong>{{ row.egg_stock|intcomma }}</strong>
-                            </div>
+                        </div>
+                        <div class="layer-finance-grid">
+                            <div class="layer-stat"><span>Point-of-Lay Cost</span><strong>Rs {% if is_admin %}{{ row.point_of_lay_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.point_of_lay_cost|floatformat:0|intcomma }}{% endif %}</strong></div>
+                            <div class="layer-stat"><span>Egg Net Sales</span><strong>Rs {% if is_admin %}{{ row.egg_net_sales|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.egg_revenue|floatformat:0|intcomma }}{% endif %}</strong></div>
+                            <div class="layer-stat"><span>Laying Costs</span><strong>Rs {% if is_admin %}{{ row.laying_operating_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.laying_operating_cost|floatformat:0|intcomma }}{% endif %}</strong></div>
+                            <div class="layer-stat profit"><span>Egg Operations P/L</span>{% if is_admin %}<strong class="{% if row.egg_operating_profit < 0 %}money-negative{% endif %}">Rs {{ row.egg_operating_profit|floatformat:0|intcomma }}</strong>{% else %}<strong class="{% if row.current_user_owner.egg_operating_profit < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.egg_operating_profit|floatformat:0|intcomma }}</strong>{% endif %}</div>
+                            <div class="layer-stat"><span>Total Revenue</span><strong>Rs {% if is_admin %}{{ row.total_batch_revenue|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.total_revenue|floatformat:0|intcomma }}{% endif %}</strong></div>
+                            <div class="layer-stat profit"><span>Overall Batch P/L</span>{% if is_admin %}<strong class="{% if row.layer_profit_to_date < 0 %}money-negative{% endif %}">Rs {{ row.layer_profit_to_date|floatformat:0|intcomma }}</strong>{% else %}<strong class="{% if row.current_user_owner.layer_profit_to_date < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.layer_profit_to_date|floatformat:0|intcomma }}</strong>{% endif %}</div>
+                            <div class="layer-stat roi"><span>Overall Layer ROI</span><strong class="{% if is_admin %}{% if row.layer_roi_to_date < 0 %}money-negative{% endif %}{% else %}{% if row.current_user_owner.layer_roi_to_date < 0 %}money-negative{% endif %}{% endif %}">{% if is_admin %}{{ row.layer_roi_to_date|floatformat:1 }}{% else %}{{ row.current_user_owner.layer_roi_to_date|floatformat:1 }}{% endif %}%</strong></div>
+                            <div class="layer-stat stock"><span>Egg Stock</span><strong>{{ row.egg_stock|intcomma }}</strong></div>
                         </div>
                     </section>
                 {% endif %}
@@ -1670,19 +1659,22 @@
                                     </div>
                                 </details>
 
-                                <div class="detail-row total"><span>Total Recorded COGS Share</span><strong>Rs {{ owner.recorded_cogs|floatformat:0|intcomma }}</strong></div>
-                                <div class="detail-row"><span>Realized COGS</span><strong>Rs {{ owner.locked_cogs|floatformat:0|intcomma }}</strong></div>
-                                <div class="detail-row"><span>COGS Remaining in Live Birds</span><strong>Rs {{ owner.remaining_cogs|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row total"><span>{% if row.is_layer_batch %}Total Lifetime Cost Share{% else %}Total Recorded COGS Share{% endif %}</span><strong>Rs {{ owner.recorded_cogs|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>{% if row.is_layer_batch %}Realized Bird COGS{% else %}Realized COGS{% endif %}</span><strong>Rs {{ owner.locked_cogs|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>{% if row.is_layer_batch %}Rearing Cost Remaining in Birds{% else %}COGS Remaining in Live Birds{% endif %}</span><strong>Rs {{ owner.remaining_cogs|floatformat:0|intcomma }}</strong></div>
                                 <div class="detail-row"><span>{% if row.is_layer_batch %}Net Bird Sales Revenue{% else %}Net Sales Revenue{% endif %}</span><strong>Rs {{ owner.revenue|floatformat:0|intcomma }}</strong></div>
                                 {% if owner.pending_sale_revenue > 0 and not row.all_birds_sold %}<div class="detail-row"><span>Revenue Awaiting COGS Reconciliation</span><strong class="pending-text">Rs {{ owner.pending_sale_revenue|floatformat:0|intcomma }}</strong></div>{% endif %}
                                 <div class="detail-row"><span>Bird Sale Discount Share</span><strong>Rs {{ owner.discount_share|floatformat:0|intcomma }}</strong></div>
                                 <div class="detail-row total"><span>Realized Bird Profit</span><strong class="{% if owner.net_income < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.net_income|floatformat:0|intcomma }}</strong></div>
 
                                 {% if row.is_layer_batch %}
+                                    <div class="detail-row"><span>Point-of-Lay Cost Share</span><strong>Rs {{ owner.point_of_lay_cost|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Egg Net Sales Share</span><strong>Rs {{ owner.egg_revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Laying Operating Cost Share</span><strong>Rs {{ owner.laying_operating_cost|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Egg Operations Profit / Loss</span><strong class="{% if owner.egg_operating_profit < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.egg_operating_profit|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Egg Discount Share</span><strong>Rs {{ owner.egg_discount_share|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row total"><span>Total Revenue Share</span><strong>Rs {{ owner.total_revenue|floatformat:0|intcomma }}</strong></div>
-                                    <div class="detail-row total"><span>Layer Profit / Loss to Date</span><strong class="{% if owner.layer_profit_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.layer_profit_to_date|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Overall Layer Profit / Loss</span><strong class="{% if owner.layer_profit_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.layer_profit_to_date|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Overall Layer ROI</span><strong class="{% if owner.layer_roi_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">{{ owner.layer_roi_to_date|floatformat:1 }}%</strong></div>
                                 {% endif %}
 
@@ -1873,9 +1865,9 @@
                                         {% endfor %}
                                     </div>
                                 </details>
-                                <div class="detail-row total"><span>Total Recorded COGS</span><strong>Rs {{ row.total_cogs|floatformat:0|intcomma }}</strong></div>
-                                <div class="detail-row"><span>Realized / Locked COGS</span><strong>Rs {{ row.batch_locked_cogs_total|floatformat:0|intcomma }}</strong></div>
-                                <div class="detail-row"><span>COGS Remaining</span><strong>Rs {{ row.remaining_cogs|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row total"><span>{% if row.is_layer_batch %}Total Lifetime Cost{% else %}Total Recorded COGS{% endif %}</span><strong>Rs {{ row.total_cogs|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>{% if row.is_layer_batch %}Realized / Locked Bird COGS{% else %}Realized / Locked COGS{% endif %}</span><strong>Rs {{ row.batch_locked_cogs_total|floatformat:0|intcomma }}</strong></div>
+                                <div class="detail-row"><span>{% if row.is_layer_batch %}Rearing Cost Remaining{% else %}COGS Remaining{% endif %}</span><strong>Rs {{ row.remaining_cogs|floatformat:0|intcomma }}</strong></div>
                             </div>
                         </details>
 
@@ -1888,6 +1880,12 @@
                                     </span>
                                 </summary>
                                 <div class="detail-body">
+                                    <div class="detail-row"><span>Laying Start</span><strong>{% if row.laying_start_date %}{{ row.laying_start_date|date:"M d, Y" }}{% else %}Not started{% endif %}</strong></div>
+                                    <div class="detail-row total"><span>Point-of-Lay / Rearing Cost</span><strong>Rs {{ row.point_of_lay_cost|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Laying Feed Cost</span><strong>Rs {{ row.laying_feed_cost|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Laying Medicine Cost</span><strong>Rs {{ row.laying_medicine_cost|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Other Laying Costs</span><strong>Rs {{ row.laying_expense_cost|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Total Laying Operating Cost</span><strong>Rs {{ row.laying_operating_cost|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Eggs Collected</span><strong>{{ row.eggs_collected|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Damaged Eggs</span><strong>{{ row.damaged_eggs|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Usable Eggs Produced</span><strong>{{ row.usable_eggs|intcomma }}</strong></div>
@@ -1896,15 +1894,16 @@
                                     <div class="detail-row"><span>Egg Gross Sales</span><strong>Rs {{ row.egg_gross_sales_revenue|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Egg Discounts</span><strong class="money-negative">− Rs {{ row.egg_discount|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row total"><span>Egg Net Sales</span><strong>Rs {{ row.egg_net_sales|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Egg Operations Profit / Loss</span><strong class="{% if row.egg_operating_profit < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ row.egg_operating_profit|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Net Bird Sales</span><strong>Rs {{ row.total_sales_revenue|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row total"><span>Total Layer Revenue</span><strong>Rs {{ row.total_batch_revenue|floatformat:0|intcomma }}</strong></div>
-                                    <div class="detail-row"><span>Total Recorded COGS</span><strong>Rs {{ row.total_cogs|floatformat:0|intcomma }}</strong></div>
-                                    <div class="detail-row total"><span>Layer Profit / Loss to Date</span><strong class="{% if row.layer_profit_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ row.layer_profit_to_date|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Total Lifetime Cost</span><strong>Rs {{ row.total_cogs|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Overall Layer Profit / Loss</span><strong class="{% if row.layer_profit_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ row.layer_profit_to_date|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Overall Layer ROI</span><strong class="{% if row.layer_roi_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">{{ row.layer_roi_to_date|floatformat:1 }}%</strong></div>
 
                                     <div class="profit-formula">
-                                        <strong>Layer formula:</strong>
-                                        Net Bird Sales + Net Egg Sales − Total Recorded COGS = Layer Profit / Loss to Date.
+                                        <strong>Phase accounting:</strong>
+                                        Costs before the first egg-production date build Point-of-Lay Cost. Feed, medicine and expenses on/after that date are Egg Operations. Overall Layer P/L still includes every lifetime cost.
                                     </div>
 
                                     <details class="history-item" style="margin-top:12px;">

@@ -51,9 +51,15 @@
 
         <div class="automation-box">
             {% if relay.automation_type == "sensor_schedule" %}
+                {% if relay.load_type == "motor" %}
+                <div class="automation-line"><span>Temperature rule</span><strong>FAN ON ≥ {{ relay.sensor_on_threshold }}°C · OFF ≤ {{ relay.sensor_off_threshold }}°C</strong></div>
+                <div class="automation-line"><span>Window</span><strong>{{ relay.automation_status.schedule_start_display }} → {{ relay.automation_status.schedule_end_display }}</strong></div>
+                <div class="automation-line"><span>Current temperature</span><strong data-role="sensor" data-sensor-unit="°C">{% if relay.automation_status.sensor_value != None %}{{ relay.automation_status.sensor_value|floatformat:1 }}°C{% else %}No fresh reading{% endif %}</strong></div>
+                {% else %}
                 <div class="automation-line"><span>Light rule</span><strong>ON ≤ {{ relay.sensor_on_threshold }}% · OFF ≥ {{ relay.sensor_off_threshold }}%</strong></div>
                 <div class="automation-line"><span>Window</span><strong>{{ relay.automation_status.schedule_start_display }} → {{ relay.automation_status.schedule_end_display }}</strong></div>
-                <div class="automation-line"><span>Current light</span><strong data-role="sensor">{% if relay.automation_status.sensor_value != None %}{{ relay.automation_status.sensor_value }}%{% else %}No fresh reading{% endif %}</strong></div>
+                <div class="automation-line"><span>Current light</span><strong data-role="sensor" data-sensor-unit="%">{% if relay.automation_status.sensor_value != None %}{{ relay.automation_status.sensor_value }}%{% else %}No fresh reading{% endif %}</strong></div>
+                {% endif %}
             {% elif relay.automation_type == "daily" %}
                 <div class="automation-line"><span>Daily schedule</span><strong>{{ relay.automation_status.schedule_start_display }} → {{ relay.automation_status.schedule_end_display }}</strong></div>
             {% elif relay.automation_type == "repeating" %}
@@ -140,7 +146,17 @@ async function refreshRelayStates(){
             const next=card.querySelector('[data-role="next"]');if(next)next.textContent=relay.next_action;
             const mode=card.querySelector('[data-role="mode"]');if(mode)mode.textContent=relay.automation_label;
             const ov=card.querySelector('[data-role="override"]');if(ov)ov.style.display=relay.override_active?'inline-flex':'none';
-            const sensor=card.querySelector('[data-role="sensor"]');if(sensor)sensor.textContent=relay.sensor_value===null?'No fresh reading':`${relay.sensor_value}%`;
+            const sensor=card.querySelector('[data-role="sensor"]');
+            if(sensor){
+                const unit=sensor.dataset.sensorUnit||'%';
+                if(relay.sensor_value===null){
+                    sensor.textContent='No fresh reading';
+                }else if(unit==='°C'){
+                    sensor.textContent=`${Number(relay.sensor_value).toFixed(1)}°C`;
+                }else{
+                    sensor.textContent=`${relay.sensor_value}%`;
+                }
+            }
         });
     }catch(error){console.debug('Relay status refresh failed',error);}
 }

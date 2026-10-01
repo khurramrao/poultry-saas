@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>{{ sale.sale_number }} | RayNoor Organic Farms</title>
+
+    <style>
+        :root {
+            --brand-green: #173f32;
+            --brand-green-dark: #102f26;
+            --brand-gold: #9d6b17;
+
+            --text: #17324d;
+            --muted: #687d91;
+            --line: #dbe4ec;
+
+            --green: #11813d;
+            --green-light: #eaf8ef;
+
+            --orange: #b86a00;
+            --orange-light: #fff4df;
+
+            --red: #ba3434;
+            --red-light: #fff0f0;
+
+            --blue-light: #eef6fc;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: #f5f8fb;
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .invoice-page {
+            width: min(920px, calc(100% - 24px));
+            margin: 20px auto;
+            padding: 26px 30px 34px;
+
+            background: #ffffff;
+
+            border: 1px solid #e1e8ef;
+            border-radius: 16px;
+        }
+
+        /* =============================
+           ACTIONS
+        ============================= */
+
+        .invoice-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+
+            margin-bottom: 16px;
+        }
+
+        .invoice-action {
+            min-height: 40px;
+
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+
+            padding: 0 15px;
+
+            border: 1px solid #d4dfe8;
+            border-radius: 9px;
+
+            background: #ffffff;
+            color: var(--brand-green);
+
+            text-decoration: none;
+
+            font-size: 12px;
+            font-weight: 800;
+
+            cursor: pointer;
+        }
+
+        .invoice-action.primary {
+            background: var(--brand-green);
+            border-color: var(--brand-green);
+            color: white;
+        }
+
+        /* =============================
+           SMALL TOP LINE
+        ============================= */
+
+        .invoice-top-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            gap: 15px;
+
+            margin-bottom: 18px;
+
+            color: #53687c;
+            font-size: 10px;
+        }
+
+        /* =============================
+           HEADER
+        ============================= */
+
+        .invoice-header {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+
+            gap: 32px;
+
+            align-items: start;
+        }
+
+        .brand-name {
+            margin: 0;
+
+            color: var(--brand-green);
+
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: 29px;
+            line-height: 1.05;
+            font-weight: 900;
+
+            letter-spacing: .2px;
+        }
+
+        .brand-tagline {
+            margin-top: 7px;
+
+            color: var(--brand-gold);
+
+            font-size: 10px;
+            font-weight: 900;
+
+            letter-spacing: 1.7px;
+            text-transform: uppercase;
+        }
+
+        .invoice-type {
+            margin-top: 20px;
+
+            color: #111827;
+
+            font-size: 11px;
+            font-weight: 900;
+
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+        }
+
+        .invoice-number {
+            margin-top: 6px;
+
+            color: var(--brand-green-dark);
+
+            font-size: 21px;
+            font-weight: 900;
+        }
+
+        /* =============================
+           HEADER META
+        ============================= */
+
+        .invoice-meta {
+            display: grid;
+            grid-template-columns: 125px 1fr;
+
+            gap: 10px 11px;
+
+            font-size: 12px;
+        }
+
+        .meta-label {
+            text-align: right;
+
+            color: #111827;
+
+            font-weight: 900;
+        }
+
+        .meta-value {
+            color: #465f75;
+        }
+
+        .meta-value.paid {
+            color: var(--green);
+            font-weight: 900;
+        }
+
+        .meta-value.partial {
+            color: var(--orange);
+            font-weight: 900;
+        }
+
+        .meta-value.unpaid {
+            color: var(--red);
+            font-weight: 900;
+        }
+
+        .invoice-divider {
+            margin: 22px 0;
+
+            border: 0;
+            border-top: 1px solid var(--line);
+        }
+
+        /* =============================
+           CUSTOMER
+        ============================= */
+
+        .bill-box {
+            margin-bottom: 20px;
+            padding: 16px 18px;
+
+            border: 1px solid var(--line);
+            border-radius: 13px;
+
+            background: #ffffff;
+        }
+
+        .bill-label {
+            color: #111827;
+
+            font-size: 10px;
+            font-weight: 900;
+
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .bill-name {
+            margin-top: 7px;
+
+            color: var(--brand-green-dark);
+
+            font-size: 16px;
+            font-weight: 900;
+        }
+
+        .bill-phone {
+            margin-top: 5px;
+
+            color: #536b80;
+
+            font-size: 12px;
+        }
+
+        /* =============================
+           ITEMS
+        ============================= */
+
+        .invoice-items {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .invoice-items th {
+            padding: 10px 8px;
+
+            border-top: 1px solid var(--line);
+            border-bottom: 1px solid var(--line);
+
+            color: #111827;
+
+            text-align: left;
+
+            font-size: 10px;
+            font-weight: 900;
+
+            letter-spacing: .7px;
+            text-transform: uppercase;
+        }
+
+        .invoice-items td {
+            padding: 14px 8px;
+
+            border-bottom: 1px solid #edf2f6;
+
+            color: #29455e;
+
+            vertical-align: top;
+
+            font-size: 12px;
+        }
+
+        .invoice-items .right {
+            text-align: right;
+        }
+
+        .product-name {
+            color: var(--brand-green-dark);
+
+            font-weight: 900;
+        }
+
+        .product-sku {
+            margin-top: 4px;
+
+            color: #708398;
+
+            font-size: 10px;
+        }
+
+        /* =============================
+           TOTALS
+        ============================= */
+
+        .summary-wrap {
+            display: flex;
+            justify-content: flex-end;
+
+            margin-top: 16px;
+        }
+
+        .summary {
+            width: 340px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+
+            gap: 15px;
+
+            padding: 6px 0;
+
+            font-size: 12px;
+        }
+
+        .summary-row strong {
+            color: #111827;
+        }
+
+        .summary-row.grand-total {
+            margin-top: 6px;
+            padding: 13px 0;
+
+            border-top: 2px solid var(--line);
+            border-bottom: 1px solid var(--line);
+
+            color: var(--brand-green-dark);
+
+            font-size: 18px;
+            font-weight: 900;
+        }
+
+        .summary-row.grand-total strong {
+            color: var(--brand-green-dark);
+        }
+
+        .summary-row.amount-paid {
+            margin-top: 7px;
+            padding-top: 10px;
+
+            color: var(--green);
+
+            font-weight: 800;
+        }
+
+        .summary-row.amount-paid strong {
+            color: var(--green);
+        }
+
+        .summary-row.balance-due {
+            margin-top: 3px;
+            padding: 11px 0;
+
+            border-top: 1px solid var(--line);
+
+            font-size: 15px;
+            font-weight: 900;
+        }
+
+        .summary-row.balance-due.clear,
+        .summary-row.balance-due.clear strong {
+            color: var(--green);
+        }
+
+        .summary-row.balance-due.due,
+        .summary-row.balance-due.due strong {
+            color: var(--red);
+        }
+
+        .summary-row.due-date {
+            color: #53687c;
+        }
+
+        /* =============================
+           PAYMENT STATUS BOX
+        ============================= */
+
+        .payment-position {
+            margin-top: 22px;
+
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+
+            gap: 10px;
+        }
+
+        .payment-box {
+            padding: 13px;
+
+            border: 1px solid var(--line);
+            border-radius: 11px;
+
+            background: #fbfdff;
+        }
+
+        .payment-box span {
+            display: block;
+
+            color: #728397;
+
+            font-size: 9px;
+            font-weight: 900;
+
+            text-transform: uppercase;
+        }
+
+        .payment-box strong {
+            display: block;
+
+            margin-top: 5px;
+
+            color: var(--brand-green-dark);
+
+            font-size: 14px;
+        }
+
+        .payment-box.paid {
+            background: var(--green-light);
+            border-color: #cae7d2;
+        }
+
+        .payment-box.paid strong {
+            color: var(--green);
+        }
+
+        .payment-box.due {
+            background: var(--red-light);
+            border-color: #efcccc;
+        }
+
+        .payment-box.due strong {
+            color: var(--red);
+        }
+
+        /* =============================
+           FOOTER
+        ============================= */
+
+        .invoice-footer {
+            margin-top: 28px;
+            padding-top: 16px;
+
+            border-top: 1px solid var(--line);
+
+            display: flex;
+            justify-content: space-between;
+
+            gap: 30px;
+
+            color: #536b80;
+
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .invoice-footer strong {
+            color: var(--brand-green-dark);
+        }
+
+        .thank-you {
+            margin-top: 5px;
+
+            color: var(--brand-gold);
+
+            font-weight: 800;
+        }
+
+        /* =============================
+           MOBILE
+        ============================= */
+
+        @media (max-width: 720px) {
+
+            body {
+                background: #ffffff;
+            }
+
+            .invoice-page {
+                width: 100%;
+                margin: 0;
+
+                padding: 16px;
+
+                border: 0;
+                border-radius: 0;
+            }
+
+            .invoice-header {
+                grid-template-columns: 1fr;
+            }
+
+            .invoice-meta {
+                grid-template-columns: 115px 1fr;
+            }
+
+            .meta-label {
+                text-align: left;
+            }
+
+            .brand-name {
+                font-size: 25px;
+            }
+
+            .summary {
+                width: 100%;
+            }
+
+            .payment-position {
+                grid-template-columns: 1fr;
+            }
+
+            .invoice-footer {
+                flex-direction: column;
+            }
+        }
+
+        /* =============================
+           PRINT
+        ============================= */
+
+        @media print {
+
+            body {
+                background: #ffffff;
+            }
+
+            .invoice-page {
+                width: 100%;
+                max-width: none;
+
+                margin: 0;
+                padding: 0;
+
+                border: 0;
+                border-radius: 0;
+            }
+
+            .invoice-actions {
+                display: none !important;
+            }
+
+            @page {
+                size: A4;
+                margin: 12mm;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="invoice-page">
+
+    <!-- =========================================
+         SCREEN ACTIONS
+    ========================================== -->
+
+    <div class="invoice-actions">
+
+        <a
+            href="{% url 'egg_pos_sale_detail' sale.id %}"
+            class="invoice-action"
+        >
+            ← Sale Detail
+        </a>
+
+        <button
+            type="button"
+            class="invoice-action primary"
+            onclick="window.print()"
+        >
+            Print Invoice
+        </button>
+
+    </div>
+
+
+    <!-- =========================================
+         SMALL TOP REFERENCE
+    ========================================== -->
+
+    <div class="invoice-top-line">
+
+        <span>
+            {{ sale.created_at|date:"n/j/y, g:i A" }}
+        </span>
+
+        <span>
+            {{ sale.sale_number }} | RayNoor Egg POS
+        </span>
+
+    </div>
+
+
+    <!-- =========================================
+         HEADER
+    ========================================== -->
+
+    <section class="invoice-header">
+
+        <div>
+
+            <h1 class="brand-name">
+                RayNoor Organic Farms
+            </h1>
+
+            <div class="brand-tagline">
+                Committed to Organic Excellence
+            </div>
+
+            <div class="invoice-type">
+                Sales Invoice
+            </div>
+
+            <div class="invoice-number">
+                {{ sale.sale_number }}
+            </div>
+
+        </div>
+
+
+        <div class="invoice-meta">
+
+            <div class="meta-label">
+                Date:
+            </div>
+
+            <div class="meta-value">
+                {{ sale.sale_date|date:"M d, Y" }}
+            </div>
+
+
+            <div class="meta-label">
+                Time:
+            </div>
+
+            <div class="meta-value">
+                {{ sale.created_at|date:"g:i A" }}
+            </div>
+
+
+            <div class="meta-label">
+                Payment Method:
+            </div>
+
+            <div class="meta-value">
+                {{ sale.get_payment_method_display }}
+            </div>
+
+
+            <div class="meta-label">
+                Payment Status:
+            </div>
+
+            <div
+                class="
+                    meta-value
+
+                    {% if sale.payment_status == 'paid' %}
+                        paid
+                    {% elif sale.payment_status == 'partial' %}
+                        partial
+                    {% else %}
+                        unpaid
+                    {% endif %}
+                "
+            >
+                {{ sale.payment_status_label }}
+            </div>
+
+
+            <div class="meta-label">
+                Sold By:
+            </div>
+
+            <div class="meta-value">
+
+                {% if sale.created_by.first_name or sale.created_by.last_name %}
+
+                    {{ sale.created_by.first_name }}
+                    {{ sale.created_by.last_name }}
+
+                {% else %}
+
+                    {{ sale.created_by.username }}
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <hr class="invoice-divider">
+
+
+    <!-- =========================================
+         BILL TO
+    ========================================== -->
+
+    <section class="bill-box">
+
+        <div class="bill-label">
+            Bill To
+        </div>
+
+        <div class="bill-name">
+            {{ sale.customer_name|default:"Walk-in Customer" }}
+        </div>
+
+        {% if sale.customer_phone %}
+
+            <div class="bill-phone">
+                {{ sale.customer_phone }}
+            </div>
+
+        {% endif %}
+
+    </section>
+
+
+    <!-- =========================================
+         PRODUCTS
+    ========================================== -->
+
+    <table class="invoice-items">
+
+        <thead>
+
+            <tr>
+
+                <th style="width:46%">
+                    Product
+                </th>
+
+                <th style="width:12%">
+                    Qty
+                </th>
+
+                <th style="width:20%">
+                    Unit Price
+                </th>
+
+                <th
+                    class="right"
+                    style="width:22%"
+                >
+                    Amount
+                </th>
+
+            </tr>
+
+        </thead>
+
+
+        <tbody>
+
+            {% for item in sale.items.all %}
+
+                <tr>
+
+                    <td>
+
+                        <div class="product-name">
+                            {{ item.product.name }}
+                        </div>
+
+                        <div class="product-sku">
+                            SKU: {{ item.product.sku }}
+                        </div>
+
+                    </td>
+
+
+                    <td>
+                        {{ item.quantity }}
+                    </td>
+
+
+                    <td>
+                        Rs {{ item.unit_price|floatformat:2 }}
+                    </td>
+
+
+                    <td class="right">
+
+                        <strong>
+                            Rs {{ item.line_total|floatformat:2 }}
+                        </strong>
+
+                    </td>
+
+                </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+
+    <!-- =========================================
+         TOTALS
+    ========================================== -->
+
+    <div class="summary-wrap">
+
+        <div class="summary">
+
+
+            <div class="summary-row">
+
+                <span>
+                    Subtotal
+                </span>
+
+                <strong>
+                    Rs {{ sale.subtotal|floatformat:2 }}
+                </strong>
+
+            </div>
+
+
+            <div class="summary-row">
+
+                <span>
+                    Discount
+                </span>
+
+                <strong>
+                    Rs {{ sale.discount_amount|floatformat:2 }}
+                </strong>
+
+            </div>
+
+
+            <div class="summary-row grand-total">
+
+                <span>
+                    Total
+                </span>
+
+                <strong>
+                    Rs {{ sale.net_total|floatformat:2 }}
+                </strong>
+
+            </div>
+
+
+            <div class="summary-row amount-paid">
+
+                <span>
+                    Amount Paid
+                </span>
+
+                <strong>
+                    Rs {{ sale.amount_paid|floatformat:2 }}
+                </strong>
+
+            </div>
+
+
+            <div
+                class="
+                    summary-row
+                    balance-due
+
+                    {% if sale.balance_due > 0 %}
+                        due
+                    {% else %}
+                        clear
+                    {% endif %}
+                "
+            >
+
+                <span>
+                    Balance Due
+                </span>
+
+                <strong>
+                    Rs {{ sale.balance_due|floatformat:2 }}
+                </strong>
+
+            </div>
+
+
+            {% if sale.credit_due_date %}
+
+                <div class="summary-row due-date">
+
+                    <span>
+                        Due Date
+                    </span>
+
+                    <strong>
+                        {{ sale.credit_due_date|date:"d M Y" }}
+                    </strong>
+
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================
+         PAYMENT SUMMARY
+    ========================================== -->
+
+    <section class="payment-position">
+
+        <div class="payment-box">
+
+            <span>
+                Invoice Total
+            </span>
+
+            <strong>
+                Rs {{ sale.net_total|floatformat:2 }}
+            </strong>
+
+        </div>
+
+
+        <div class="payment-box paid">
+
+            <span>
+                Amount Received
+            </span>
+
+            <strong>
+                Rs {{ sale.amount_paid|floatformat:2 }}
+            </strong>
+
+        </div>
+
+
+        <div
+            class="
+                payment-box
+
+                {% if sale.balance_due > 0 %}
+                    due
+                {% else %}
+                    paid
+                {% endif %}
+            "
+        >
+
+            <span>
+                Outstanding
+            </span>
+
+            <strong>
+                Rs {{ sale.balance_due|floatformat:2 }}
+            </strong>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================================
+         FOOTER
+    ========================================== -->
+
+    <footer class="invoice-footer">
+
+        <div>
+
+            <strong>
+                Sold By:
+            </strong>
+
+            {% if sale.created_by.first_name or sale.created_by.last_name %}
+
+                {{ sale.created_by.first_name }}
+                {{ sale.created_by.last_name }}
+
+            {% else %}
+
+                {{ sale.created_by.username }}
+
+            {% endif %}
+
+
+            <div class="thank-you">
+                Thank you for buying from RayNoor Organic Farms.
+            </div>
+
+        </div>
+
+
+        {% if sale.notes %}
+
+            <div>
+
+                <strong>
+                    Notes:
+                </strong>
+
+                {{ sale.notes }}
+
+            </div>
+
+        {% endif %}
+
+    </footer>
+
+</div>
+
+</body>
+</html>

@@ -50,7 +50,7 @@ from reportlab.platypus import Image
 def finance_tracker(request):
     if not (request.user.is_superuser or request.user.is_staff or hasattr(request.user, "investor_profile")):
         return redirect("dashboard")
-    context = build_finance_data(request.user, request.GET.get("status", "active"))
+    context = build_finance_data(request.user, request.GET.get("status", "all"))
     return render(request, "api/finance_tracker.html", context)
 
 
@@ -166,13 +166,38 @@ def add_sale_record(request):
                 carriage_cost = ChickCostEntry.objects.filter(batch=batch).aggregate(
                     total=Sum("carriage_cost")
                 )["total"] or Decimal("0")
-                feed_cost = FeedEntry.objects.filter(batch=batch).aggregate(
+
+                # Layer bird sales use only the frozen rearing / point-of-lay
+                # cost basis. Once eggs have started, new feed, medicine and
+                # expenses belong to Egg Operations and are not loaded onto
+                # birds sold later. Meat batches keep the existing lifetime
+                # COGS behavior.
+                is_layer_batch = getattr(batch.shed, "shed_type", "") == "layer"
+                laying_start_date = None
+                if is_layer_batch:
+                    laying_start_date = (
+                        EggProductionEntry.objects.filter(batch=batch)
+                        .order_by("production_date", "id")
+                        .values_list("production_date", flat=True)
+                        .first()
+                    )
+
+                feed_qs = FeedEntry.objects.filter(batch=batch)
+                medicine_qs = MedicineEntry.objects.filter(batch=batch)
+                expense_qs = Expense.objects.filter(batch=batch)
+
+                if is_layer_batch and laying_start_date:
+                    feed_qs = feed_qs.filter(entry_date__lt=laying_start_date)
+                    medicine_qs = medicine_qs.filter(entry_date__lt=laying_start_date)
+                    expense_qs = expense_qs.filter(expense_date__lt=laying_start_date)
+
+                feed_cost = feed_qs.aggregate(
                     total=Sum("amount")
                 )["total"] or Decimal("0")
-                medicine_cost = MedicineEntry.objects.filter(batch=batch).aggregate(
+                medicine_cost = medicine_qs.aggregate(
                     total=Sum("amount")
                 )["total"] or Decimal("0")
-                all_expense_cost = Expense.objects.filter(batch=batch).aggregate(
+                all_expense_cost = expense_qs.aggregate(
                     total=Sum("amount")
                 )["total"] or Decimal("0")
 

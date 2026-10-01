@@ -14,3 +14,20 @@ from .goats import (
     GoatKiddingRecord,
     check_goat_relationship,
 )
+
+from .egg_pos import (
+    EggPOSProduct,
+    EggPOSSupplier,
+    EggPOSCustomer,
+    EggPOSUserAccess,
+    EggPOSPurchase,
+    EggPOSPurchaseItem,
+    EggPOSFarmTransfer,
+    EggPOSFarmTransferPayment,
+    EggPOSFarmTransferItem,
+    EggPOSInventoryLot,
+    EggPOSSale,
+    EggPOSSalePayment,
+    EggPOSSaleItem,
+    EggPOSSaleAllocation,
+)
