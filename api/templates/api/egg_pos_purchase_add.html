@@ -1,11 +1,11 @@
 {% extends "api/egg_pos_base.html" %}
 {% block egg_pos_content %}
 <style>
-.si-wrap{max-width:1100px;margin:0 auto}.si-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}.si-head h2{margin:0;color:#0b3558;font-size:21px}.si-head p{margin:4px 0 0;color:#71869b;font-size:11px}.si-card{background:#fff;border:1px solid #dbe6f1;border-radius:18px;overflow:hidden;margin-bottom:12px}.si-title{padding:13px 15px;border-bottom:1px solid #e9eff5;font-weight:950;color:#0b3558}.si-body{padding:15px}.si-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.si-helpbox{background:#eef8ff;border:1px solid #cae5f8;border-radius:13px;padding:11px 13px;color:#365d79;font-size:10px;line-height:1.5;margin-bottom:12px}.si-row{display:grid;grid-template-columns:1.35fr .7fr 1fr .9fr auto;gap:8px;align-items:end;border:1px solid #e2eaf2;border-radius:14px;padding:11px;margin-bottom:9px}.si-row .calc{background:#f5f8fb}.si-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:12px}.sum{background:#f5f9fd;border:1px solid #e1eaf3;border-radius:13px;padding:11px}.sum small{font-size:9px;color:#71869b;text-transform:uppercase;font-weight:900}.sum strong{display:block;color:#0b3558;font-size:17px;margin-top:3px}.sum.green strong{color:#0b9650}.si-actions{display:flex;justify-content:space-between;gap:8px;margin-top:12px}
+.si-wrap{max-width:1100px;margin:0 auto}.si-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}.si-head h2{margin:0;color:#0b3558;font-size:21px}.si-head p{margin:4px 0 0;color:#71869b;font-size:11px}.si-card{background:#fff;border:1px solid #dbe6f1;border-radius:18px;overflow:hidden;margin-bottom:12px}.si-title{padding:13px 15px;border-bottom:1px solid #e9eff5;font-weight:950;color:#0b3558}.si-body{padding:15px}.si-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.si-helpbox{background:#eef8ff;border:1px solid #cae5f8;border-radius:13px;padding:11px 13px;color:#365d79;font-size:10px;line-height:1.5;margin-bottom:12px}.si-row{display:grid;grid-template-columns:1.25fr .65fr .95fr .78fr .78fr .82fr auto;gap:8px;align-items:end;border:1px solid #e2eaf2;border-radius:14px;padding:11px;margin-bottom:9px}.si-row .calc{background:#f5f8fb}.si-row .landed{background:#eefaf2!important;border-color:#b8e7c8!important;color:#08783e;font-weight:900}.si-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:12px}.sum{background:#f5f9fd;border:1px solid #e1eaf3;border-radius:13px;padding:11px}.sum small{font-size:9px;color:#71869b;text-transform:uppercase;font-weight:900}.sum strong{display:block;color:#0b3558;font-size:17px;margin-top:3px}.sum.green strong{color:#0b9650}.si-actions{display:flex;justify-content:space-between;gap:8px;margin-top:12px}
 @media(max-width:720px){.si-grid,.si-summary{grid-template-columns:1fr}.si-row{grid-template-columns:1fr 1fr}.si-row .wide{grid-column:1/-1}.si-row .remove{grid-column:1/-1}.si-actions{position:sticky;bottom:72px;background:#fff;padding:9px 0}.si-actions .ep-btn.primary{flex:1;justify-content:center}.si-head{display:block}}
 </style>
 <div class="si-wrap">
-  <div class="si-head"><div><h2><i class="fa-solid fa-truck-ramp-box"></i> Stock In / Vendor Purchase</h2><p>Enter the vendor invoice amount directly. The system calculates cost per egg and landed FIFO cost automatically.</p></div><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-clock-rotate-left"></i> Purchase History</a></div>
+  <div class="si-head"><div><h2><i class="fa-solid fa-truck-ramp-box"></i> Stock In / Vendor Purchase</h2><p>Enter the vendor invoice amount directly. The system separates vendor cost from transport and shows the actual landed FIFO cost per egg automatically.</p></div><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-clock-rotate-left"></i> Purchase History</a></div>
   <form method="post" id="purchaseForm">{% csrf_token %}
     <section class="si-card"><div class="si-title">Invoice Details</div><div class="si-body"><div class="si-grid">
       <div class="ep-field"><label>Supplier</label><select class="ep-select" name="supplier" required><option value="">Select supplier</option>{% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
@@ -17,10 +17,10 @@
     </div></div></section>
 
     <section class="si-card"><div class="si-title">Eggs Received</div><div class="si-body">
-      <div class="si-helpbox"><strong>Recommended:</strong> enter <strong>Qty Eggs</strong> and the <strong>Total Vendor Cost</strong> exactly as shown on the supplier bill. Example: 1,800 eggs and Rs 36,977. The system calculates Rs 20.542778 per egg automatically. Do not manually convert the invoice into a per-egg rate.</div>
+      <div class="si-helpbox"><strong>Recommended:</strong> enter <strong>Qty Eggs</strong> and the <strong>Total Vendor Cost</strong> exactly as shown on the supplier bill. Enter inbound transport separately. The system then shows <strong>Vendor Cost / Egg</strong>, <strong>Transport / Egg</strong>, and the highlighted <strong>Actual FIFO Cost / Egg</strong> used for COGS and profit. Do not manually add transport into the vendor invoice amount.</div>
       <div id="purchaseRows"></div>
       <button type="button" class="ep-btn" id="addPurchaseRow"><i class="fa-solid fa-plus"></i> Add Another Product</button>
-      <div class="si-summary"><div class="sum"><small>Total Eggs</small><strong id="eggsPreview">0</strong></div><div class="sum"><small>Vendor Invoice Cost</small><strong id="basePreview">Rs 0.00</strong></div><div class="sum green"><small>Landed Inventory Cost</small><strong id="landedPreview">Rs 0.00</strong></div></div>
+      <div class="si-summary"><div class="sum"><small>Total Eggs</small><strong id="eggsPreview">0</strong></div><div class="sum"><small>Vendor Invoice Cost</small><strong id="basePreview">Rs 0.00</strong></div><div class="sum"><small>Transport / Egg</small><strong id="transportPerEggPreview">Rs 0.0000</strong></div><div class="sum green"><small>Landed Inventory Cost</small><strong id="landedPreview">Rs 0.00</strong></div></div>
       <div class="ep-help" style="margin-top:7px">Landed inventory cost = vendor invoice cost + inbound transport. Supplier payable remains the vendor invoice amount unless transport is set to “Add to Supplier Payable”.</div>
       <div class="si-actions"><span></span><button class="ep-btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save Purchase & Update Stock</button></div>
     </div></section>
@@ -32,7 +32,9 @@
     <div class="ep-field wide"><label>Product</label><select class="ep-select" name="product_id" required><option value="">Select product</option>{% for p in products %}<option value="{{ p.id }}">{{ p.name }} · {{ p.sku }}</option>{% endfor %}</select></div>
     <div class="ep-field"><label>Qty Eggs</label><input class="ep-input qty" type="number" min="1" step="1" name="quantity" placeholder="1800" required></div>
     <div class="ep-field"><label>Total Vendor Cost (Rs)</label><input class="ep-input total" type="number" min="0.01" step="0.01" name="line_total_cost" placeholder="36977" required></div>
-    <div class="ep-field"><label>Calculated Cost / Egg</label><input class="ep-input calc unit-preview" readonly placeholder="0.000000"></div>
+    <div class="ep-field"><label>Vendor Cost / Egg</label><input class="ep-input calc unit-preview" readonly placeholder="0.000000"></div>
+    <div class="ep-field"><label>Transport / Egg</label><input class="ep-input calc transport-unit-preview" readonly placeholder="0.000000"></div>
+    <div class="ep-field"><label>Actual FIFO Cost / Egg</label><input class="ep-input landed landed-unit-preview" readonly placeholder="0.000000"></div>
     <div class="ep-field"><label>Expiry</label><input class="ep-input" type="date" name="expiry_date"></div>
     <div class="remove"><button class="ep-btn" type="button" data-remove-row title="Remove"><i class="fa-solid fa-trash"></i></button></div>
   </div>
@@ -41,7 +43,27 @@
 (function(){
   const body=document.getElementById('purchaseRows'), tpl=document.getElementById('purchaseRowTemplate'), transport=document.getElementById('transportCost');
   const money=n=>'Rs '+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
-  function update(){let eggs=0,base=0;body.querySelectorAll('[data-purchase-row]').forEach(row=>{const q=Number(row.querySelector('.qty').value||0),t=Number(row.querySelector('.total').value||0);eggs+=q;base+=t;row.querySelector('.unit-preview').value=q>0&&t>0?(t/q).toFixed(6):''});const tr=Number(transport.value||0);document.getElementById('eggsPreview').textContent=eggs.toLocaleString();document.getElementById('basePreview').textContent=money(base);document.getElementById('landedPreview').textContent=money(base+tr)}
+  function update(){
+    let eggs=0,base=0;
+    const rows=[...body.querySelectorAll('[data-purchase-row]')];
+    rows.forEach(row=>{
+      const q=Number(row.querySelector('.qty').value||0),t=Number(row.querySelector('.total').value||0);
+      eggs+=q;base+=t;
+    });
+    const tr=Number(transport.value||0);
+    const transportPerEgg=eggs>0?tr/eggs:0;
+    rows.forEach(row=>{
+      const q=Number(row.querySelector('.qty').value||0),t=Number(row.querySelector('.total').value||0);
+      const vendorPerEgg=q>0&&t>0?t/q:0;
+      row.querySelector('.unit-preview').value=q>0&&t>0?vendorPerEgg.toFixed(6):'';
+      row.querySelector('.transport-unit-preview').value=q>0?transportPerEgg.toFixed(6):'';
+      row.querySelector('.landed-unit-preview').value=q>0&&t>0?(vendorPerEgg+transportPerEgg).toFixed(6):'';
+    });
+    document.getElementById('eggsPreview').textContent=eggs.toLocaleString();
+    document.getElementById('basePreview').textContent=money(base);
+    document.getElementById('transportPerEggPreview').textContent='Rs '+transportPerEgg.toFixed(4);
+    document.getElementById('landedPreview').textContent=money(base+tr);
+  }
   function add(){const frag=tpl.content.cloneNode(true);body.appendChild(frag);update()}
   document.getElementById('addPurchaseRow').addEventListener('click',add);
   body.addEventListener('input',e=>{if(e.target.matches('.qty,.total'))update()});
