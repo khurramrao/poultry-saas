@@ -237,7 +237,7 @@
         <thead>
           <tr>
             <th>Product</th>
-            <th>Qty</th>
+            <th>Qty / Unit</th>
             <th>Rate</th>
             <th>Total</th>
           </tr>
@@ -246,8 +246,8 @@
           {% for item in sale.items.all %}
           <tr>
             <td>{{ item.product.name }}</td>
-            <td>{{ item.quantity }}</td>
-            <td>Rs {{ item.unit_price }}</td>
+            <td>{{ item.display_sale_quantity }}</td>
+            <td>Rs {{ item.unit_rate|floatformat:2 }} / {{ item.sale_unit_short_label }}</td>
             <td><strong>Rs {{ item.line_total|floatformat:0|intcomma }}</strong></td>
           </tr>
           {% endfor %}

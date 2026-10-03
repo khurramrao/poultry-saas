@@ -424,3 +424,67 @@ class FarmSaleWithdrawalAdmin(admin.ModelAdmin):
     list_filter = ("payment_method", "withdrawal_date")
     search_fields = ("batch__batch_number", "reference", "notes")
     ordering = ("-withdrawal_date", "-id")
+
+# Egg POS accounting foundation (kept visible in Django admin for audit/debugging).
+from api.models.accounting import ChartOfAccount, JournalEntry, JournalLine
+from api.models.egg_pos import (
+    EggPOSSupplierPayment,
+    EggPOSExpense,
+    EggPOSCashSettlement,
+    EggPOSCommissionPeriod,
+    EggPOSCommissionPayment,
+)
+
+
+@admin.register(ChartOfAccount)
+class ChartOfAccountAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "account_type", "normal_balance", "is_active", "is_system")
+    list_filter = ("account_type", "normal_balance", "is_active")
+    search_fields = ("code", "name")
+    ordering = ("code",)
+
+
+class JournalLineInline(admin.TabularInline):
+    model = JournalLine
+    extra = 0
+    can_delete = False
+    readonly_fields = ("account", "description", "debit", "credit", "party_type", "party_id", "party_name")
+
+
+@admin.register(JournalEntry)
+class JournalEntryAdmin(admin.ModelAdmin):
+    list_display = ("entry_date", "reference", "module", "source_type", "source_id", "created_by")
+    list_filter = ("module", "source_type", "entry_date")
+    search_fields = ("reference", "memo", "source_key")
+    ordering = ("-entry_date", "-id")
+    inlines = [JournalLineInline]
+
+
+@admin.register(EggPOSSupplierPayment)
+class EggPOSSupplierPaymentAdmin(admin.ModelAdmin):
+    list_display = ("payment_date", "supplier", "purchase", "amount", "payment_method", "recorded_by")
+    list_filter = ("payment_method", "payment_date")
+
+
+@admin.register(EggPOSExpense)
+class EggPOSExpenseAdmin(admin.ModelAdmin):
+    list_display = ("expense_date", "expense_type", "used_by", "amount", "payment_source", "status", "entered_by")
+    list_filter = ("expense_type", "payment_source", "status", "expense_date")
+
+
+@admin.register(EggPOSCashSettlement)
+class EggPOSCashSettlementAdmin(admin.ModelAdmin):
+    list_display = ("settlement_date", "salesperson", "amount", "destination", "recorded_by")
+    list_filter = ("destination", "settlement_date")
+
+
+@admin.register(EggPOSCommissionPeriod)
+class EggPOSCommissionPeriodAdmin(admin.ModelAdmin):
+    list_display = ("salesperson", "period_start", "period_end", "commissionable_profit", "commission_percent", "commission_amount")
+    list_filter = ("period_start", "period_end")
+
+
+@admin.register(EggPOSCommissionPayment)
+class EggPOSCommissionPaymentAdmin(admin.ModelAdmin):
+    list_display = ("payment_date", "commission", "amount", "payment_method", "recorded_by")
+    list_filter = ("payment_method", "payment_date")

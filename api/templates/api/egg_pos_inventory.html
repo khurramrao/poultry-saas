@@ -1,6 +1,42 @@
 {% extends "api/egg_pos_base.html" %}{% load humanize %}
+{% block egg_pos_css %}
+<style>
+.sp-stock-page{display:none}.sp-stock-summary{display:grid;grid-template-columns:1.25fr .75fr;gap:9px;margin-bottom:13px}.sp-stock-summary-card{background:#fff;border:1px solid #e3eaf3;border-radius:17px;padding:14px}.sp-stock-summary-card.primary{background:linear-gradient(140deg,#2f66d2,#3b7be3);border-color:transparent}.sp-stock-summary-card span{display:block;color:#7b8b9c;font-size:8px;text-transform:uppercase;font-weight:950}.sp-stock-summary-card strong{display:block;margin-top:5px;color:#173f72;font-size:20px}.sp-stock-summary-card small{display:block;margin-top:3px;color:#8b99a8;font-size:8px}.sp-stock-summary-card.primary span,.sp-stock-summary-card.primary small{color:#dfe9ff}.sp-stock-summary-card.primary strong{color:#fff}.sp-inv-list{display:grid;gap:10px}.sp-inv-card{background:#fff;border:1px solid #e3eaf3;border-radius:18px;padding:14px;box-shadow:0 4px 14px rgba(30,61,94,.04)}.sp-inv-card.low{border-color:#efd39b;background:#fffaf2}.sp-inv-top{display:flex;align-items:center;justify-content:space-between;gap:10px}.sp-inv-name{display:flex;align-items:center;gap:10px;min-width:0}.sp-inv-icon{width:42px;height:42px;border-radius:14px;background:#e7f8ee;color:#0b9551;display:flex;align-items:center;justify-content:center;font-size:17px;flex:0 0 auto}.sp-inv-name strong{display:block;color:#183f63;font-size:12px}.sp-inv-name small{display:block;margin-top:2px;color:#8795a5;font-size:8px}.sp-inv-eggs{text-align:right}.sp-inv-eggs strong{display:block;color:#163f73;font-size:20px}.sp-inv-eggs small{display:block;color:#8795a5;font-size:8px}.sp-inv-units{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:12px}.sp-inv-unit{background:#f4f8fc;border:1px solid #edf2f7;border-radius:11px;padding:9px 5px;text-align:center}.sp-inv-unit strong{display:block;color:#234b74;font-size:13px}.sp-inv-unit span{display:block;margin-top:2px;color:#8493a3;font-size:7px;text-transform:uppercase;font-weight:950}.sp-inv-note{margin-top:9px;color:#8594a4;font-size:8px;line-height:1.4}.sp-inv-low{display:inline-flex;align-items:center;gap:5px;margin-top:9px;padding:5px 8px;border-radius:999px;background:#ffefd3;color:#a86400;font-size:8px;font-weight:900}.sp-inv-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:13px}.sp-inv-actions a{height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;font-size:9px;font-weight:950}.sp-inv-actions .sale{background:#0ca15a;color:#fff}.sp-inv-actions .home{background:#eef4fb;color:#345b83}
+@media(max-width:720px){.ep-salesperson-app .sp-stock-page{display:block}.ep-salesperson-app .ep-standard-inventory{display:none!important}}
+</style>
+{% endblock %}
 {% block egg_pos_content %}
+{% if not can_manage_pos %}
+<div class="sp-stock-page">
+  <div class="ep-page-title"><div><h2><i class="fa-solid fa-boxes-stacked"></i> Stock Available</h2><p>Read-only stock for sales. Quantities below are equivalent selling units.</p></div></div>
+  <div class="sp-stock-summary">
+    <div class="sp-stock-summary-card primary"><span>Total sellable stock</span><strong>{{ total_stock|intcomma }}</strong><small>individual eggs</small></div>
+    <div class="sp-stock-summary-card"><span>Products</span><strong>{{ active_product_count|intcomma }}</strong><small>active egg grades</small></div>
+  </div>
+  <div class="sp-inv-list">
+    {% for row in stock_rows %}
+    <div class="sp-inv-card {% if row.low_stock %}low{% endif %}">
+      <div class="sp-inv-top">
+        <div class="sp-inv-name"><div class="sp-inv-icon"><i class="fa-solid fa-egg"></i></div><div><strong>{{ row.product.name }}</strong><small>{{ row.product.sku }}{% if row.product.weight_grams %} · {{ row.product.weight_grams|floatformat:0 }}g{% endif %}</small></div></div>
+        <div class="sp-inv-eggs"><strong>{{ row.stock|intcomma }}</strong><small>eggs available</small></div>
+      </div>
+      <div class="sp-inv-units">
+        <div class="sp-inv-unit"><strong>{{ row.max_crates|intcomma }}</strong><span>Crates / Paiti</span></div>
+        <div class="sp-inv-unit"><strong>{{ row.max_trays|intcomma }}</strong><span>Trays</span></div>
+        <div class="sp-inv-unit"><strong>{{ row.max_dozens|intcomma }}</strong><span>Dozen</span></div>
+      </div>
+      <div class="sp-inv-note">Example: {{ row.max_crates|intcomma }} crates means the current {{ row.stock|intcomma }} eggs could make up to that many full 360-egg crates. These figures are alternatives, not separate stock.</div>
+      {% if row.low_stock %}<div class="sp-inv-low"><i class="fa-solid fa-triangle-exclamation"></i> Low stock — confirm before promising customer</div>{% endif %}
+    </div>
+    {% empty %}<div class="ep-empty">No sellable stock available.</div>{% endfor %}
+  </div>
+  <div class="sp-inv-actions"><a class="home" href="{% url 'egg_pos_dashboard' %}"><i class="fa-solid fa-house"></i> Home</a><a class="sale" href="{% url 'egg_pos_new_sale' %}"><i class="fa-solid fa-cart-plus"></i> New Sale</a></div>
+</div>
+{% endif %}
+
+<div class="ep-standard-inventory">
 <div class="ep-page-title"><div><h2><i class="fa-solid fa-boxes-stacked"></i> Egg Inventory</h2><p>Stock unit is individual eggs. Expired lots are excluded from sellable stock.</p></div></div>
 <section class="ep-panel"><div class="ep-table-wrap"><table class="ep-table desktop-only"><thead><tr><th>Product</th><th>Stock</th><th>RayNoor</th><th>Purchased</th><th>Expired</th>{% if can_manage_pos %}<th>Stock Value</th>{% endif %}<th>Low Stock At</th>{% if can_manage_pos %}<th>Lots</th>{% endif %}</tr></thead><tbody>{% for row in stock_rows %}<tr><td><strong>{{ row.product.name }}</strong><br><small>{{ row.product.sku }}{% if row.product.weight_grams %} · {{ row.product.weight_grams|floatformat:0 }}g{% endif %}</small></td><td><strong>{{ row.stock|intcomma }}</strong></td><td>{{ row.farm_stock|intcomma }}</td><td>{{ row.purchase_stock|intcomma }}</td><td>{% if row.expired_stock %}<span class="ep-pill orange">{{ row.expired_stock|intcomma }}</span>{% else %}0{% endif %}</td>{% if can_manage_pos %}<td>Rs {{ row.stock_value|floatformat:0|intcomma }}</td>{% endif %}<td>{{ row.product.low_stock_eggs }}</td>{% if can_manage_pos %}<td>{% for lot in row.lots %}<div style="margin-bottom:5px"><span class="ep-pill">{{ lot.lot_code }}</span> {{ lot.quantity_remaining }} @ Rs {{ lot.unit_cost }} · {{ lot.get_source_type_display }}</div>{% empty %}—{% endfor %}</td>{% endif %}</tr>{% empty %}<tr><td colspan="8">No inventory yet.</td></tr>{% endfor %}</tbody></table></div>
 <div class="ep-mobile-list">{% for row in stock_rows %}<div class="ep-sale-card"><div class="ep-sale-card-top"><div><div class="ep-sale-card-title">{{ row.product.name }}</div><div class="ep-sale-card-meta">{{ row.product.sku }}{% if row.product.weight_grams %} · {{ row.product.weight_grams|floatformat:0 }}g{% endif %}</div></div><div class="ep-sale-card-amount">{{ row.stock|intcomma }} eggs</div></div><div class="ep-sale-card-foot"><span>RayNoor {{ row.farm_stock|intcomma }} · Purchased {{ row.purchase_stock|intcomma }}</span>{% if row.low_stock %}<span class="ep-pill orange">Low Stock</span>{% else %}<span class="ep-pill green">OK</span>{% endif %}</div>{% if can_manage_pos %}<div style="margin-top:8px;color:#516b82;font-size:9px">Value Rs {{ row.stock_value|floatformat:0|intcomma }}{% if row.expired_stock %} · Expired {{ row.expired_stock|intcomma }}{% endif %}</div>{% endif %}</div>{% empty %}<div class="ep-empty">No inventory yet.</div>{% endfor %}</div></section>
+</div>
 {% endblock %}

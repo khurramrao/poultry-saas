@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -25,8 +25,15 @@ from api.models.egg_pos import (
     EggPOSSaleItem,
     EggPOSSupplier,
     EggPOSUserAccess,
+    EggPOSSupplierPayment,
+    EggPOSExpense,
+    EggPOSCashSettlement,
+    EggPOSCashHandoverRequest,
+    EggPOSCommissionPeriod,
+    EggPOSCommissionPayment,
 )
 from api.models.sensor import Batch
+from api.models.accounting import ChartOfAccount, JournalEntry, JournalLine
 from api.services.egg_pos import (
     ZERO,
     allocate_fifo_to_sale_item,
@@ -37,6 +44,32 @@ from api.services.egg_pos import (
     is_admin,
     make_lot_code,
     money,
+)
+from api.services.accounting import (
+    account_activity,
+    customer_balance as gl_customer_balance,
+    ensure_default_accounts,
+    income_statement as build_income_statement,
+    normal_account_balance,
+    party_activity,
+    staff_cash_balance,
+    staff_commission_balance,
+    staff_reimbursement_balance,
+    supplier_balance as gl_supplier_balance,
+    trial_balance as build_trial_balance,
+)
+from api.services.egg_pos_accounting import (
+    commission_preview,
+    sync_cash_settlement,
+    sync_commission_payment,
+    sync_commission_period,
+    sync_expense,
+    sync_farm_transfer,
+    sync_farm_transfer_payment,
+    sync_purchase,
+    sync_sale_invoice,
+    sync_sale_payment,
+    sync_supplier_payment,
 )
 
 
@@ -63,6 +96,19 @@ def _parse_money(value, label, allow_zero=False):
     if amount < ZERO or (not allow_zero and amount <= ZERO):
         rule = "zero or greater" if allow_zero else "greater than zero"
         raise ValueError(f"{label} must be {rule}.")
+    return amount
+
+
+UNIT_COST_QUANT = Decimal("0.000001")
+
+
+def _parse_unit_cost(value, label):
+    try:
+        amount = Decimal(value).quantize(UNIT_COST_QUANT)
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError(f"{label} is invalid.")
+    if amount <= ZERO:
+        raise ValueError(f"{label} must be greater than zero.")
     return amount
 
 
@@ -114,6 +160,12 @@ def _stock_rows(products):
             "farm_stock": farm,
             "stock_value": money(value),
             "low_stock": current <= int(product.low_stock_eggs or 0),
+            # Salespeople sell in practical units, while inventory remains stored
+            # in individual eggs.  These are read-only equivalent quantities so
+            # mobile staff can instantly understand how much stock is available.
+            "max_crates": current // 360,
+            "max_trays": current // 30,
+            "max_dozens": current // 12,
             "lots": lots,
         })
     return rows
@@ -208,10 +260,24 @@ def dashboard(request):
         recent_sales = recent_sales.filter(created_by=request.user)
     recent_sales = recent_sales.order_by("-sale_date", "-id")[:10]
 
+    manage = can_manage(request.user)
+    salesperson_cash_balance = money(staff_cash_balance(request.user)) if not manage else money(normal_account_balance("1040", as_of=today))
+    pending_expense_count = EggPOSExpense.objects.filter(status="pending").count() if manage else EggPOSExpense.objects.filter(status="pending", used_by=request.user).count()
+    pending_handover = ZERO
+    salesperson_cash_to_submit = salesperson_cash_balance
+    commission_summary = {"month_earned": ZERO, "month_received": ZERO, "balance_due": ZERO}
+    week_commission_preview = None
+    if not manage:
+        pending_handover = _pending_handover_total(request.user)
+        salesperson_cash_to_submit = money(max(Decimal(salesperson_cash_balance) - Decimal(pending_handover), ZERO))
+        commission_summary = _commission_summary(request.user, today)
+        week_start = today - timedelta(days=today.weekday())
+        week_commission_preview = commission_preview(request.user, week_start, today)
+
     farm_transfer_payable = ZERO
     farm_transfer_total = ZERO
     farm_transfer_paid = ZERO
-    if can_manage(request.user):
+    if manage:
         farm_transfers = list(
             EggPOSFarmTransfer.objects
             .prefetch_related("items", "payments")
@@ -239,7 +305,13 @@ def dashboard(request):
         "farm_transfer_total": farm_transfer_total,
         "farm_transfer_paid": farm_transfer_paid,
         "farm_transfer_payable": farm_transfer_payable,
-        "can_manage_pos": can_manage(request.user),
+        "can_manage_pos": manage,
+        "salesperson_cash_balance": salesperson_cash_balance,
+        "salesperson_cash_to_submit": salesperson_cash_to_submit,
+        "pending_handover": pending_handover,
+        "pending_expense_count": pending_expense_count,
+        "commission_summary": commission_summary,
+        "week_commission_preview": week_commission_preview,
     })
 
 
@@ -248,8 +320,11 @@ def inventory(request):
     if not can_sell(request.user):
         return _deny(request)
     products = EggPOSProduct.objects.filter(is_active=True).order_by("name")
+    stock_rows = _stock_rows(products)
     return render(request, "api/egg_pos_inventory.html", {
-        "stock_rows": _stock_rows(products),
+        "stock_rows": stock_rows,
+        "total_stock": sum(row["stock"] for row in stock_rows),
+        "active_product_count": len(stock_rows),
         "can_manage_pos": can_manage(request.user),
     })
 
@@ -340,30 +415,52 @@ def add_purchase(request):
         try:
             supplier = get_object_or_404(EggPOSSupplier, pk=request.POST.get("supplier"), is_active=True)
             purchase_date = _parse_date(request.POST.get("purchase_date"), "Purchase date")
+            transport_cost = _parse_money(request.POST.get("transport_cost") or "0", "Transport cost", allow_zero=True)
+            transport_method = (request.POST.get("transport_payment_method") or "cash").strip()
+            valid_transport_methods = {value for value, _ in EggPOSPurchase.TRANSPORT_PAYMENT_CHOICES}
+            if transport_method not in valid_transport_methods:
+                raise ValueError("Select a valid transport payment source.")
+
             product_ids = request.POST.getlist("product_id")
             quantities = request.POST.getlist("quantity")
             costs = request.POST.getlist("unit_cost")
+            line_totals = request.POST.getlist("line_total_cost")
             expiries = request.POST.getlist("expiry_date")
 
             rows = []
+            total_qty = 0
             for index, product_id in enumerate(product_ids):
                 if not product_id:
                     continue
                 product = get_object_or_404(EggPOSProduct, pk=product_id, is_active=True)
                 qty = _parse_positive_int(quantities[index] if index < len(quantities) else None, "Quantity")
-                unit_cost = _parse_money(costs[index] if index < len(costs) else None, "Unit cost")
+                unit_raw = (costs[index] if index < len(costs) else "") or ""
+                total_raw = (line_totals[index] if index < len(line_totals) else "") or ""
+                if str(total_raw).strip():
+                    line_cost = _parse_money(total_raw, "Line purchase cost")
+                    unit_cost = (Decimal(line_cost) / Decimal(qty)).quantize(UNIT_COST_QUANT)
+                else:
+                    unit_cost = _parse_unit_cost(unit_raw, "Unit cost")
                 expiry = _parse_date(expiries[index], "Expiry date", default=None) if index < len(expiries) and expiries[index] else None
                 if expiry and expiry < purchase_date:
                     raise ValueError("Expiry date cannot be before purchase date.")
                 rows.append((product, qty, unit_cost, expiry))
+                total_qty += qty
             if not rows:
                 raise ValueError("Add at least one purchase item.")
+
+            transport_per_egg = (
+                (Decimal(transport_cost) / Decimal(total_qty)).quantize(UNIT_COST_QUANT)
+                if total_qty and transport_cost > ZERO else Decimal("0.000000")
+            )
 
             with transaction.atomic():
                 purchase = EggPOSPurchase.objects.create(
                     supplier=supplier,
                     purchase_date=purchase_date,
                     reference=(request.POST.get("reference") or "").strip(),
+                    transport_cost=transport_cost,
+                    transport_payment_method=transport_method,
                     notes=(request.POST.get("notes") or "").strip(),
                     created_by=request.user,
                 )
@@ -374,6 +471,7 @@ def add_purchase(request):
                         quantity=qty,
                         unit_cost=unit_cost,
                     )
+                    landed_unit_cost = (Decimal(unit_cost) + transport_per_egg).quantize(UNIT_COST_QUANT)
                     lot = EggPOSInventoryLot.objects.create(
                         product=product,
                         source_type="purchase",
@@ -384,13 +482,20 @@ def add_purchase(request):
                         expiry_date=expiry,
                         quantity_received=qty,
                         quantity_remaining=qty,
-                        unit_cost=unit_cost,
-                        notes=f"Purchase #{purchase.id} {purchase.reference}".strip(),
+                        unit_cost=landed_unit_cost,
+                        notes=(
+                            f"Purchase #{purchase.id} {purchase.reference} | "
+                            f"Base Rs {unit_cost:.4f}/egg + transport Rs {transport_per_egg:.4f}/egg"
+                        ).strip(),
                     )
                     item.lot = lot
                     item.save(update_fields=["lot"])
+                sync_purchase(purchase)
 
-            messages.success(request, f"Purchase #{purchase.id} saved and inventory updated.")
+            messages.success(
+                request,
+                f"Purchase #{purchase.id} saved. Transport Rs {transport_cost:,.2f} was included in FIFO landed cost.",
+            )
             return redirect("egg_pos_purchase_list")
         except Exception as error:
             messages.error(request, str(error))
@@ -398,6 +503,7 @@ def add_purchase(request):
     return render(request, "api/egg_pos_purchase_add.html", {
         "products": products_qs,
         "suppliers": suppliers_qs,
+        "transport_methods": EggPOSPurchase.TRANSPORT_PAYMENT_CHOICES,
         "today": timezone.localdate(),
     })
 
@@ -433,9 +539,16 @@ def farm_transfer(request):
             if payment_due_date and payment_due_date < transfer_date:
                 raise ValueError("Payment due date cannot be before the transfer date.")
 
+            transport_cost = _parse_money(request.POST.get("transport_cost") or "0", "Transport cost", allow_zero=True)
+            transport_method = (request.POST.get("transport_payment_method") or "cash").strip()
+            valid_transport_methods = {value for value, _ in EggPOSFarmTransfer.TRANSPORT_PAYMENT_CHOICES}
+            if transport_method not in valid_transport_methods:
+                raise ValueError("Select a valid transport payment source.")
+
             product_ids = request.POST.getlist("product_id")
             quantities = request.POST.getlist("quantity")
             costs = request.POST.getlist("unit_cost")
+            line_totals = request.POST.getlist("line_total_cost")
 
             rows = []
             total_qty = 0
@@ -448,10 +561,13 @@ def farm_transfer(request):
                     quantities[index] if index < len(quantities) else None,
                     "Quantity",
                 )
-                unit_cost = _parse_money(
-                    costs[index] if index < len(costs) else None,
-                    "Farm transfer rate",
-                )
+                unit_raw = (costs[index] if index < len(costs) else "") or ""
+                total_raw = (line_totals[index] if index < len(line_totals) else "") or ""
+                if str(total_raw).strip():
+                    line_cost = _parse_money(total_raw, "Line transfer cost")
+                    unit_cost = (Decimal(line_cost) / Decimal(qty)).quantize(UNIT_COST_QUANT)
+                else:
+                    unit_cost = _parse_unit_cost(unit_raw, "Farm transfer rate")
                 rows.append((product, qty, unit_cost))
                 total_qty += qty
                 total_value += Decimal(qty) * unit_cost
@@ -466,11 +582,18 @@ def farm_transfer(request):
                     f"{total_qty} requested."
                 )
 
+            transport_per_egg = (
+                (Decimal(transport_cost) / Decimal(total_qty)).quantize(UNIT_COST_QUANT)
+                if total_qty and transport_cost > ZERO else Decimal("0.000000")
+            )
+
             with transaction.atomic():
                 transfer = EggPOSFarmTransfer.objects.create(
                     batch=batch,
                     transfer_date=transfer_date,
                     payment_due_date=payment_due_date,
+                    transport_cost=transport_cost,
+                    transport_payment_method=transport_method,
                     notes=(request.POST.get("notes") or "").strip(),
                     created_by=request.user,
                 )
@@ -484,6 +607,7 @@ def farm_transfer(request):
                         quantity=qty,
                         unit_cost=unit_cost,
                     )
+                    landed_unit_cost = (Decimal(unit_cost) + transport_per_egg).quantize(UNIT_COST_QUANT)
                     lot = EggPOSInventoryLot.objects.create(
                         product=product,
                         source_type="farm",
@@ -493,16 +617,21 @@ def farm_transfer(request):
                         received_date=transfer_date,
                         quantity_received=qty,
                         quantity_remaining=qty,
-                        unit_cost=unit_cost,
-                        notes=f"RayNoor Egg Production internal transfer {transfer.transfer_number}",
+                        unit_cost=landed_unit_cost,
+                        notes=(
+                            f"RayNoor internal transfer {transfer.transfer_number} | "
+                            f"Base Rs {unit_cost:.4f}/egg + transport Rs {transport_per_egg:.4f}/egg"
+                        ),
                     )
                     item.lot = lot
                     item.save(update_fields=["lot"])
+                sync_farm_transfer(transfer)
 
             messages.success(
                 request,
                 f"{transfer.transfer_number} created: {total_qty} eggs, "
-                f"Rs {money(total_value):,.2f} payable to RayNoor Egg Production.",
+                f"Rs {money(total_value):,.2f} payable to RayNoor Egg Production; "
+                f"Rs {transport_cost:,.2f} transport included in FIFO landed cost.",
             )
             return redirect("egg_pos_farm_transfer_detail", transfer_id=transfer.id)
         except Exception as error:
@@ -529,6 +658,7 @@ def farm_transfer(request):
         "total_paid": total_paid,
         "total_outstanding": total_outstanding,
         "outstanding_count": outstanding_count,
+        "transport_methods": EggPOSFarmTransfer.TRANSPORT_PAYMENT_CHOICES,
     })
 
 
@@ -575,7 +705,7 @@ def record_farm_transfer_payment(request, transfer_id):
             raise ValueError("Select a valid payment method.")
 
         payment_date = _parse_date(request.POST.get("payment_date"), "Payment date")
-        EggPOSFarmTransferPayment.objects.create(
+        payment = EggPOSFarmTransferPayment.objects.create(
             transfer=transfer,
             payment_date=payment_date,
             amount=amount,
@@ -584,6 +714,7 @@ def record_farm_transfer_payment(request, transfer_id):
             notes=(request.POST.get("notes") or "").strip(),
             recorded_by=request.user,
         )
+        sync_farm_transfer_payment(payment)
         messages.success(
             request,
             f"Payment Rs {amount:,.2f} recorded against {transfer.transfer_number}.",
@@ -661,41 +792,79 @@ def new_sale(request):
             product_ids = request.POST.getlist("product_id")
             quantities = request.POST.getlist("quantity")
             prices = request.POST.getlist("unit_price")
-            rows, seen_products = [], set()
+            sale_units = request.POST.getlist("sale_unit")
+            unit_counts = request.POST.getlist("unit_count")
+            unit_rates = request.POST.getlist("unit_rate")
+
+            unit_sizes = {"egg": 1, "dozen": 12, "tray": 30, "crate": 360}
+            rows = []
+            requested_by_product = {}
 
             for index, product_id in enumerate(product_ids):
                 if not product_id:
                     continue
 
                 product = get_object_or_404(EggPOSProduct, pk=product_id, is_active=True)
-                if product.id in seen_products:
-                    raise ValueError(f"{product.name} is listed more than once. Combine it into one row.")
 
-                seen_products.add(product.id)
-                qty = _parse_positive_int(
-                    quantities[index] if index < len(quantities) else None,
-                    "Quantity",
-                )
-                unit_price = _parse_money(
-                    prices[index] if index < len(prices) else None,
-                    "Sale price",
-                )
+                # New pack-aware form. The inventory quantity is converted to eggs,
+                # while the entered pack rate is preserved exactly for the invoice.
+                sale_unit = (sale_units[index] if index < len(sale_units) else "").strip().lower()
+                if sale_unit in unit_sizes:
+                    unit_size = unit_sizes[sale_unit]
+                    unit_count = _parse_positive_int(
+                        unit_counts[index] if index < len(unit_counts) else None,
+                        "Pack quantity",
+                    )
+                    unit_rate = _parse_money(
+                        unit_rates[index] if index < len(unit_rates) else None,
+                        "Sale rate",
+                    )
+                    qty = unit_count * unit_size
+                    line_total = money(Decimal(unit_count) * unit_rate)
+                    # Keep the legacy per-egg field populated for compatibility.
+                    unit_price = (line_total / Decimal(qty)).quantize(Decimal("0.01"))
+                else:
+                    # Backward-compatible fallback for older cached forms.
+                    sale_unit = "egg"
+                    unit_size = 1
+                    qty = _parse_positive_int(
+                        quantities[index] if index < len(quantities) else None,
+                        "Quantity",
+                    )
+                    unit_count = qty
+                    unit_price = _parse_money(
+                        prices[index] if index < len(prices) else None,
+                        "Sale price",
+                    )
+                    unit_rate = unit_price
+                    line_total = money(Decimal(qty) * unit_price)
 
-                # Fast pre-check for a friendly error before the transaction.
+                rows.append((
+                    product, qty, unit_price, sale_unit, unit_count,
+                    unit_size, unit_rate, line_total,
+                ))
+                if product.id not in requested_by_product:
+                    requested_by_product[product.id] = {"product": product, "qty": 0}
+                requested_by_product[product.id]["qty"] += qty
+
+            if not rows:
+                raise ValueError("Add at least one sale item.")
+
+            # Pre-check combined quantities because the same egg product may appear
+            # on multiple invoice lines (e.g. 1 crate + 2 trays + 6 loose eggs).
+            for requested in requested_by_product.values():
+                product = requested["product"]
+                qty = requested["qty"]
                 stock = available_product_stock(product, sale_date)
                 if stock <= 0:
                     raise ValueError(f"{product.name} is out of stock. Sale was not created.")
                 if qty > stock:
                     raise ValueError(
-                        f"Only {stock} {product.name} eggs are available for this sale date."
+                        f"Only {stock} {product.name} eggs are available for this sale date; "
+                        f"this invoice requests {qty}."
                     )
 
-                rows.append((product, qty, unit_price))
-
-            if not rows:
-                raise ValueError("Add at least one sale item.")
-
-            subtotal = money(sum((Decimal(qty) * price for _, qty, price in rows), ZERO))
+            subtotal = money(sum((row[7] for row in rows), ZERO))
             discount = _parse_money(
                 request.POST.get("discount_amount") or "0",
                 "Discount",
@@ -759,7 +928,9 @@ def new_sale(request):
                 # lock the actual inventory lots and re-check stock BEFORE the
                 # sale/invoice is created. This prevents zero-stock sales and
                 # two staff users selling the same last eggs simultaneously.
-                for product, qty, _unit_price in rows:
+                for requested in requested_by_product.values():
+                    product = requested["product"]
+                    qty = requested["qty"]
                     locked_lots = list(
                         EggPOSInventoryLot.objects.select_for_update()
                         .filter(
@@ -783,8 +954,9 @@ def new_sale(request):
                         )
                     if qty > locked_available:
                         raise ValueError(
-                            f"Only {locked_available} {product.name} eggs are available now. "
-                            "Stock changed before checkout, so the sale was not created."
+                            f"Only {locked_available} {product.name} eggs are available now; "
+                            f"this invoice requests {qty}. Stock changed before checkout, "
+                            "so the sale was not created."
                         )
 
                 sale = EggPOSSale.objects.create(
@@ -804,22 +976,30 @@ def new_sale(request):
                 sale.save(update_fields=["sale_number"])
 
                 cogs_total = ZERO
-                for product, qty, unit_price in rows:
+                for (
+                    product, qty, unit_price, sale_unit, unit_count,
+                    unit_size, unit_rate, line_total,
+                ) in rows:
                     item = EggPOSSaleItem.objects.create(
                         sale=sale,
                         product=product,
                         quantity=qty,
+                        sale_unit=sale_unit,
+                        unit_count=unit_count,
+                        unit_size=unit_size,
+                        unit_rate=unit_rate,
                         unit_price=unit_price,
-                        line_total=money(Decimal(qty) * unit_price),
+                        line_total=line_total,
                     )
                     cogs_total += allocate_fifo_to_sale_item(item, sale.sale_date)
 
                 sale.cogs_total = money(cogs_total)
                 sale.profit_total = money(sale.net_total - sale.cogs_total)
                 sale.save(update_fields=["cogs_total", "profit_total"])
+                sync_sale_invoice(sale)
 
                 if amount_received > ZERO:
-                    EggPOSSalePayment.objects.create(
+                    payment = EggPOSSalePayment.objects.create(
                         sale=sale,
                         payment_date=sale.sale_date,
                         amount=amount_received,
@@ -827,6 +1007,7 @@ def new_sale(request):
                         notes="Payment received at checkout.",
                         recorded_by=request.user,
                     )
+                    sync_sale_payment(payment)
 
             messages.success(
                 request,
@@ -1034,7 +1215,8 @@ def record_sale_payment(request, sale_id):
         if method not in {v for v,_ in EggPOSSalePayment.PAYMENT_METHOD_CHOICES}:
             raise ValueError("Select a valid payment method.")
         payment_date=_parse_date(request.POST.get("payment_date"),"Payment date")
-        EggPOSSalePayment.objects.create(sale=sale,payment_date=payment_date,amount=amount,payment_method=method,reference=(request.POST.get("reference") or "").strip(),notes=(request.POST.get("notes") or "").strip(),recorded_by=request.user)
+        payment = EggPOSSalePayment.objects.create(sale=sale,payment_date=payment_date,amount=amount,payment_method=method,reference=(request.POST.get("reference") or "").strip(),notes=(request.POST.get("notes") or "").strip(),recorded_by=request.user)
+        sync_sale_payment(payment)
         messages.success(request,f"Payment Rs {amount:,.2f} recorded for {sale.sale_number}.")
     except Exception as error:
         messages.error(request,str(error))
@@ -1064,6 +1246,13 @@ def staff_access(request):
             requested_active = request.POST.get("is_active") == "on"
             requested_sell = request.POST.get("can_sell") == "on"
             requested_manage = request.POST.get("can_manage") == "on"
+            commission_percent = _parse_money(
+                request.POST.get("commission_percent") or "0",
+                "Commission %",
+                allow_zero=True,
+            )
+            if commission_percent > Decimal("100.00"):
+                raise ValueError("Commission % cannot exceed 100%.")
 
             # Selecting any permission means this user must have active
             # Egg POS access. To fully disable access, Admin simply clears
@@ -1071,6 +1260,7 @@ def staff_access(request):
             access.can_sell = requested_sell
             access.can_manage = requested_manage
             access.is_active = requested_active or requested_sell or requested_manage
+            access.commission_percent = commission_percent
             access.save()
             messages.success(request, f"Egg POS access updated for {user.username}.")
             return redirect("egg_pos_staff_access")
@@ -1081,3 +1271,953 @@ def staff_access(request):
     access_map = {row.user_id: row for row in EggPOSUserAccess.objects.select_related("user")}
     rows = [{"user": user, "access": access_map.get(user.id)} for user in users]
     return render(request, "api/egg_pos_staff_access.html", {"rows": rows})
+
+
+def _egg_pos_salespeople():
+    return User.objects.filter(
+        is_active=True,
+        egg_pos_access__is_active=True,
+        egg_pos_access__can_sell=True,
+    ).select_related("egg_pos_access").order_by("username")
+
+
+
+
+def _commission_summary(user, today=None):
+    today = today or timezone.localdate()
+    month_start = today.replace(day=1)
+    earned = money(
+        EggPOSCommissionPeriod.objects.filter(
+            salesperson=user,
+            period_end__gte=month_start,
+            period_end__lte=today,
+        ).aggregate(total=Sum("commission_amount"))["total"] or ZERO
+    )
+    received = money(
+        EggPOSCommissionPayment.objects.filter(
+            commission__salesperson=user,
+            payment_date__gte=month_start,
+            payment_date__lte=today,
+        ).aggregate(total=Sum("amount"))["total"] or ZERO
+    )
+    balance = money(staff_commission_balance(user))
+    return {
+        "month_earned": earned,
+        "month_received": received,
+        "balance_due": balance,
+    }
+
+
+def _pending_handover_total(user):
+    return money(
+        EggPOSCashHandoverRequest.objects.filter(
+            salesperson=user,
+            status="pending",
+        ).aggregate(total=Sum("amount"))["total"] or ZERO
+    )
+
+
+def _refresh_unpaid_commissions_for_date(user, activity_date):
+    refreshed = 0
+    locked = 0
+    periods = EggPOSCommissionPeriod.objects.filter(
+        salesperson=user,
+        period_start__lte=activity_date,
+        period_end__gte=activity_date,
+    ).prefetch_related("payments")
+    for commission in periods:
+        if Decimal(commission.amount_paid) > ZERO:
+            locked += 1
+            continue
+        snapshot = commission_preview(user, commission.period_start, commission.period_end)
+        commission.sales_revenue = snapshot["sales_revenue"]
+        commission.cogs = snapshot["cogs"]
+        commission.selling_expenses = snapshot["selling_expenses"]
+        commission.commissionable_profit = snapshot["commissionable_profit"]
+        commission.commission_percent = snapshot["commission_percent"]
+        commission.commission_amount = snapshot["commission_amount"]
+        commission.save(update_fields=[
+            "sales_revenue", "cogs", "selling_expenses", "commissionable_profit",
+            "commission_percent", "commission_amount",
+        ])
+        sync_commission_period(commission)
+        refreshed += 1
+    return refreshed, locked
+
+def _report_range(request):
+    """Resolve common accounting periods while preserving custom date ranges."""
+    today = timezone.localdate()
+    period = (request.GET.get("period") or "").strip().lower()
+    month_start = today.replace(day=1)
+
+    if period == "today":
+        return today, today
+    if period == "this_month":
+        return month_start, today
+    if period == "last_month":
+        last_month_end = month_start - timedelta(days=1)
+        return last_month_end.replace(day=1), last_month_end
+
+    try:
+        start_date = _parse_date(request.GET.get("start"), "Start date", default=month_start)
+        end_date = _parse_date(request.GET.get("end"), "End date", default=today)
+    except ValueError:
+        start_date, end_date = month_start, today
+    if end_date < start_date:
+        start_date, end_date = end_date, start_date
+    return start_date, end_date
+
+
+def _report_period_key(request, start_date, end_date):
+    requested = (request.GET.get("period") or "").strip().lower()
+    if requested in {"today", "this_month", "last_month"}:
+        return requested
+    if request.GET.get("start") or request.GET.get("end"):
+        return "custom"
+
+    today = timezone.localdate()
+    if start_date == today and end_date == today:
+        return "today"
+    if start_date == today.replace(day=1) and end_date == today:
+        return "this_month"
+    return "custom"
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def supplier_detail(request, supplier_id):
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can view supplier ledgers.")
+
+    supplier = get_object_or_404(EggPOSSupplier, pk=supplier_id)
+    ensure_default_accounts()
+
+    if request.method == "POST":
+        try:
+            balance = money(gl_supplier_balance(supplier))
+            if balance <= ZERO:
+                raise ValueError("This supplier has no outstanding payable in the ledger.")
+            amount = _parse_money(request.POST.get("amount"), "Payment amount")
+            if amount > balance:
+                raise ValueError(f"Payment cannot exceed supplier payable Rs {balance:,.2f}.")
+            method = (request.POST.get("payment_method") or "cash").strip()
+            valid_methods = {value for value, _ in EggPOSSupplierPayment.PAYMENT_METHOD_CHOICES}
+            if method not in valid_methods:
+                raise ValueError("Select a valid payment method.")
+            purchase = None
+            purchase_id = (request.POST.get("purchase") or "").strip()
+            if purchase_id:
+                purchase = get_object_or_404(EggPOSPurchase, pk=purchase_id, supplier=supplier)
+            payment = EggPOSSupplierPayment.objects.create(
+                supplier=supplier,
+                purchase=purchase,
+                payment_date=_parse_date(request.POST.get("payment_date"), "Payment date"),
+                amount=amount,
+                payment_method=method,
+                reference=(request.POST.get("reference") or "").strip(),
+                notes=(request.POST.get("notes") or "").strip(),
+                recorded_by=request.user,
+            )
+            sync_supplier_payment(payment)
+            messages.success(request, f"Payment Rs {amount:,.2f} recorded for {supplier.name}.")
+            return redirect("egg_pos_supplier_detail", supplier_id=supplier.id)
+        except Exception as error:
+            messages.error(request, str(error))
+
+    purchases = list(
+        supplier.egg_pos_purchases.select_related("created_by")
+        .prefetch_related("items__product", "payments")
+        .order_by("-purchase_date", "-id")
+    )
+    payments = supplier.payments.select_related("purchase", "recorded_by").order_by("-payment_date", "-id")[:100]
+    ledger_lines = list(
+        party_activity(
+            party_type="supplier",
+            party_id=supplier.id,
+            account_codes=["2000"],
+        )
+    )
+    running = ZERO
+    ledger_rows = []
+    for row in ledger_lines:
+        running = money(running + Decimal(row.credit or 0) - Decimal(row.debit or 0))
+        ledger_rows.append({"line": row, "balance": running})
+
+    return render(request, "api/egg_pos_supplier_detail.html", {
+        "supplier": supplier,
+        "purchases": purchases,
+        "payments": payments,
+        "ledger_rows": reversed(ledger_rows),
+        "balance": money(gl_supplier_balance(supplier)),
+        "payment_methods": EggPOSSupplierPayment.PAYMENT_METHOD_CHOICES,
+        "today": timezone.localdate(),
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def expenses(request):
+    if not can_sell(request.user):
+        return _deny(request)
+
+    manage = can_manage(request.user)
+    salespeople = list(_egg_pos_salespeople()) if manage else [request.user]
+
+    if request.method == "POST":
+        try:
+            if manage:
+                used_by = get_object_or_404(User, pk=request.POST.get("used_by"), is_active=True)
+                if not can_sell(used_by):
+                    raise ValueError("Selected staff member does not have active Egg POS sales access.")
+            else:
+                used_by = request.user
+
+            expense_type = (request.POST.get("expense_type") or "fuel").strip()
+            if expense_type not in {value for value, _ in EggPOSExpense.EXPENSE_TYPE_CHOICES}:
+                raise ValueError("Select a valid expense type.")
+            payment_source = (request.POST.get("payment_source") or "sales_collection").strip()
+            if payment_source not in {value for value, _ in EggPOSExpense.PAYMENT_SOURCE_CHOICES}:
+                raise ValueError("Select a valid payment source.")
+
+            expense_date = _parse_date(request.POST.get("expense_date"), "Expense date")
+            expense_amount = _parse_money(request.POST.get("amount"), "Expense amount")
+            if manage and payment_source == "sales_collection":
+                cash_available = money(staff_cash_balance(used_by, as_of=expense_date))
+                if expense_amount > cash_available:
+                    raise ValueError(
+                        f"{used_by.username} has only Rs {cash_available:,.2f} sales cash available on this date. "
+                        "Use Paid Personally if the salesperson used their own money."
+                    )
+
+            status = "approved" if manage else "pending"
+            expense = EggPOSExpense.objects.create(
+                expense_date=expense_date,
+                expense_type=expense_type,
+                amount=expense_amount,
+                used_by=used_by,
+                payment_source=payment_source,
+                affects_commission=request.POST.get("affects_commission", "on") == "on",
+                reference=(request.POST.get("reference") or "").strip(),
+                notes=(request.POST.get("notes") or "").strip(),
+                status=status,
+                entered_by=request.user,
+                approved_by=request.user if manage else None,
+                approved_at=timezone.now() if manage else None,
+            )
+            if manage:
+                sync_expense(expense)
+                refreshed, locked = (0, 0)
+                if expense.affects_commission:
+                    refreshed, locked = _refresh_unpaid_commissions_for_date(expense.used_by, expense.expense_date)
+                suffix = f" Commission recalculated for {refreshed} unpaid posted period(s)." if refreshed else ""
+                if locked:
+                    suffix += f" {locked} paid/part-paid period(s) were left unchanged."
+                messages.success(request, f"{expense.get_expense_type_display()} Rs {expense.amount:,.2f} approved and posted.{suffix}")
+            else:
+                messages.success(request, f"Expense Rs {expense.amount:,.2f} submitted for approval.")
+            return redirect("egg_pos_expenses")
+        except Exception as error:
+            messages.error(request, str(error))
+
+    qs = EggPOSExpense.objects.select_related("used_by", "entered_by", "approved_by")
+    if not manage:
+        qs = qs.filter(used_by=request.user)
+    rows = list(qs.order_by("-expense_date", "-id")[:200])
+    pending_total = money(sum((Decimal(row.amount or 0) for row in rows if row.status == "pending"), ZERO))
+    approved_total = money(sum((Decimal(row.amount or 0) for row in rows if row.status == "approved"), ZERO))
+
+    return render(request, "api/egg_pos_expenses.html", {
+        "expenses": rows,
+        "salespeople": salespeople,
+        "expense_types": EggPOSExpense.EXPENSE_TYPE_CHOICES,
+        "payment_sources": EggPOSExpense.PAYMENT_SOURCE_CHOICES,
+        "today": timezone.localdate(),
+        "can_manage_pos": manage,
+        "pending_total": pending_total,
+        "approved_total": approved_total,
+        "cash_to_hand_over": money(staff_cash_balance(request.user)) if not manage else ZERO,
+    })
+
+
+@login_required
+@require_POST
+def approve_expense(request, expense_id):
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can approve expenses.")
+    expense = get_object_or_404(EggPOSExpense.objects.select_related("used_by", "entered_by"), pk=expense_id)
+    try:
+        if expense.status != "pending":
+            raise ValueError("Only pending expenses can be approved or rejected.")
+        action = (request.POST.get("action") or "approve").strip().lower()
+        posted_source = (request.POST.get("payment_source") or "").strip()
+        if posted_source:
+            valid_sources = {value for value, _ in EggPOSExpense.PAYMENT_SOURCE_CHOICES}
+            if posted_source not in valid_sources:
+                raise ValueError("Select a valid payment source.")
+            expense.payment_source = posted_source
+        if action == "approve":
+            if expense.payment_source == "sales_collection":
+                cash_available = money(staff_cash_balance(expense.used_by, as_of=expense.expense_date))
+                if Decimal(expense.amount or 0) > cash_available:
+                    raise ValueError(
+                        f"{expense.used_by.username} has only Rs {cash_available:,.2f} sales cash available on this date. "
+                        "Change the payment source to personal/company payment before approval."
+                    )
+            with transaction.atomic():
+                expense.status = "approved"
+                expense.approved_by = request.user
+                expense.approved_at = timezone.now()
+                expense.rejection_reason = ""
+                expense.save(update_fields=["status", "approved_by", "approved_at", "rejection_reason", "payment_source", "updated_at"])
+                sync_expense(expense)
+                refreshed, locked = (0, 0)
+                if expense.affects_commission:
+                    refreshed, locked = _refresh_unpaid_commissions_for_date(expense.used_by, expense.expense_date)
+            suffix = f" Commission recalculated for {refreshed} unpaid posted period(s)." if refreshed else ""
+            if locked:
+                suffix += f" {locked} paid/part-paid period(s) were not changed and may need an adjustment."
+            messages.success(request, f"Expense Rs {expense.amount:,.2f} approved. It now reduces {expense.used_by.username}'s cash/commission as applicable.{suffix}")
+        elif action == "reject":
+            expense.status = "rejected"
+            expense.approved_by = request.user
+            expense.approved_at = timezone.now()
+            expense.rejection_reason = (request.POST.get("rejection_reason") or "").strip()
+            expense.save(update_fields=["status", "approved_by", "approved_at", "rejection_reason", "updated_at"])
+            messages.success(request, "Expense rejected; no accounting entry was posted.")
+        else:
+            raise ValueError("Invalid approval action.")
+    except Exception as error:
+        messages.error(request, str(error))
+    return redirect("egg_pos_expenses")
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def cash_settlements(request):
+    if not can_sell(request.user):
+        return _deny(request)
+
+    manage = can_manage(request.user)
+    today = timezone.localdate()
+    start_date, end_date = _report_range(request)
+    period_key = _report_period_key(request, start_date, end_date)
+    salespeople = list(_egg_pos_salespeople()) if manage else [request.user]
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "").strip().lower()
+        try:
+            if action == "submit_handover":
+                if manage:
+                    raise ValueError("Management can record cash directly; salesperson submissions are for sales staff.")
+                handover_date = _parse_date(request.POST.get("handover_date"), "Handover date", default=today)
+                current = money(staff_cash_balance(request.user, as_of=handover_date))
+                pending = _pending_handover_total(request.user)
+                available_to_submit = money(max(Decimal(current) - Decimal(pending), ZERO))
+                if available_to_submit <= ZERO:
+                    raise ValueError("You have no additional cash available to submit. Wait for pending handovers to be confirmed.")
+                amount = _parse_money(request.POST.get("amount"), "Handover amount")
+                if amount > available_to_submit:
+                    raise ValueError(
+                        f"You can submit up to Rs {available_to_submit:,.2f}. "
+                        f"Rs {pending:,.2f} is already awaiting confirmation."
+                    )
+                destination = (request.POST.get("destination") or "cash").strip()
+                if destination not in {value for value, _ in EggPOSCashSettlement.DESTINATION_CHOICES}:
+                    raise ValueError("Select Cash Handover or Bank Transfer.")
+                handover = EggPOSCashHandoverRequest.objects.create(
+                    salesperson=request.user,
+                    handover_date=handover_date,
+                    amount=amount,
+                    destination=destination,
+                    reference=(request.POST.get("reference") or "").strip(),
+                    notes=(request.POST.get("notes") or "").strip(),
+                )
+                messages.success(
+                    request,
+                    f"Rs {handover.amount:,.2f} submitted for confirmation. Your official cash balance changes only after management confirms receipt.",
+                )
+                return redirect("egg_pos_cash_settlements")
+
+            if not manage:
+                raise ValueError("Only Egg POS management can confirm or reject cash handovers.")
+
+            if action == "approve_handover":
+                handover = get_object_or_404(
+                    EggPOSCashHandoverRequest.objects.select_related("salesperson"),
+                    pk=request.POST.get("handover_id"),
+                )
+                if handover.status != "pending":
+                    raise ValueError("This handover has already been reviewed.")
+                current = money(staff_cash_balance(handover.salesperson, as_of=handover.handover_date))
+                if current <= ZERO or Decimal(handover.amount) > Decimal(current):
+                    raise ValueError(
+                        f"{handover.salesperson.username}'s available sales cash on {handover.handover_date} is Rs {current:,.2f}. "
+                        "Review their cash ledger before confirming."
+                    )
+                with transaction.atomic():
+                    settlement = EggPOSCashSettlement.objects.create(
+                        salesperson=handover.salesperson,
+                        settlement_date=handover.handover_date,
+                        amount=handover.amount,
+                        destination=handover.destination,
+                        reference=handover.reference,
+                        notes=handover.notes,
+                        recorded_by=request.user,
+                    )
+                    sync_cash_settlement(settlement)
+                    handover.status = "confirmed"
+                    handover.reviewed_by = request.user
+                    handover.reviewed_at = timezone.now()
+                    handover.rejection_reason = ""
+                    handover.settlement = settlement
+                    handover.save(update_fields=["status", "reviewed_by", "reviewed_at", "rejection_reason", "settlement"])
+                messages.success(
+                    request,
+                    f"Rs {handover.amount:,.2f} confirmed from {handover.salesperson.username}. Their cash-to-hand-over balance was reduced.",
+                )
+                return redirect(f"{request.path}?staff={handover.salesperson_id}")
+
+            if action == "reject_handover":
+                handover = get_object_or_404(
+                    EggPOSCashHandoverRequest.objects.select_related("salesperson"),
+                    pk=request.POST.get("handover_id"),
+                )
+                if handover.status != "pending":
+                    raise ValueError("This handover has already been reviewed.")
+                handover.status = "rejected"
+                handover.reviewed_by = request.user
+                handover.reviewed_at = timezone.now()
+                handover.rejection_reason = (request.POST.get("rejection_reason") or "").strip()
+                handover.save(update_fields=["status", "reviewed_by", "reviewed_at", "rejection_reason"])
+                messages.success(request, f"Handover submission from {handover.salesperson.username} rejected.")
+                return redirect(f"{request.path}?staff={handover.salesperson_id}")
+
+            if action in {"receive_direct", ""}:
+                salesperson = get_object_or_404(User, pk=request.POST.get("salesperson"), is_active=True)
+                if not can_sell(salesperson):
+                    raise ValueError("Selected staff member does not have active Egg POS sales access.")
+                settlement_date = _parse_date(request.POST.get("settlement_date"), "Settlement date")
+                current = money(staff_cash_balance(salesperson, as_of=settlement_date))
+                if current <= ZERO:
+                    raise ValueError(f"{salesperson.username} has no positive sales cash to hand over on {settlement_date}.")
+                amount = _parse_money(request.POST.get("amount"), "Settlement amount")
+                if amount > current:
+                    raise ValueError(f"Settlement cannot exceed cash held Rs {current:,.2f} on {settlement_date}.")
+                destination = (request.POST.get("destination") or "cash").strip()
+                if destination not in {value for value, _ in EggPOSCashSettlement.DESTINATION_CHOICES}:
+                    raise ValueError("Select a valid settlement destination.")
+                settlement = EggPOSCashSettlement.objects.create(
+                    salesperson=salesperson,
+                    settlement_date=settlement_date,
+                    amount=amount,
+                    destination=destination,
+                    reference=(request.POST.get("reference") or "").strip(),
+                    notes=(request.POST.get("notes") or "").strip(),
+                    recorded_by=request.user,
+                )
+                sync_cash_settlement(settlement)
+                messages.success(request, f"Rs {amount:,.2f} received from {salesperson.username}. Their cash-to-hand-over balance was reduced.")
+                return redirect(f"{request.path}?staff={salesperson.id}")
+
+            raise ValueError("Invalid cash handover action.")
+        except Exception as error:
+            messages.error(request, str(error))
+
+    # Management sees everyone; sales staff see only themselves.
+    staff_rows = []
+    for user in salespeople:
+        current_balance = money(staff_cash_balance(user))
+        pending_handover = _pending_handover_total(user)
+        cash_to_submit = money(max(Decimal(current_balance) - Decimal(pending_handover), ZERO))
+        period_lines = JournalLine.objects.filter(
+            account__code="1040",
+            entry__module="egg_pos",
+            party_type="user",
+            party_id=user.id,
+            entry__entry_date__gte=start_date,
+            entry__entry_date__lte=end_date,
+        )
+        period_totals = period_lines.aggregate(debit=Sum("debit"), credit=Sum("credit"))
+        collected = money(period_totals["debit"] or ZERO)
+        cleared = money(period_totals["credit"] or ZERO)
+        approved_deductions = money(
+            EggPOSExpense.objects.filter(
+                used_by=user,
+                status="approved",
+                payment_source="sales_collection",
+                expense_date__gte=start_date,
+                expense_date__lte=end_date,
+            ).aggregate(total=Sum("amount"))["total"] or ZERO
+        )
+        handovers = money(
+            EggPOSCashSettlement.objects.filter(
+                salesperson=user,
+                settlement_date__gte=start_date,
+                settlement_date__lte=end_date,
+            ).aggregate(total=Sum("amount"))["total"] or ZERO
+        )
+        pending_expenses = money(
+            EggPOSExpense.objects.filter(used_by=user, status="pending").aggregate(total=Sum("amount"))["total"] or ZERO
+        )
+        staff_rows.append({
+            "user": user,
+            "cash_balance": current_balance,
+            "pending_handover": pending_handover,
+            "cash_to_submit": cash_to_submit,
+            "period_collected": collected,
+            "period_cleared": cleared,
+            "approved_deductions": approved_deductions,
+            "handovers": handovers,
+            "pending_expenses": pending_expenses,
+            "reimbursement": money(staff_reimbursement_balance(user)),
+            "commission_payable": money(staff_commission_balance(user)),
+        })
+
+    selected = None
+    if salespeople:
+        if manage and request.GET.get("staff"):
+            try:
+                selected_id = int(request.GET.get("staff"))
+                selected = next((u for u in salespeople if u.id == selected_id), None)
+            except (TypeError, ValueError):
+                selected = None
+        selected = selected or (request.user if not manage else salespeople[0])
+
+    ledger_rows = []
+    opening_balance = ZERO
+    closing_balance = ZERO
+    selected_summary = None
+    if selected:
+        selected_summary = next((row for row in staff_rows if row["user"].id == selected.id), None)
+        opening_totals = JournalLine.objects.filter(
+            account__code="1040",
+            entry__module="egg_pos",
+            party_type="user",
+            party_id=selected.id,
+            entry__entry_date__lt=start_date,
+        ).aggregate(debit=Sum("debit"), credit=Sum("credit"))
+        opening_balance = money(Decimal(opening_totals["debit"] or 0) - Decimal(opening_totals["credit"] or 0))
+        running = opening_balance
+        activity = JournalLine.objects.filter(
+            account__code="1040",
+            entry__module="egg_pos",
+            party_type="user",
+            party_id=selected.id,
+            entry__entry_date__gte=start_date,
+            entry__entry_date__lte=end_date,
+        ).select_related("entry", "account").order_by("entry__entry_date", "entry_id", "id")
+        for journal_line in activity:
+            running = money(running + Decimal(journal_line.debit or 0) - Decimal(journal_line.credit or 0))
+            ledger_rows.append({"line": journal_line, "balance": running})
+        closing_balance = running
+
+    settlements = EggPOSCashSettlement.objects.select_related("salesperson", "recorded_by")
+    requests_qs = EggPOSCashHandoverRequest.objects.select_related("salesperson", "reviewed_by", "settlement")
+    if not manage:
+        settlements = settlements.filter(salesperson=request.user)
+        requests_qs = requests_qs.filter(salesperson=request.user)
+    elif selected:
+        settlements = settlements.filter(salesperson=selected)
+        requests_qs = requests_qs.filter(salesperson=selected)
+    settlements = settlements.order_by("-settlement_date", "-id")[:100]
+    pending_requests = (
+        EggPOSCashHandoverRequest.objects.filter(status="pending").select_related("salesperson").order_by("handover_date", "id")
+        if manage else requests_qs.filter(status="pending").order_by("handover_date", "id")
+    )
+    handover_requests = requests_qs.order_by("-handover_date", "-id")[:100]
+
+    return render(request, "api/egg_pos_cash_settlements.html", {
+        "staff_rows": staff_rows,
+        "selected": selected,
+        "selected_summary": selected_summary,
+        "ledger_rows": list(reversed(ledger_rows)),
+        "opening_balance": opening_balance,
+        "closing_balance": closing_balance,
+        "settlements": settlements,
+        "handover_requests": handover_requests,
+        "pending_requests": pending_requests,
+        "destinations": EggPOSCashSettlement.DESTINATION_CHOICES,
+        "today": today,
+        "start_date": start_date,
+        "end_date": end_date,
+        "period_key": period_key,
+        "can_manage_pos": manage,
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def commissions(request):
+    if not can_sell(request.user):
+        return _deny(request)
+
+    manage = can_manage(request.user)
+    salespeople = list(_egg_pos_salespeople()) if manage else [request.user]
+    today = timezone.localdate()
+    week_start = today - timedelta(days=today.weekday())
+    requested_period = (request.GET.get("period") or "").strip().lower()
+
+    selected_id = request.GET.get("salesperson") or request.POST.get("salesperson")
+    selected = request.user
+    if manage and salespeople:
+        selected = salespeople[0]
+        if selected_id:
+            selected = get_object_or_404(User, pk=selected_id, is_active=True)
+
+    if request.GET.get("start") or request.GET.get("end"):
+        period_key = "custom"
+        start_date = _parse_date(request.GET.get("start"), "Period start", default=week_start)
+        end_date = _parse_date(request.GET.get("end"), "Period end", default=today)
+    elif requested_period == "last_week":
+        period_key = "last_week"
+        end_date = week_start - timedelta(days=1)
+        start_date = end_date - timedelta(days=6)
+    elif requested_period == "this_month":
+        period_key = "this_month"
+        start_date = today.replace(day=1)
+        end_date = today
+    else:
+        period_key = "this_week"
+        start_date = week_start
+        end_date = today
+
+    # POST uses the explicit hidden dates from the form.
+    if request.method == "POST":
+        posted_start = request.POST.get("period_start")
+        posted_end = request.POST.get("period_end")
+        if posted_start:
+            start_date = _parse_date(posted_start, "Period start", default=start_date)
+        if posted_end:
+            end_date = _parse_date(posted_end, "Period end", default=end_date)
+    if end_date < start_date:
+        start_date, end_date = end_date, start_date
+
+    if request.method == "POST":
+        action = (request.POST.get("action") or "post").strip()
+        try:
+            if not manage:
+                raise ValueError("Only Egg POS management can post or pay commissions.")
+            if action == "post":
+                salesperson = get_object_or_404(User, pk=request.POST.get("salesperson"), is_active=True)
+                period_start = _parse_date(request.POST.get("period_start"), "Period start")
+                period_end = _parse_date(request.POST.get("period_end"), "Period end")
+                if period_end < period_start:
+                    raise ValueError("Period end cannot be before period start.")
+                overlap = EggPOSCommissionPeriod.objects.filter(
+                    salesperson=salesperson,
+                    period_start__lte=period_end,
+                    period_end__gte=period_start,
+                ).exists()
+                if overlap:
+                    raise ValueError("This salesperson already has a posted commission period overlapping these dates.")
+                pending_expenses = EggPOSExpense.objects.filter(
+                    used_by=salesperson,
+                    status="pending",
+                    affects_commission=True,
+                    expense_date__gte=period_start,
+                    expense_date__lte=period_end,
+                ).count()
+                if pending_expenses:
+                    raise ValueError(
+                        f"There are {pending_expenses} pending commission-affecting expense(s) in this period. "
+                        "Approve or reject them before posting commission."
+                    )
+                snapshot = commission_preview(salesperson, period_start, period_end)
+                if snapshot["commission_percent"] <= ZERO:
+                    raise ValueError("Set this salesperson's Commission % in Staff Access first.")
+                if snapshot["commission_amount"] <= ZERO:
+                    raise ValueError("There is no positive commission to post for this period.")
+                with transaction.atomic():
+                    commission = EggPOSCommissionPeriod.objects.create(
+                        salesperson=salesperson,
+                        period_start=period_start,
+                        period_end=period_end,
+                        sales_revenue=snapshot["sales_revenue"],
+                        cogs=snapshot["cogs"],
+                        selling_expenses=snapshot["selling_expenses"],
+                        commissionable_profit=snapshot["commissionable_profit"],
+                        commission_percent=snapshot["commission_percent"],
+                        commission_amount=snapshot["commission_amount"],
+                        notes=(request.POST.get("notes") or "").strip(),
+                        posted_by=request.user,
+                    )
+                    sync_commission_period(commission)
+                messages.success(request, f"Commission Rs {commission.commission_amount:,.2f} posted for {salesperson.username}.")
+                return redirect(f"{request.path}?salesperson={salesperson.id}&period=this_week")
+            elif action == "recalculate":
+                commission = get_object_or_404(
+                    EggPOSCommissionPeriod.objects.select_related("salesperson").prefetch_related("payments"),
+                    pk=request.POST.get("commission_id"),
+                )
+                if Decimal(commission.amount_paid) > ZERO:
+                    raise ValueError("A paid or partially paid commission cannot be recalculated. Record an adjustment instead.")
+                snapshot = commission_preview(commission.salesperson, commission.period_start, commission.period_end)
+                commission.sales_revenue = snapshot["sales_revenue"]
+                commission.cogs = snapshot["cogs"]
+                commission.selling_expenses = snapshot["selling_expenses"]
+                commission.commissionable_profit = snapshot["commissionable_profit"]
+                commission.commission_percent = snapshot["commission_percent"]
+                commission.commission_amount = snapshot["commission_amount"]
+                commission.save(update_fields=[
+                    "sales_revenue", "cogs", "selling_expenses", "commissionable_profit",
+                    "commission_percent", "commission_amount",
+                ])
+                sync_commission_period(commission)
+                messages.success(request, f"Commission period recalculated. New commission: Rs {commission.commission_amount:,.2f}.")
+                return redirect(f"{request.path}?salesperson={commission.salesperson_id}&start={commission.period_start}&end={commission.period_end}")
+            elif action == "pay":
+                commission = get_object_or_404(EggPOSCommissionPeriod.objects.prefetch_related("payments"), pk=request.POST.get("commission_id"))
+                balance = money(commission.balance_due)
+                amount = _parse_money(request.POST.get("amount"), "Payment amount")
+                if amount > balance:
+                    raise ValueError(f"Payment cannot exceed commission balance Rs {balance:,.2f}.")
+                method = (request.POST.get("payment_method") or "bank_transfer").strip()
+                if method not in {value for value, _ in EggPOSCommissionPayment.PAYMENT_METHOD_CHOICES}:
+                    raise ValueError("Select a valid payment method.")
+                payment = EggPOSCommissionPayment.objects.create(
+                    commission=commission,
+                    payment_date=_parse_date(request.POST.get("payment_date"), "Payment date"),
+                    amount=amount,
+                    payment_method=method,
+                    reference=(request.POST.get("reference") or "").strip(),
+                    notes=(request.POST.get("notes") or "").strip(),
+                    recorded_by=request.user,
+                )
+                sync_commission_payment(payment)
+                messages.success(request, f"Commission payment Rs {amount:,.2f} recorded for {commission.salesperson.username}.")
+                return redirect(f"{request.path}?salesperson={commission.salesperson_id}&period=this_week")
+            else:
+                raise ValueError("Invalid commission action.")
+        except Exception as error:
+            messages.error(request, str(error))
+
+    preview = commission_preview(selected, start_date, end_date) if selected else None
+    commission_summary = _commission_summary(selected, today) if selected else {"month_earned": ZERO, "month_received": ZERO, "balance_due": ZERO}
+    month_start = today.replace(day=1)
+    pending_expenses_count = 0
+    overlap_periods = []
+    if selected:
+        pending_expenses_count = EggPOSExpense.objects.filter(
+            used_by=selected,
+            status="pending",
+            affects_commission=True,
+            expense_date__gte=start_date,
+            expense_date__lte=end_date,
+        ).count()
+        overlap_periods = list(EggPOSCommissionPeriod.objects.filter(
+            salesperson=selected,
+            period_start__lte=end_date,
+            period_end__gte=start_date,
+        ).prefetch_related("payments").order_by("period_start"))
+
+    periods = EggPOSCommissionPeriod.objects.select_related("salesperson", "posted_by").prefetch_related("payments")
+    if selected:
+        periods = periods.filter(salesperson=selected)
+    elif not manage:
+        periods = periods.filter(salesperson=request.user)
+    periods = periods.order_by("-period_end", "-id")[:100]
+
+    return render(request, "api/egg_pos_commissions.html", {
+        "salespeople": salespeople,
+        "selected": selected,
+        "start_date": start_date,
+        "end_date": end_date,
+        "period_key": period_key,
+        "preview": preview,
+        "periods": periods,
+        "overlap_periods": overlap_periods,
+        "pending_expenses_count": pending_expenses_count,
+        "commission_summary": commission_summary,
+        "month_start": month_start,
+        "payment_methods": EggPOSCommissionPayment.PAYMENT_METHOD_CHOICES,
+        "today": today,
+        "can_manage_pos": manage,
+    })
+
+
+@login_required
+def accounting_overview(request):
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can view accounting reports.")
+    ensure_default_accounts()
+    start_date, end_date = _report_range(request)
+    statement = build_income_statement(start_date, end_date)
+    as_of = end_date
+    summary = {
+        "cash": money(normal_account_balance("1000", as_of=as_of)),
+        "bank": money(normal_account_balance("1010", as_of=as_of)),
+        "staff_cash": money(normal_account_balance("1040", as_of=as_of)),
+        "receivables": money(normal_account_balance("1100", as_of=as_of)),
+        "inventory": money(normal_account_balance("1200", as_of=as_of)),
+        "supplier_payable": money(normal_account_balance("2000", as_of=as_of)),
+        "farm_payable": money(normal_account_balance("2010", as_of=as_of)),
+        "staff_reimbursements": money(normal_account_balance("2020", as_of=as_of)),
+        "commission_payable": money(normal_account_balance("2030", as_of=as_of)),
+    }
+    recent_entries = JournalEntry.objects.filter(module="egg_pos", entry_date__lte=as_of).prefetch_related("lines__account").order_by("-entry_date", "-id")[:20]
+    return render(request, "api/egg_pos_accounting.html", {
+        "start_date": start_date,
+        "end_date": end_date,
+        "statement": statement,
+        "summary": summary,
+        "recent_entries": recent_entries,
+    })
+
+
+@login_required
+def general_ledger(request):
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can view the general ledger.")
+    ensure_default_accounts()
+    start_date, end_date = _report_range(request)
+    accounts = list(ChartOfAccount.objects.filter(is_active=True).order_by("code"))
+    selected_code = (request.GET.get("account") or (accounts[0].code if accounts else "1000")).strip()
+    account = get_object_or_404(ChartOfAccount, code=selected_code)
+
+    opening_qs = JournalLine.objects.filter(account=account, entry__module="egg_pos", entry__entry_date__lt=start_date)
+    opening_totals = opening_qs.aggregate(debit=Sum("debit"), credit=Sum("credit"))
+    raw_running = money(Decimal(opening_totals["debit"] or 0) - Decimal(opening_totals["credit"] or 0))
+    opening_balance = raw_running if account.normal_balance == "debit" else money(-raw_running)
+
+    rows = []
+    for journal_line in account_activity(account, start_date=start_date, end_date=end_date):
+        raw_running = money(raw_running + Decimal(journal_line.debit or 0) - Decimal(journal_line.credit or 0))
+        display_balance = raw_running if account.normal_balance == "debit" else money(-raw_running)
+        rows.append({"line": journal_line, "balance": display_balance})
+
+    return render(request, "api/egg_pos_general_ledger.html", {
+        "accounts": accounts,
+        "account": account,
+        "rows": rows,
+        "opening_balance": opening_balance,
+        "closing_balance": rows[-1]["balance"] if rows else opening_balance,
+        "start_date": start_date,
+        "end_date": end_date,
+    })
+
+
+@login_required
+def cashbook(request):
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can view the cashbook.")
+
+    ensure_default_accounts()
+    start_date, end_date = _report_range(request)
+    account_filter = (request.GET.get("account") or "all").strip().lower()
+    if account_filter == "cash":
+        account_codes = ["1000"]
+    elif account_filter == "bank":
+        account_codes = ["1010"]
+    else:
+        account_filter = "all"
+        account_codes = ["1000", "1010"]
+
+    opening_totals = JournalLine.objects.filter(
+        account__code__in=account_codes,
+        entry__module="egg_pos",
+        entry__entry_date__lt=start_date,
+    ).aggregate(debit=Sum("debit"), credit=Sum("credit"))
+    opening_balance = money(Decimal(opening_totals["debit"] or 0) - Decimal(opening_totals["credit"] or 0))
+
+    running = opening_balance
+    rows = []
+    inflow_total = ZERO
+    outflow_total = ZERO
+    lines = JournalLine.objects.filter(
+        account__code__in=account_codes,
+        entry__module="egg_pos",
+        entry__entry_date__gte=start_date,
+        entry__entry_date__lte=end_date,
+    ).select_related("entry", "account").order_by("entry__entry_date", "entry_id", "id")
+    for journal_line in lines:
+        inflow = money(journal_line.debit)
+        outflow = money(journal_line.credit)
+        inflow_total = money(inflow_total + inflow)
+        outflow_total = money(outflow_total + outflow)
+        running = money(running + inflow - outflow)
+        rows.append({
+            "line": journal_line,
+            "inflow": inflow,
+            "outflow": outflow,
+            "balance": running,
+        })
+
+    return render(request, "api/egg_pos_cashbook.html", {
+        "rows": list(reversed(rows)),
+        "opening_balance": opening_balance,
+        "closing_balance": running,
+        "inflow_total": inflow_total,
+        "outflow_total": outflow_total,
+        "start_date": start_date,
+        "end_date": end_date,
+        "period_key": _report_period_key(request, start_date, end_date),
+        "account_filter": account_filter,
+    })
+
+
+@login_required
+def trial_balance(request):
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can view the trial balance.")
+    as_of = _parse_date(request.GET.get("as_of"), "As of date", default=timezone.localdate())
+    rows, total_debit, total_credit = build_trial_balance(as_of)
+    return render(request, "api/egg_pos_trial_balance.html", {
+        "as_of": as_of,
+        "rows": rows,
+        "total_debit": total_debit,
+        "total_credit": total_credit,
+        "balanced": total_debit == total_credit,
+    })
+
+
+@login_required
+def income_statement(request):
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can view the income statement.")
+    start_date, end_date = _report_range(request)
+    statement = build_income_statement(start_date, end_date)
+    return render(request, "api/egg_pos_income_statement.html", {
+        "start_date": start_date,
+        "end_date": end_date,
+        "period_key": _report_period_key(request, start_date, end_date),
+        "statement": statement,
+    })
+
+
+@login_required
+def party_ledger(request, party_type, party_id):
+    manage = can_manage(request.user)
+    if not manage and not (party_type == "staff" and int(party_id) == request.user.id):
+        return _deny(request, "You do not have access to this ledger.")
+
+    start_date, end_date = _report_range(request)
+    context = {"start_date": start_date, "end_date": end_date, "party_type": party_type}
+
+    if party_type == "supplier":
+        if not manage:
+            return _deny(request)
+        party = get_object_or_404(EggPOSSupplier, pk=party_id)
+        lines = party_activity(party_type="supplier", party_id=party.id, start_date=start_date, end_date=end_date, account_codes=["2000"])
+        context.update({"party": party, "party_label": party.name, "balance": money(gl_supplier_balance(party, as_of=end_date)), "lines": lines, "balance_label": "Amount Payable"})
+    elif party_type == "customer":
+        if not manage:
+            return _deny(request)
+        party = get_object_or_404(EggPOSCustomer, pk=party_id)
+        lines = party_activity(party_type="customer", party_id=party.id, start_date=start_date, end_date=end_date, account_codes=["1100"])
+        context.update({"party": party, "party_label": party.display_label, "balance": money(gl_customer_balance(party, as_of=end_date)), "lines": lines, "balance_label": "Amount Receivable"})
+    elif party_type == "staff":
+        party = get_object_or_404(User, pk=party_id)
+        lines = party_activity(party_type="user", party_id=party.id, start_date=start_date, end_date=end_date)
+        context.update({
+            "party": party,
+            "party_label": party.get_full_name().strip() or party.username,
+            "lines": lines,
+            "balance_label": "Cash Held",
+            "balance": money(staff_cash_balance(party, as_of=end_date)),
+            "reimbursement_balance": money(staff_reimbursement_balance(party, as_of=end_date)),
+            "commission_balance": money(staff_commission_balance(party, as_of=end_date)),
+        })
+    else:
+        return _deny(request, "Unknown ledger type.")
+
+    return render(request, "api/egg_pos_party_ledger.html", context)

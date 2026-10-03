@@ -20,6 +20,7 @@
   </div>
   <div class="cd-actions">
     <a class="cd-btn" href="{% url 'egg_pos_customers' %}"><i class="fa-solid fa-arrow-left"></i> Customers</a>
+    {% if can_manage_pos %}<a class="cd-btn" href="{% url 'egg_pos_party_ledger' 'customer' customer.id %}"><i class="fa-solid fa-book"></i> Ledger</a>{% endif %}
     <a class="cd-btn primary" href="{% url 'egg_pos_new_sale' %}?customer={{ customer.id }}"><i class="fa-solid fa-cart-plus"></i> New Sale</a>
   </div>
 </div>
@@ -68,7 +69,7 @@
   <div class="cd-invoice">
     <div>{{ sale.sale_date|date:"d M Y" }}</div>
     <div><a href="{% url 'egg_pos_sale_detail' sale.id %}">{{ sale.sale_number }}</a></div>
-    <div class="wide">{% for item in sale.items.all %}{{ item.product.name }} × {{ item.quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+    <div class="wide">{% for item in sale.items.all %}{{ item.product.name }} × {{ item.display_sale_quantity }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
     <div>Rs {{ sale.net_total|floatformat:0|intcomma }}</div>
     <div>Rs {{ sale.amount_paid|floatformat:0|intcomma }}</div>
     <div><strong>Rs {{ sale.balance_due|floatformat:0|intcomma }}</strong></div>

@@ -91,6 +91,13 @@
             color: white;
         }
 
+        .invoice-action.new-sale {
+            background: #0aa153;
+            border-color: #0aa153;
+            color: #ffffff;
+            box-shadow: 0 6px 16px rgba(10, 161, 83, .18);
+        }
+
         /* =============================
            SMALL TOP LINE
         ============================= */
@@ -536,6 +543,26 @@
             .invoice-footer {
                 flex-direction: column;
             }
+
+            .invoice-actions {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 9px;
+                margin-bottom: 18px;
+            }
+
+            .invoice-action {
+                min-height: 44px;
+                padding: 0 10px;
+                font-size: 11px;
+            }
+
+            .invoice-action.new-sale {
+                grid-column: 1 / -1;
+                min-height: 52px;
+                font-size: 14px;
+                border-radius: 12px;
+            }
         }
 
         /* =============================
@@ -580,6 +607,13 @@
     ========================================== -->
 
     <div class="invoice-actions">
+
+        <a
+            href="{% url 'egg_pos_new_sale' %}"
+            class="invoice-action new-sale"
+        >
+            ＋ New Sale
+        </a>
 
         <a
             href="{% url 'egg_pos_sale_detail' sale.id %}"
@@ -759,12 +793,12 @@
                     Product
                 </th>
 
-                <th style="width:12%">
-                    Qty
+                <th style="width:23%">
+                    Qty / Unit
                 </th>
 
-                <th style="width:20%">
-                    Unit Price
+                <th style="width:18%">
+                    Rate
                 </th>
 
                 <th
@@ -799,12 +833,12 @@
 
 
                     <td>
-                        {{ item.quantity }}
+                        {{ item.display_sale_quantity }}
                     </td>
 
 
                     <td>
-                        Rs {{ item.unit_price|floatformat:2 }}
+                        Rs {{ item.unit_rate|floatformat:2 }} / {{ item.sale_unit_short_label }}
                     </td>
 
 

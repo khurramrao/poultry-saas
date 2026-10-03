@@ -1,0 +1,30 @@
+{% extends "api/egg_pos_base.html" %}{% load humanize %}
+{% block egg_pos_css %}
+<style>
+.ep-period-tabs{display:flex;gap:7px;flex-wrap:wrap}.ep-period-tabs a{min-height:36px;padding:0 13px;border:1px solid #d8e3ee;border-radius:999px;display:inline-flex;align-items:center;text-decoration:none;color:#49647c;background:#fff;font-size:9px;font-weight:900}.ep-period-tabs a.active{background:#1767c6;border-color:#1767c6;color:#fff}
+.ep-pl-row{display:flex;justify-content:space-between;gap:14px;padding:8px 12px;font-size:12px}.ep-pl-row.total{border-top:1px solid #dce5ef;font-weight:950;padding-left:0;padding-right:0}.ep-pl-section{font-weight:950;padding:14px 0 7px;color:#153b60;font-size:11px}.ep-pl-highlight{display:flex;justify-content:space-between;gap:14px;padding:11px;font-weight:950;background:#eef8f2;margin-top:3px}.ep-pl-highlight.net{background:#edf5ff;font-size:15px}.ep-pl-label{min-width:0}.ep-pl-amount{white-space:nowrap;text-align:right}
+@media(max-width:720px){.ep-period-tabs{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}.ep-period-tabs a{flex:0 0 auto}.ep-pl-row{font-size:11px;padding:9px 5px}.ep-pl-highlight{font-size:12px}.ep-pl-highlight.net{font-size:14px}.ep-income-panel{border-radius:13px}}
+</style>
+{% endblock %}
+{% block egg_pos_content %}
+<div class="ep-section-title"><div><h3>Income Statement</h3><p>Monthly by default. Use Today or a custom range when you want operational detail.</p></div><a href="{% url 'egg_pos_accounting' %}">Accounting Home</a></div>
+<section class="ep-panel"><div class="ep-panel-body">
+  <div class="ep-period-tabs"><a href="?period=today" class="{% if period_key == 'today' %}active{% endif %}">Today</a><a href="?period=this_month" class="{% if period_key == 'this_month' %}active{% endif %}">This Month</a><a href="?period=last_month" class="{% if period_key == 'last_month' %}active{% endif %}">Last Month</a><a href="#custom-period" class="{% if period_key == 'custom' %}active{% endif %}">Custom</a></div>
+  <form method="get" class="ep-form-grid" id="custom-period" style="margin-top:12px"><div class="ep-field"><label>From</label><input class="ep-input" type="date" name="start" value="{{ start_date|date:'Y-m-d' }}"></div><div class="ep-field"><label>To</label><input class="ep-input" type="date" name="end" value="{{ end_date|date:'Y-m-d' }}"></div><div class="ep-field" style="align-self:end"><button class="ep-btn primary">Run Custom Statement</button></div></form>
+</div></section>
+<section class="ep-panel ep-income-panel" style="margin-top:12px;max-width:820px;margin-left:auto;margin-right:auto"><div class="ep-panel-head">Egg POS Profit &amp; Loss · {{ start_date|date:"d M Y" }} – {{ end_date|date:"d M Y" }}</div><div class="ep-panel-body">
+  <div class="ep-pl-section">REVENUE</div>
+  {% for row in statement.revenue_rows %}<div class="ep-pl-row"><span class="ep-pl-label">{{ row.account.name }}</span><span class="ep-pl-amount">Rs {{ row.amount|floatformat:2|intcomma }}</span></div>{% empty %}<div class="ep-pl-row"><span style="color:#718399">No revenue in this period.</span><span></span></div>{% endfor %}
+  <div class="ep-pl-row total"><span>Total Revenue</span><span class="ep-pl-amount">Rs {{ statement.revenue|floatformat:2|intcomma }}</span></div>
+
+  <div class="ep-pl-section">COST OF SALES</div>
+  {% for row in statement.cogs_rows %}<div class="ep-pl-row"><span class="ep-pl-label">{{ row.account.name }}</span><span class="ep-pl-amount">Rs {{ row.amount|floatformat:2|intcomma }}</span></div>{% empty %}<div class="ep-pl-row"><span style="color:#718399">No COGS in this period.</span><span></span></div>{% endfor %}
+  <div class="ep-pl-row total"><span>Total COGS</span><span class="ep-pl-amount">Rs {{ statement.cogs|floatformat:2|intcomma }}</span></div>
+  <div class="ep-pl-highlight"><span>GROSS PROFIT</span><span class="ep-pl-amount">Rs {{ statement.gross_profit|floatformat:2|intcomma }}</span></div>
+
+  <div class="ep-pl-section">OPERATING / SELLING EXPENSES</div>
+  {% for row in statement.expense_rows %}<div class="ep-pl-row"><span class="ep-pl-label">{{ row.account.name }}</span><span class="ep-pl-amount">Rs {{ row.amount|floatformat:2|intcomma }}</span></div>{% empty %}<div class="ep-pl-row"><span style="color:#718399">No approved expenses or posted commissions in this period.</span><span></span></div>{% endfor %}
+  <div class="ep-pl-row total"><span>Total Expenses</span><span class="ep-pl-amount">Rs {{ statement.expenses|floatformat:2|intcomma }}</span></div>
+  <div class="ep-pl-highlight net"><span>NET PROFIT</span><span class="ep-pl-amount">Rs {{ statement.net_profit|floatformat:2|intcomma }}</span></div>
+</div></section>
+{% endblock %}

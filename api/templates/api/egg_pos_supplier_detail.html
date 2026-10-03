@@ -1,0 +1,28 @@
+{% extends "api/egg_pos_base.html" %}{% load humanize %}
+{% block egg_pos_content %}
+<div class="ep-section-title"><div><h3>{{ supplier.name }}</h3><p>Supplier payable, purchases, payments and ledger.</p></div><a href="{% url 'egg_pos_suppliers' %}">All Suppliers</a></div>
+<section class="ep-kpis">
+  <div class="ep-kpi orange"><div class="ep-kpi-label">Outstanding Payable</div><strong>Rs {{ balance|floatformat:0|intcomma }}</strong><div class="ep-kpi-note">From the general ledger</div></div>
+  <div class="ep-kpi"><div class="ep-kpi-label">Purchases</div><strong>{{ purchases|length }}</strong><div class="ep-kpi-note">Recorded supplier invoices</div></div>
+  <div class="ep-kpi green"><div class="ep-kpi-label">Payments</div><strong>{{ payments|length }}</strong><div class="ep-kpi-note">Recent payment records</div></div>
+  <div class="ep-kpi primary"><div class="ep-kpi-label">Ledger</div><strong><a href="{% url 'egg_pos_party_ledger' 'supplier' supplier.id %}" style="color:inherit;text-decoration:none">Open →</a></strong><div class="ep-kpi-note">Full supplier account</div></div>
+</section>
+<div class="ep-grid-2">
+<section class="ep-panel"><div class="ep-panel-head">Record Supplier Payment</div><form method="post" class="ep-panel-body">{% csrf_token %}
+  <div class="ep-field"><label>Payment Date</label><input class="ep-input" type="date" name="payment_date" value="{{ today|date:'Y-m-d' }}" required></div>
+  <div class="ep-field" style="margin-top:9px"><label>Amount</label><input class="ep-input" type="number" min="0.01" step="0.01" max="{{ balance }}" name="amount" required></div>
+  <div class="ep-field" style="margin-top:9px"><label>Payment Method</label><select class="ep-select" name="payment_method">{% for value,label in payment_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+  <div class="ep-field" style="margin-top:9px"><label>Apply to Purchase (optional)</label><select class="ep-select" name="purchase"><option value="">General supplier payment</option>{% for p in purchases %}<option value="{{ p.id }}">#{{ p.id }} · {{ p.purchase_date|date:'d M Y' }} · Rs {{ p.payable_total|floatformat:0|intcomma }}</option>{% endfor %}</select></div>
+  <div class="ep-field" style="margin-top:9px"><label>Reference</label><input class="ep-input" name="reference"></div>
+  <div class="ep-field" style="margin-top:9px"><label>Notes</label><textarea class="ep-textarea" name="notes"></textarea></div>
+  <button class="ep-btn primary" style="margin-top:10px" {% if balance <= 0 %}disabled{% endif %}><i class="fa-solid fa-money-bill-transfer"></i> Record Payment</button>
+</form></section>
+<section class="ep-panel"><div class="ep-panel-head">Supplier Details</div><div class="ep-panel-body">
+  <div class="ep-field"><label>Phone</label><div>{{ supplier.phone|default:"—" }}</div></div>
+  <div class="ep-field" style="margin-top:10px"><label>Address</label><div>{{ supplier.address|default:"—" }}</div></div>
+  <div class="ep-field" style="margin-top:10px"><label>Notes</label><div>{{ supplier.notes|default:"—" }}</div></div>
+</div></section>
+</div>
+<section class="ep-panel" style="margin-top:12px"><div class="ep-panel-head">Purchases</div><div class="ep-table-wrap"><table class="ep-table"><thead><tr><th>Date</th><th>Invoice</th><th>Base Cost</th><th>Transport</th><th>Landed Cost</th><th>Supplier Payable</th></tr></thead><tbody>{% for p in purchases %}<tr><td>{{ p.purchase_date|date:"d M Y" }}</td><td>{{ p.reference|default:p.id }}</td><td>Rs {{ p.total_amount|floatformat:0|intcomma }}</td><td>Rs {{ p.transport_cost|floatformat:0|intcomma }}</td><td>Rs {{ p.landed_total|floatformat:0|intcomma }}</td><td>Rs {{ p.payable_total|floatformat:0|intcomma }}</td></tr>{% empty %}<tr><td colspan="6">No purchases from this supplier.</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="ep-panel" style="margin-top:12px"><div class="ep-panel-head">Payable Ledger</div><div class="ep-table-wrap"><table class="ep-table"><thead><tr><th>Date</th><th>Reference</th><th>Description</th><th>Debit</th><th>Credit</th><th>Balance Payable</th></tr></thead><tbody>{% for row in ledger_rows %}<tr><td>{{ row.line.entry.entry_date|date:"d M Y" }}</td><td>{{ row.line.entry.reference }}</td><td>{{ row.line.description }}</td><td>{% if row.line.debit %}Rs {{ row.line.debit|floatformat:0|intcomma }}{% else %}—{% endif %}</td><td>{% if row.line.credit %}Rs {{ row.line.credit|floatformat:0|intcomma }}{% else %}—{% endif %}</td><td><strong>Rs {{ row.balance|floatformat:0|intcomma }}</strong></td></tr>{% empty %}<tr><td colspan="6">No ledger entries.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

@@ -1,13 +1,52 @@
 {% extends "api/egg_pos_base.html" %}
 {% block egg_pos_content %}
-<section class="ep-panel"><div class="ep-panel-head">Stock In / Purchase</div><form class="ep-panel-body" method="post" id="purchaseForm">{% csrf_token %}
-<div class="ep-form-grid"><div class="ep-field"><label>Supplier</label><select class="ep-select" name="supplier" required><option value="">Select supplier</option>{% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div><div class="ep-field"><label>Purchase Date</label><input class="ep-input" type="date" name="purchase_date" value="{{ today|date:'Y-m-d' }}" required></div><div class="ep-field"><label>Reference / Invoice</label><input class="ep-input" name="reference"></div><div class="ep-field"><label>Notes</label><input class="ep-input" name="notes"></div></div>
-<div style="margin-top:14px" class="ep-message">Inventory is stored in individual eggs. Each purchase row creates its own FIFO inventory lot.</div>
-<div class="ep-table-wrap" style="margin-top:12px"><table class="ep-table"><thead><tr><th>Product</th><th>Qty Eggs</th><th>Cost / Egg</th><th>Expiry (optional)</th><th></th></tr></thead><tbody id="purchaseRows"></tbody></table></div>
-<div class="ep-row-actions" style="margin-top:10px"><button type="button" class="ep-btn" id="addPurchaseRow"><i class="fa-solid fa-plus"></i>Add Item</button><button class="ep-btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i>Save Purchase & Update Stock</button></div>
-</form></section>
-<template id="purchaseRowTemplate"><tr><td><select class="ep-select" name="product_id" required><option value="">Select product</option>{% for p in products %}<option value="{{ p.id }}">{{ p.name }} · {{ p.sku }}</option>{% endfor %}</select></td><td><input class="ep-input" type="number" min="1" step="1" name="quantity" required></td><td><input class="ep-input" type="number" min="0.01" step="0.01" name="unit_cost" required></td><td><input class="ep-input" type="date" name="expiry_date"></td><td><button class="ep-btn" type="button" data-remove-row><i class="fa-solid fa-trash"></i></button></td></tr></template>
+<section class="ep-panel">
+  <div class="ep-panel-head">Stock In / Purchase</div>
+  <form class="ep-panel-body" method="post" id="purchaseForm">{% csrf_token %}
+    <div class="ep-form-grid">
+      <div class="ep-field"><label>Supplier</label><select class="ep-select" name="supplier" required><option value="">Select supplier</option>{% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
+      <div class="ep-field"><label>Purchase Date</label><input class="ep-input" type="date" name="purchase_date" value="{{ today|date:'Y-m-d' }}" required></div>
+      <div class="ep-field"><label>Reference / Invoice</label><input class="ep-input" name="reference"></div>
+      <div class="ep-field"><label>Inbound Transport (Rs)</label><input class="ep-input" type="number" min="0" step="0.01" name="transport_cost" value="0"><div class="ep-help">Added to FIFO egg cost, not treated as a selling expense.</div></div>
+      <div class="ep-field"><label>Transport Paid From</label><select class="ep-select" name="transport_payment_method">{% for value,label in transport_methods %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+      <div class="ep-field"><label>Notes</label><input class="ep-input" name="notes"></div>
+    </div>
+
+    <div style="margin-top:14px" class="ep-message"><strong>Landed cost:</strong> Purchase cost + inbound transport is spread across the eggs in this receipt and becomes the FIFO inventory cost. Enter either cost/egg or the total line cost.</div>
+
+    <div class="ep-table-wrap" style="margin-top:12px">
+      <table class="ep-table">
+        <thead><tr><th>Product</th><th>Qty Eggs</th><th>Cost / Egg</th><th>Total Cost</th><th>Expiry</th><th></th></tr></thead>
+        <tbody id="purchaseRows"></tbody>
+      </table>
+    </div>
+    <div class="ep-row-actions" style="margin-top:10px"><button type="button" class="ep-btn" id="addPurchaseRow"><i class="fa-solid fa-plus"></i>Add Item</button><button class="ep-btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i>Save Purchase & Update Stock</button></div>
+  </form>
+</section>
+
+<template id="purchaseRowTemplate"><tr>
+  <td><select class="ep-select" name="product_id" required><option value="">Select product</option>{% for p in products %}<option value="{{ p.id }}">{{ p.name }} · {{ p.sku }}</option>{% endfor %}</select></td>
+  <td><input class="ep-input qty" type="number" min="1" step="1" name="quantity" required></td>
+  <td><input class="ep-input unit" type="number" min="0.000001" step="0.000001" name="unit_cost" placeholder="e.g. 18.611111"></td>
+  <td><input class="ep-input total" type="number" min="0.01" step="0.01" name="line_total_cost" placeholder="e.g. 6700"></td>
+  <td><input class="ep-input" type="date" name="expiry_date"></td>
+  <td><button class="ep-btn" type="button" data-remove-row><i class="fa-solid fa-trash"></i></button></td>
+</tr></template>
 <script>
-(function(){const body=document.getElementById('purchaseRows'),tpl=document.getElementById('purchaseRowTemplate');function add(){const node=tpl.content.cloneNode(true);body.appendChild(node)}document.getElementById('addPurchaseRow').addEventListener('click',add);body.addEventListener('click',function(e){const b=e.target.closest('[data-remove-row]');if(b){b.closest('tr').remove();if(!body.children.length)add()}});add()})();
+(function(){
+  const body=document.getElementById('purchaseRows'), tpl=document.getElementById('purchaseRowTemplate');
+  function bind(row){
+    const qty=row.querySelector('.qty'),unit=row.querySelector('.unit'),total=row.querySelector('.total');
+    let lock=false;
+    total.addEventListener('input',()=>{if(lock)return;const q=parseFloat(qty.value),t=parseFloat(total.value);if(q>0&&t>0){lock=true;unit.value=(t/q).toFixed(6);lock=false}});
+    unit.addEventListener('input',()=>{if(lock)return;const q=parseFloat(qty.value),u=parseFloat(unit.value);if(q>0&&u>0){lock=true;total.value=(q*u).toFixed(2);lock=false}});
+    qty.addEventListener('input',()=>{if(total.value){total.dispatchEvent(new Event('input'))}else if(unit.value){unit.dispatchEvent(new Event('input'))}});
+  }
+  function add(){const frag=tpl.content.cloneNode(true);const row=frag.querySelector('tr');body.appendChild(frag);bind(row)}
+  document.getElementById('addPurchaseRow').addEventListener('click',add);
+  body.addEventListener('click',function(e){const b=e.target.closest('[data-remove-row]');if(b){b.closest('tr').remove();if(!body.children.length)add()}});
+  document.getElementById('purchaseForm').addEventListener('submit',function(e){for(const row of body.querySelectorAll('tr')){if(row.querySelector('[name="product_id"]').value&&!row.querySelector('.unit').value&&!row.querySelector('.total').value){e.preventDefault();alert('Enter Cost / Egg or Total Cost for every purchase row.');return}}});
+  add();
+})();
 </script>
 {% endblock %}

@@ -1,0 +1,24 @@
+{% extends "api/egg_pos_base.html" %}{% load humanize %}
+{% block egg_pos_content %}
+<div class="ep-section-title"><div><h3>Egg POS Accounting</h3><p>Double-entry books generated automatically from purchases, sales, payments, fuel/expenses, cash handovers and posted commissions.</p></div></div>
+<section class="ep-panel"><div class="ep-panel-body"><form method="get" class="ep-form-grid"><div class="ep-field"><label>Report From</label><input class="ep-input" type="date" name="start" value="{{ start_date|date:'Y-m-d' }}"></div><div class="ep-field"><label>Report To</label><input class="ep-input" type="date" name="end" value="{{ end_date|date:'Y-m-d' }}"></div><div class="ep-field" style="align-self:end"><button class="ep-btn primary">Update</button></div></form></div></section>
+<div class="ep-row-actions" style="margin:12px 0"><a class="ep-btn" href="{% url 'egg_pos_general_ledger' %}"><i class="fa-solid fa-book-open"></i>General Ledger</a><a class="ep-btn" href="{% url 'egg_pos_cashbook' %}?period=this_month"><i class="fa-solid fa-money-bill-transfer"></i>Cashbook</a><a class="ep-btn" href="{% url 'egg_pos_trial_balance' %}"><i class="fa-solid fa-scale-balanced"></i>Trial Balance</a><a class="ep-btn primary" href="{% url 'egg_pos_income_statement' %}?period=this_month"><i class="fa-solid fa-chart-line"></i>Income Statement</a></div>
+<section class="ep-snapshot-grid">
+  <div class="ep-snapshot"><div class="ep-snapshot-label">Main Cash</div><strong>Rs {{ summary.cash|floatformat:0|intcomma }}</strong><small><a href="{% url 'egg_pos_cashbook' %}?account=cash&period=this_month" style="text-decoration:none">Open cashbook →</a></small></div>
+  <div class="ep-snapshot"><div class="ep-snapshot-label">Bank / Digital</div><strong>Rs {{ summary.bank|floatformat:0|intcomma }}</strong><small><a href="{% url 'egg_pos_cashbook' %}?account=bank&period=this_month" style="text-decoration:none">Open bank book →</a></small></div>
+  <div class="ep-snapshot"><div class="ep-snapshot-label">Cash with Sales Staff</div><strong>Rs {{ summary.staff_cash|floatformat:0|intcomma }}</strong><small><a href="{% url 'egg_pos_cash_settlements' %}" style="text-decoration:none">Cash handover →</a></small></div>
+  <div class="ep-snapshot"><div class="ep-snapshot-label">Customer Receivables</div><strong>Rs {{ summary.receivables|floatformat:0|intcomma }}</strong><small>Accounts receivable</small></div>
+  <div class="ep-snapshot"><div class="ep-snapshot-label">Inventory Ledger</div><strong>Rs {{ summary.inventory|floatformat:0|intcomma }}</strong><small>FIFO landed inventory value in GL</small></div>
+  <div class="ep-snapshot"><div class="ep-snapshot-label">Supplier Payables</div><strong>Rs {{ summary.supplier_payable|floatformat:0|intcomma }}</strong><small>Outside vendors</small></div>
+  <div class="ep-snapshot"><div class="ep-snapshot-label">Farm Payable</div><strong>Rs {{ summary.farm_payable|floatformat:0|intcomma }}</strong><small>RayNoor Egg Production</small></div>
+  <div class="ep-snapshot"><div class="ep-snapshot-label">Commission Payable</div><strong>Rs {{ summary.commission_payable|floatformat:0|intcomma }}</strong><small>Posted salesperson commissions</small></div>
+</section>
+<section class="ep-kpis" style="margin-top:12px">
+  <div class="ep-kpi primary"><div class="ep-kpi-label">Sales Revenue</div><strong>Rs {{ statement.revenue|floatformat:0|intcomma }}</strong></div>
+  <div class="ep-kpi"><div class="ep-kpi-label">FIFO COGS</div><strong>Rs {{ statement.cogs|floatformat:0|intcomma }}</strong></div>
+  <div class="ep-kpi green"><div class="ep-kpi-label">Gross Profit</div><strong>Rs {{ statement.gross_profit|floatformat:0|intcomma }}</strong></div>
+  <div class="ep-kpi {% if statement.net_profit < 0 %}orange{% else %}green{% endif %}"><div class="ep-kpi-label">Net Profit</div><strong>Rs {{ statement.net_profit|floatformat:0|intcomma }}</strong><div class="ep-kpi-note">After approved expenses & posted commissions</div></div>
+</section>
+<section class="ep-panel" style="margin-top:12px"><div class="ep-panel-head">Recent Journal Entries</div><div class="ep-table-wrap"><table class="ep-table"><thead><tr><th>Date</th><th>Reference</th><th>Memo</th><th>Source</th><th>Debit</th><th>Credit</th></tr></thead><tbody>{% for e in recent_entries %}<tr><td>{{ e.entry_date|date:"d M Y" }}</td><td><strong>{{ e.reference }}</strong></td><td>{{ e.memo }}</td><td>{{ e.source_type }}</td><td>Rs {{ e.total_debit|floatformat:0|intcomma }}</td><td>Rs {{ e.total_credit|floatformat:0|intcomma }}</td></tr>{% empty %}<tr><td colspan="6">No journal entries yet.</td></tr>{% endfor %}</tbody></table></div></section>
+<div class="ep-message warn" style="margin-top:12px"><strong>Historical note:</strong> Existing Egg POS purchases/sales/payments are backfilled into the ledger during migration. Supplier payments that were made outside the old system must be entered now so old supplier balances become correct.</div>
+{% endblock %}
