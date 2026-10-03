@@ -71,6 +71,7 @@ path(
     path("egg-pos/suppliers/<int:supplier_id>/", egg_pos.supplier_detail, name="egg_pos_supplier_detail"),
     path("egg-pos/purchases/", egg_pos.purchase_list, name="egg_pos_purchase_list"),
     path("egg-pos/purchases/add/", egg_pos.add_purchase, name="egg_pos_add_purchase"),
+    path("egg-pos/purchases/<int:purchase_id>/edit/", egg_pos.edit_purchase, name="egg_pos_edit_purchase"),
     path("egg-pos/farm-transfer/", egg_pos.farm_transfer, name="egg_pos_farm_transfer"),
     path("egg-pos/farm-transfer/<int:transfer_id>/", egg_pos.farm_transfer_detail, name="egg_pos_farm_transfer_detail"),
     path("egg-pos/farm-transfer/<int:transfer_id>/payment/", egg_pos.record_farm_transfer_payment, name="egg_pos_record_farm_transfer_payment"),

@@ -1,0 +1,63 @@
+{% extends "api/egg_pos_base.html" %}{% load humanize %}
+{% block egg_pos_content %}
+<style>
+.correct-wrap{max-width:980px;margin:0 auto}.correct-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}.correct-head h2{margin:0;color:#0b3558;font-size:21px}.correct-head p{margin:4px 0 0;color:#71869b;font-size:11px}.correct-alert{background:#fff7e8;border:1px solid #f3d498;border-radius:14px;padding:12px 14px;color:#805a13;font-size:11px;line-height:1.5;margin-bottom:12px}.correct-card{background:#fff;border:1px solid #dbe6f1;border-radius:18px;overflow:hidden;margin-bottom:12px}.correct-title{padding:13px 15px;border-bottom:1px solid #e9eff5;font-weight:950;color:#0b3558}.correct-body{padding:15px}.correct-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.locked{background:#f5f8fb!important;color:#647d92}.line-card{border:1px solid #dfe8f1;border-radius:14px;padding:13px;margin-bottom:10px}.line-top{display:flex;justify-content:space-between;gap:10px}.line-name{font-weight:950;color:#0b3558}.line-meta{font-size:10px;color:#71869b;margin-top:3px}.line-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:10px}.live-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:12px}.sum{background:#f5f9fd;border:1px solid #e0e9f2;border-radius:13px;padding:11px}.sum small{font-size:9px;color:#71869b;text-transform:uppercase;font-weight:900}.sum strong{display:block;font-size:17px;color:#0b3558;margin-top:3px}.sum.green strong{color:#0b9650}.audit{font-size:10px;color:#687f94;line-height:1.5}.correct-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}.danger-note{font-size:10px;color:#b45309;margin-top:8px}
+@media(max-width:650px){.correct-grid,.line-grid,.live-summary{grid-template-columns:1fr}.correct-head{display:block}.correct-actions{position:sticky;bottom:72px;background:#fff;padding:10px 0}.correct-actions .ep-btn{flex:1;justify-content:center}.correct-body{padding:12px}}
+</style>
+<div class="correct-wrap">
+  <div class="correct-head"><div><h2><i class="fa-solid fa-pen-to-square"></i> Correct Purchase #{{ purchase.id }}</h2><p>{{ purchase.supplier.name }} · {{ purchase.purchase_date|date:"d M Y" }} · {{ purchase.reference|default:"No reference" }}</p></div><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-arrow-left"></i> Purchase History</a></div>
+  <div class="correct-alert"><strong>Accounting-safe correction:</strong> product and physical egg quantity are locked. Changing cost updates the FIFO lot, inventory value, supplier payable and accounting journal. If eggs from this lot were already sold, unpaid historical COGS/commission is recalculated automatically. A paid commission period blocks the correction so history cannot be silently changed.</div>
+
+  <form method="post" id="correctPurchaseForm">{% csrf_token %}
+    <section class="correct-card"><div class="correct-title">Purchase Details</div><div class="correct-body">
+      <div class="correct-grid">
+        <div class="ep-field"><label>Supplier</label><select class="ep-select" name="supplier" required>{% for s in suppliers %}<option value="{{ s.id }}" {% if s.id == purchase.supplier_id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}</select></div>
+        <div class="ep-field"><label>Purchase Date</label><input class="ep-input locked" value="{{ purchase.purchase_date|date:'d M Y' }}" readonly><div class="ep-help">Date is locked because changing it can change FIFO order.</div></div>
+        <div class="ep-field"><label>Reference / Invoice</label><input class="ep-input" name="reference" value="{{ purchase.reference }}"></div>
+        <div class="ep-field"><label>Inbound Transport (Rs)</label><input id="transportCost" class="ep-input" type="number" min="0" step="0.01" name="transport_cost" value="{{ purchase.transport_cost|floatformat:2 }}"></div>
+        <div class="ep-field"><label>Transport Paid From</label><select class="ep-select" name="transport_payment_method">{% for value,label in transport_methods %}<option value="{{ value }}" {% if value == purchase.transport_payment_method %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="ep-field"><label>Current Notes / Audit</label><div class="audit">{{ purchase.notes|default:"No previous notes."|linebreaksbr }}</div></div>
+      </div>
+    </div></section>
+
+    <section class="correct-card"><div class="correct-title">Correct Vendor Cost</div><div class="correct-body">
+      {% for item in items %}
+      <div class="line-card" data-line>
+        <input type="hidden" name="item_id" value="{{ item.id }}">
+        <div class="line-top"><div><div class="line-name">{{ item.product.name }}</div><div class="line-meta">{{ item.product.sku }} · {{ item.quantity|intcomma }} eggs · {{ item.sold_eggs|intcomma }} already sold · {{ item.remaining_eggs|intcomma }} remaining</div></div><div style="font-size:10px;color:#71869b">Current Rs {{ item.current_line_total|floatformat:2|intcomma }}</div></div>
+        <div class="line-grid">
+          <div class="ep-field"><label>Quantity Eggs</label><input class="ep-input locked qty" type="number" value="{{ item.quantity }}" readonly></div>
+          <div class="ep-field"><label>Correct Total Vendor Cost (Rs)</label><input class="ep-input line-total" type="number" min="0.01" step="0.01" name="line_total_cost" value="{{ item.current_line_total|floatformat:2 }}" required></div>
+          <div class="ep-field"><label>New Base Cost / Egg</label><input class="ep-input locked unit-preview" readonly></div>
+        </div>
+      </div>
+      {% endfor %}
+      <div class="live-summary"><div class="sum"><small>Correct Base Cost</small><strong id="basePreview">Rs 0</strong></div><div class="sum"><small>Transport</small><strong id="transportPreview">Rs 0</strong></div><div class="sum green"><small>New Landed Inventory Cost</small><strong id="landedPreview">Rs 0</strong></div></div>
+      <div class="danger-note">Supplier payable is based on vendor cost. Transport is added to FIFO inventory cost separately unless you selected “Add to Supplier Payable”.</div>
+    </div></section>
+
+    <section class="correct-card"><div class="correct-title">Reason & Confirmation</div><div class="correct-body"><div class="ep-field"><label>Reason for Correction *</label><textarea class="ep-input" style="min-height:82px" name="correction_reason" required placeholder="Example: Vendor invoice total was entered as Rs 43,945; correct invoice total is Rs 36,977."></textarea><div class="ep-help">This reason is permanently appended to the purchase notes as an audit trail.</div></div><div class="correct-actions"><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}">Cancel</a><button class="ep-btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Apply Correction</button></div></div></section>
+  </form>
+</div>
+<script>
+(function(){
+  const form=document.getElementById('correctPurchaseForm');
+  const transport=document.getElementById('transportCost');
+  const money=n=>'Rs '+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  function update(){
+    let base=0;
+    form.querySelectorAll('[data-line]').forEach(row=>{
+      const q=Number(row.querySelector('.qty').value||0), t=Number(row.querySelector('.line-total').value||0);
+      base+=t;
+      row.querySelector('.unit-preview').value=q>0?(t/q).toFixed(6):'0.000000';
+    });
+    const tr=Number(transport.value||0);
+    document.getElementById('basePreview').textContent=money(base);
+    document.getElementById('transportPreview').textContent=money(tr);
+    document.getElementById('landedPreview').textContent=money(base+tr);
+  }
+  form.addEventListener('input',e=>{if(e.target.matches('.line-total,#transportCost'))update()});
+  update();
+})();
+</script>
+{% endblock %}

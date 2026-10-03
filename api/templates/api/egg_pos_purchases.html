@@ -1,5 +1,25 @@
 {% extends "api/egg_pos_base.html" %}{% load humanize %}
 {% block egg_pos_content %}
-<div style="margin-bottom:10px"><a class="ep-btn primary" href="{% url 'egg_pos_add_purchase' %}"><i class="fa-solid fa-plus"></i>Stock In / Purchase</a></div>
-<section class="ep-panel"><div class="ep-panel-head">Purchase History</div><div class="ep-table-wrap"><table class="ep-table"><thead><tr><th>Date</th><th>Supplier</th><th>Reference</th><th>Items</th><th>Base Cost</th><th>Transport</th><th>Landed Cost</th><th>Payable</th><th></th></tr></thead><tbody>{% for p in purchases %}<tr><td>{{ p.purchase_date|date:"d M Y" }}</td><td><a href="{% url 'egg_pos_supplier_detail' p.supplier.id %}" style="font-weight:900;color:#1767c6;text-decoration:none">{{ p.supplier.name }}</a></td><td>{{ p.reference|default:"—" }}</td><td>{% for i in p.items.all %}{{ i.product.name }} × {{ i.quantity }}{% if not forloop.last %}<br>{% endif %}{% endfor %}</td><td>Rs {{ p.total_amount|floatformat:0|intcomma }}</td><td>Rs {{ p.transport_cost|floatformat:0|intcomma }}</td><td><strong>Rs {{ p.landed_total|floatformat:0|intcomma }}</strong></td><td>Rs {{ p.balance_due|floatformat:0|intcomma }}</td><td><a class="ep-btn" href="{% url 'egg_pos_supplier_detail' p.supplier.id %}">Supplier Account</a></td></tr>{% empty %}<tr><td colspan="9">No purchases yet.</td></tr>{% endfor %}</tbody></table></div></section>
+<style>
+.ph-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:13px}.ph-top h2{margin:0;color:#0b3558;font-size:21px}.ph-top p{margin:4px 0 0;color:#71869b;font-size:11px}.purchase-card{background:#fff;border:1px solid #dbe6f1;border-radius:17px;margin-bottom:10px;overflow:hidden}.purchase-main{display:grid;grid-template-columns:1.2fr 1fr .8fr .8fr .8fr auto;gap:12px;align-items:center;padding:14px 16px}.purchase-label{font-size:9px;font-weight:900;color:#7b8fa3;text-transform:uppercase}.purchase-value{margin-top:3px;font-size:13px;font-weight:900;color:#0b3558}.purchase-supplier{font-size:14px;font-weight:950;color:#0b3558}.purchase-ref{font-size:10px;color:#7890a4;margin-top:2px}.purchase-items{border-top:1px solid #edf2f7;background:#f9fbfd;padding:9px 16px;font-size:10px;color:#516b81;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.bad{color:#d97706}.good{color:#0d9653}
+@media(max-width:800px){.purchase-main{grid-template-columns:1fr 1fr}.purchase-main .actions{grid-column:1/-1;display:flex;gap:8px}.ph-top{display:block}.ph-top>a{margin-top:10px}.purchase-items{display:block}.purchase-items>span{display:block;margin:3px 0}}
+</style>
+<div class="ph-top"><div><h2><i class="fa-solid fa-truck-ramp-box"></i> Purchase History</h2><p>Every vendor receipt, landed inventory cost and supplier payable in one place.</p></div><a class="ep-btn primary" href="{% url 'egg_pos_add_purchase' %}"><i class="fa-solid fa-plus"></i> Stock In / Purchase</a></div>
+
+{% for p in purchases %}
+<div class="purchase-card">
+  <div class="purchase-main">
+    <div><div class="purchase-supplier">{{ p.supplier.name }}</div><div class="purchase-ref">Purchase #{{ p.id }} · {{ p.purchase_date|date:"d M Y" }}{% if p.reference %} · {{ p.reference }}{% endif %}</div></div>
+    <div><div class="purchase-label">Base Vendor Cost</div><div class="purchase-value">Rs {{ p.total_amount|floatformat:0|intcomma }}</div></div>
+    <div><div class="purchase-label">Transport</div><div class="purchase-value">Rs {{ p.transport_cost|floatformat:0|intcomma }}</div></div>
+    <div><div class="purchase-label">Landed Cost</div><div class="purchase-value good">Rs {{ p.landed_total|floatformat:0|intcomma }}</div></div>
+    <div><div class="purchase-label">Supplier Balance</div><div class="purchase-value {% if p.balance_due %}bad{% endif %}">Rs {{ p.balance_due|floatformat:0|intcomma }}</div></div>
+    <div class="actions"><a class="ep-btn" href="{% url 'egg_pos_edit_purchase' p.id %}"><i class="fa-solid fa-pen"></i> Correct</a><a class="ep-btn" href="{% url 'egg_pos_supplier_detail' p.supplier.id %}">Ledger</a></div>
+  </div>
+  <div class="purchase-items">
+    <span><strong>{{ p.total_eggs|intcomma }}</strong> eggs received · <strong>{{ p.remaining_eggs|intcomma }}</strong> remaining · {{ p.sold_eggs|intcomma }} sold</span>
+    <span>{% for i in p.items.all %}{{ i.product.name }}: {{ i.quantity|intcomma }} eggs @ Rs {{ i.unit_cost|floatformat:4 }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+  </div>
+</div>
+{% empty %}<div class="ep-empty">No purchases yet.</div>{% endfor %}
 {% endblock %}

@@ -127,7 +127,7 @@ def _stock_rows(products):
     for product in products:
         lots = list(
             EggPOSInventoryLot.objects.filter(product=product, quantity_remaining__gt=0)
-            .select_related("supplier", "farm_batch")
+            .select_related("supplier", "farm_batch", "purchase", "farm_transfer")
             .order_by("received_date", "id")
         )
         sellable_lots = [
@@ -160,12 +160,9 @@ def _stock_rows(products):
             "farm_stock": farm,
             "stock_value": money(value),
             "low_stock": current <= int(product.low_stock_eggs or 0),
-            # Salespeople sell in practical units, while inventory remains stored
-            # in individual eggs.  These are read-only equivalent quantities so
-            # mobile staff can instantly understand how much stock is available.
-            "max_crates": current // 360,
-            "max_trays": current // 30,
-            "max_dozens": current // 12,
+            "crates": current // 360,
+            "trays": current // 30,
+            "dozens": current // 12,
             "lots": lots,
         })
     return rows
@@ -321,11 +318,15 @@ def inventory(request):
         return _deny(request)
     products = EggPOSProduct.objects.filter(is_active=True).order_by("name")
     stock_rows = _stock_rows(products)
+    manage = can_manage(request.user)
     return render(request, "api/egg_pos_inventory.html", {
         "stock_rows": stock_rows,
+        "can_manage_pos": manage,
         "total_stock": sum(row["stock"] for row in stock_rows),
-        "active_product_count": len(stock_rows),
-        "can_manage_pos": can_manage(request.user),
+        "total_stock_value": money(sum((row["stock_value"] for row in stock_rows), ZERO)),
+        "low_stock_count": sum(1 for row in stock_rows if row["low_stock"]),
+        "expired_stock_total": sum(row["expired_stock"] for row in stock_rows),
+        "products_in_stock": sum(1 for row in stock_rows if row["stock"] > 0),
     })
 
 
@@ -397,8 +398,21 @@ def suppliers(request):
 def purchase_list(request):
     if not can_manage(request.user):
         return _deny(request, "Only Egg POS management can view purchases.")
+    purchases = list(
+        EggPOSPurchase.objects
+        .select_related("supplier", "created_by")
+        .prefetch_related("items__product", "items__lot", "payments")[:100]
+    )
+    for purchase in purchases:
+        items = list(purchase.items.all())
+        purchase.total_eggs = sum(int(item.quantity or 0) for item in items)
+        purchase.remaining_eggs = sum(
+            int(item.lot.quantity_remaining or 0)
+            for item in items if item.lot_id and item.lot
+        )
+        purchase.sold_eggs = max(purchase.total_eggs - purchase.remaining_eggs, 0)
     return render(request, "api/egg_pos_purchases.html", {
-        "purchases": EggPOSPurchase.objects.select_related("supplier", "created_by").prefetch_related("items__product")[:100],
+        "purchases": purchases,
     })
 
 
@@ -506,6 +520,205 @@ def add_purchase(request):
         "transport_methods": EggPOSPurchase.TRANSPORT_PAYMENT_CHOICES,
         "today": timezone.localdate(),
     })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_purchase(request, purchase_id):
+    """Admin-safe correction of purchase value/transport without changing physical stock.
+
+    Product and quantity are intentionally locked because changing them after FIFO
+    activity would require a stock-adjustment workflow. Cost corrections are pushed
+    through inventory lots, historical FIFO allocations, sale COGS, journals, and
+    any *unpaid* posted commission periods. A paid/part-paid commission period blocks
+    the correction so accounting cannot silently diverge.
+    """
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can correct purchases.")
+
+    purchase = get_object_or_404(
+        EggPOSPurchase.objects
+        .select_related("supplier", "created_by")
+        .prefetch_related(
+            "items__product",
+            "items__lot__sale_allocations__sale_item__sale__created_by",
+            "payments",
+        ),
+        pk=purchase_id,
+    )
+    items = list(purchase.items.all())
+    suppliers_qs = EggPOSSupplier.objects.filter(is_active=True).order_by("name")
+
+    for item in items:
+        item.current_line_total = money(item.line_total)
+        item.remaining_eggs = int(item.lot.quantity_remaining or 0) if item.lot_id else 0
+        item.sold_eggs = max(int(item.quantity or 0) - item.remaining_eggs, 0)
+
+    if request.method == "POST":
+        try:
+            reason = (request.POST.get("correction_reason") or "").strip()
+            if not reason:
+                raise ValueError("Enter a reason for the correction so the audit trail is clear.")
+
+            supplier = get_object_or_404(
+                EggPOSSupplier,
+                pk=request.POST.get("supplier"),
+                is_active=True,
+            )
+            transport_cost = _parse_money(
+                request.POST.get("transport_cost") or "0",
+                "Transport cost",
+                allow_zero=True,
+            )
+            transport_method = (request.POST.get("transport_payment_method") or "cash").strip()
+            valid_transport_methods = {value for value, _ in EggPOSPurchase.TRANSPORT_PAYMENT_CHOICES}
+            if transport_method not in valid_transport_methods:
+                raise ValueError("Select a valid transport payment source.")
+
+            posted_item_ids = request.POST.getlist("item_id")
+            posted_totals = request.POST.getlist("line_total_cost")
+            if len(posted_item_ids) != len(items) or len(posted_totals) != len(items):
+                raise ValueError("Purchase items do not match. Refresh the page and try again.")
+
+            new_line_totals = {}
+            for idx, raw_id in enumerate(posted_item_ids):
+                try:
+                    item_id = int(raw_id)
+                except (TypeError, ValueError):
+                    raise ValueError("Invalid purchase item.")
+                if not any(item.id == item_id for item in items):
+                    raise ValueError("A purchase item does not belong to this purchase.")
+                new_line_totals[item_id] = _parse_money(
+                    posted_totals[idx],
+                    "Correct total cost",
+                )
+
+            total_qty = sum(int(item.quantity or 0) for item in items)
+            if total_qty <= 0:
+                raise ValueError("Purchase quantity is invalid.")
+            transport_per_egg = (
+                (Decimal(transport_cost) / Decimal(total_qty)).quantize(UNIT_COST_QUANT)
+                if transport_cost > ZERO else Decimal("0.000000")
+            )
+
+            # Check paid commission history before touching COGS. Unpaid periods can
+            # be recalculated automatically, but paid periods require a formal
+            # adjustment and therefore block this correction.
+            affected_sales = {}
+            for item in items:
+                if not item.lot_id:
+                    continue
+                for allocation in item.lot.sale_allocations.all():
+                    sale = allocation.sale_item.sale
+                    affected_sales[sale.id] = sale
+
+            locked_periods = []
+            for sale in affected_sales.values():
+                periods = EggPOSCommissionPeriod.objects.filter(
+                    salesperson=sale.created_by,
+                    period_start__lte=sale.sale_date,
+                    period_end__gte=sale.sale_date,
+                ).prefetch_related("payments")
+                for period in periods:
+                    if Decimal(period.amount_paid or 0) > ZERO:
+                        locked_periods.append(period)
+            if locked_periods:
+                raise ValueError(
+                    "This purchase has already affected sale(s) inside a paid/part-paid "
+                    "commission period. Correct that commission with an adjustment first, "
+                    "then edit the purchase cost."
+                )
+
+            old_base = money(purchase.total_amount)
+            old_transport = money(purchase.transport_cost)
+            old_landed = money(purchase.landed_total)
+            new_base = money(sum((new_line_totals[item.id] for item in items), ZERO))
+            new_landed = money(new_base + transport_cost)
+
+            with transaction.atomic():
+                purchase.supplier = supplier
+                purchase.reference = (request.POST.get("reference") or "").strip()
+                purchase.transport_cost = transport_cost
+                purchase.transport_payment_method = transport_method
+
+                stamp = timezone.localtime().strftime("%d %b %Y %H:%M")
+                username = request.user.get_full_name().strip() or request.user.username
+                audit = (
+                    f"[Correction {stamp} by {username}] "
+                    f"Base Rs {old_base:,.2f} -> Rs {new_base:,.2f}; "
+                    f"Transport Rs {old_transport:,.2f} -> Rs {transport_cost:,.2f}; "
+                    f"Landed Rs {old_landed:,.2f} -> Rs {new_landed:,.2f}. "
+                    f"Reason: {reason}"
+                )
+                purchase.notes = "\n".join(filter(None, [(purchase.notes or "").strip(), audit]))
+                purchase.save(update_fields=[
+                    "supplier", "reference", "transport_cost",
+                    "transport_payment_method", "notes",
+                ])
+
+                affected_sale_item_ids = set()
+                for item in items:
+                    line_total = new_line_totals[item.id]
+                    base_unit_cost = (Decimal(line_total) / Decimal(item.quantity)).quantize(UNIT_COST_QUANT)
+                    item.unit_cost = base_unit_cost
+                    item.save(update_fields=["unit_cost"])
+
+                    if not item.lot_id:
+                        continue
+                    lot = item.lot
+                    landed_unit_cost = (base_unit_cost + transport_per_egg).quantize(UNIT_COST_QUANT)
+                    lot.supplier = supplier
+                    lot.unit_cost = landed_unit_cost
+                    lot.notes = (
+                        f"Purchase #{purchase.id} {purchase.reference} | "
+                        f"Base Rs {base_unit_cost:.6f}/egg + "
+                        f"transport Rs {transport_per_egg:.6f}/egg | corrected {stamp}"
+                    ).strip()
+                    lot.save(update_fields=["supplier", "unit_cost", "notes"])
+
+                    for allocation in lot.sale_allocations.all():
+                        allocation.unit_cost = landed_unit_cost
+                        allocation.cogs_amount = money(Decimal(allocation.quantity) * landed_unit_cost)
+                        allocation.save(update_fields=["unit_cost", "cogs_amount"])
+                        affected_sale_item_ids.add(allocation.sale_item_id)
+
+                affected_sale_ids = set()
+                for sale_item in EggPOSSaleItem.objects.filter(
+                    id__in=affected_sale_item_ids
+                ).prefetch_related("lot_allocations"):
+                    sale_item.cogs_amount = money(
+                        sum((Decimal(a.cogs_amount or 0) for a in sale_item.lot_allocations.all()), ZERO)
+                    )
+                    sale_item.save(update_fields=["cogs_amount"])
+                    affected_sale_ids.add(sale_item.sale_id)
+
+                for sale in EggPOSSale.objects.filter(id__in=affected_sale_ids).prefetch_related("items"):
+                    sale.cogs_total = money(
+                        sum((Decimal(item.cogs_amount or 0) for item in sale.items.all()), ZERO)
+                    )
+                    sale.profit_total = money(Decimal(sale.net_total or 0) - sale.cogs_total)
+                    sale.save(update_fields=["cogs_total", "profit_total"])
+                    sync_sale_invoice(sale)
+                    _refresh_unpaid_commissions_for_date(sale.created_by, sale.sale_date)
+
+                sync_purchase(purchase)
+
+            messages.success(
+                request,
+                f"Purchase #{purchase.id} corrected: base cost Rs {old_base:,.2f} → "
+                f"Rs {new_base:,.2f}; landed inventory Rs {new_landed:,.2f}.",
+            )
+            return redirect("egg_pos_purchase_list")
+        except Exception as error:
+            messages.error(request, str(error))
+
+    return render(request, "api/egg_pos_purchase_edit.html", {
+        "purchase": purchase,
+        "items": items,
+        "suppliers": suppliers_qs,
+        "transport_methods": EggPOSPurchase.TRANSPORT_PAYMENT_CHOICES,
+    })
+
 
 @login_required
 @require_http_methods(["GET", "POST"])
