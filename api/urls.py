@@ -89,6 +89,7 @@ path(
     path("egg-pos/cash-settlements/", egg_pos.cash_settlements, name="egg_pos_cash_settlements"),
     path("egg-pos/commissions/", egg_pos.commissions, name="egg_pos_commissions"),
     path("egg-pos/accounts/", egg_pos.accounting_overview, name="egg_pos_accounting"),
+    path("egg-pos/accounts/owner-capital/", egg_pos.owner_capital, name="egg_pos_owner_capital"),
     path("egg-pos/accounts/general-ledger/", egg_pos.general_ledger, name="egg_pos_general_ledger"),
     path("egg-pos/accounts/cashbook/", egg_pos.cashbook, name="egg_pos_cashbook"),
     path("egg-pos/accounts/trial-balance/", egg_pos.trial_balance, name="egg_pos_trial_balance"),

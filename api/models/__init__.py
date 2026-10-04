@@ -37,4 +37,5 @@ from .egg_pos import (
     EggPOSCashHandoverRequest,
     EggPOSCommissionPeriod,
     EggPOSCommissionPayment,
+    EggPOSOwnerCapitalTransaction,
 )

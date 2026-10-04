@@ -1,24 +1,87 @@
 {% extends "api/egg_pos_base.html" %}{% load humanize %}
+{% block egg_pos_css %}
+<style>
+.acc-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.acc-section{margin-top:16px}.acc-title{display:flex;justify-content:space-between;align-items:end;gap:12px;margin:0 0 9px}.acc-title h4{margin:0;color:#153a5f;font-size:15px}.acc-title p{margin:3px 0 0;color:#718096;font-size:9px}.acc-grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.acc-card{background:#fff;border:1px solid var(--ep-border);border-radius:15px;padding:16px;min-height:108px}.acc-card small{display:block;color:#687b8f;font-size:8px;font-weight:950;text-transform:uppercase}.acc-card strong{display:block;color:#103a62;font-size:23px;margin-top:8px}.acc-card .hint{margin-top:5px;color:#8190a0;font-size:8px;line-height:1.35}.acc-card.primary{background:linear-gradient(135deg,#0e77b5,#219bbd);border-color:transparent}.acc-card.primary small,.acc-card.primary strong,.acc-card.primary .hint{color:#fff}.acc-card.good strong{color:#0b944a}.acc-card.warn strong{color:#cf7600}.acc-card.bad strong{color:#c23b3b}.acc-flow{background:#fff;border:1px solid var(--ep-border);border-radius:15px;overflow:hidden}.acc-flow-row{display:grid;grid-template-columns:minmax(190px,1.4fr) 1fr minmax(230px,1.2fr);gap:12px;align-items:center;padding:11px 15px;border-bottom:1px solid #edf2f6}.acc-flow-row:last-child{border-bottom:0}.acc-flow-label strong{display:block;color:#173b61;font-size:11px}.acc-flow-label span{color:#8190a0;font-size:8px}.acc-flow-value{text-align:right;font-size:15px;font-weight:950;color:#103a62}.acc-flow-formula{text-align:right;color:#718096;font-size:9px}.acc-banner{display:flex;justify-content:space-between;gap:16px;align-items:center;padding:14px 16px;background:#fff7e8;border:1px solid #f6d7a0;border-radius:13px;color:#725017;margin:12px 0}.acc-banner strong{display:block;color:#8b5800;font-size:12px}.acc-banner span{font-size:9px}.acc-capital{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.purchase-check{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:10px}.purchase-result{margin-top:8px;font-size:10px;font-weight:800;color:#315875}.acc-note{font-size:9px;color:#718096;line-height:1.5}
+@media(max-width:900px){.acc-grid4,.acc-capital{grid-template-columns:repeat(2,minmax(0,1fr))}.acc-flow-row{grid-template-columns:1fr auto}.acc-flow-formula{grid-column:1/-1;text-align:left}.acc-actions .ep-btn{flex:1 1 44%;justify-content:center}}
+@media(max-width:560px){.acc-grid4,.acc-capital{grid-template-columns:1fr}.acc-banner{align-items:flex-start;flex-direction:column}.purchase-check{grid-template-columns:1fr}.acc-card{min-height:auto}.acc-flow-value{font-size:14px}}
+</style>
+{% endblock %}
 {% block egg_pos_content %}
-<div class="ep-section-title"><div><h3>Egg POS Accounting</h3><p>Double-entry books generated automatically from purchases, sales, payments, fuel/expenses, cash handovers and posted commissions.</p></div></div>
+<div class="ep-section-title">
+  <div><h3>Egg POS Accounting</h3><p>Cash position, sales collections, FIFO profit and double-entry books in one place.</p></div>
+  <a class="ep-btn primary" href="{% url 'egg_pos_owner_capital' %}"><i class="fa-solid fa-sack-dollar"></i> Owner Capital</a>
+</div>
+
+{% if capital_missing %}
+<div class="acc-banner"><div><strong>Opening owner capital has not been entered.</strong><span>Without it, Main Cash can appear negative even when the trading entries are correct. Enter the owner's actual personal money introduced into Egg POS.</span></div><a class="ep-btn primary" href="{% url 'egg_pos_owner_capital' %}">Enter Capital</a></div>
+{% endif %}
+
 <section class="ep-panel"><div class="ep-panel-body"><form method="get" class="ep-form-grid"><div class="ep-field"><label>Report From</label><input class="ep-input" type="date" name="start" value="{{ start_date|date:'Y-m-d' }}"></div><div class="ep-field"><label>Report To</label><input class="ep-input" type="date" name="end" value="{{ end_date|date:'Y-m-d' }}"></div><div class="ep-field" style="align-self:end"><button class="ep-btn primary">Update</button></div></form></div></section>
-<div class="ep-row-actions" style="margin:12px 0"><a class="ep-btn" href="{% url 'egg_pos_general_ledger' %}"><i class="fa-solid fa-book-open"></i>General Ledger</a><a class="ep-btn" href="{% url 'egg_pos_cashbook' %}?period=this_month"><i class="fa-solid fa-money-bill-transfer"></i>Cashbook</a><a class="ep-btn" href="{% url 'egg_pos_trial_balance' %}"><i class="fa-solid fa-scale-balanced"></i>Trial Balance</a><a class="ep-btn primary" href="{% url 'egg_pos_income_statement' %}?period=this_month"><i class="fa-solid fa-chart-line"></i>Income Statement</a></div>
-<section class="ep-snapshot-grid">
-  <div class="ep-snapshot"><div class="ep-snapshot-label">Main Cash</div><strong>Rs {{ summary.cash|floatformat:0|intcomma }}</strong><small><a href="{% url 'egg_pos_cashbook' %}?account=cash&period=this_month" style="text-decoration:none">Open cashbook →</a></small></div>
-  <div class="ep-snapshot"><div class="ep-snapshot-label">Bank / Digital</div><strong>Rs {{ summary.bank|floatformat:0|intcomma }}</strong><small><a href="{% url 'egg_pos_cashbook' %}?account=bank&period=this_month" style="text-decoration:none">Open bank book →</a></small></div>
-  <div class="ep-snapshot"><div class="ep-snapshot-label">Cash with Sales Staff</div><strong>Rs {{ summary.staff_cash|floatformat:0|intcomma }}</strong><small><a href="{% url 'egg_pos_cash_settlements' %}" style="text-decoration:none">Cash handover →</a></small></div>
-  <div class="ep-snapshot"><div class="ep-snapshot-label">Customer Receivables</div><strong>Rs {{ summary.receivables|floatformat:0|intcomma }}</strong><small>Accounts receivable</small></div>
-  <div class="ep-snapshot"><div class="ep-snapshot-label">Inventory Ledger</div><strong>Rs {{ summary.inventory|floatformat:0|intcomma }}</strong><small>FIFO landed inventory value in GL</small></div>
-  <div class="ep-snapshot"><div class="ep-snapshot-label">Supplier Payables</div><strong>Rs {{ summary.supplier_payable|floatformat:0|intcomma }}</strong><small>Outside vendors</small></div>
-  <div class="ep-snapshot"><div class="ep-snapshot-label">Farm Payable</div><strong>Rs {{ summary.farm_payable|floatformat:0|intcomma }}</strong><small>RayNoor Egg Production</small></div>
-  <div class="ep-snapshot"><div class="ep-snapshot-label">Commission Payable</div><strong>Rs {{ summary.commission_payable|floatformat:0|intcomma }}</strong><small>Posted salesperson commissions</small></div>
-</section>
-<section class="ep-kpis" style="margin-top:12px">
-  <div class="ep-kpi primary"><div class="ep-kpi-label">Sales Revenue</div><strong>Rs {{ statement.revenue|floatformat:0|intcomma }}</strong></div>
-  <div class="ep-kpi"><div class="ep-kpi-label">FIFO COGS</div><strong>Rs {{ statement.cogs|floatformat:0|intcomma }}</strong></div>
-  <div class="ep-kpi green"><div class="ep-kpi-label">Gross Profit</div><strong>Rs {{ statement.gross_profit|floatformat:0|intcomma }}</strong></div>
-  <div class="ep-kpi {% if statement.net_profit < 0 %}orange{% else %}green{% endif %}"><div class="ep-kpi-label">Net Profit</div><strong>Rs {{ statement.net_profit|floatformat:0|intcomma }}</strong><div class="ep-kpi-note">After approved expenses & posted commissions</div></div>
-</section>
-<section class="ep-panel" style="margin-top:12px"><div class="ep-panel-head">Recent Journal Entries</div><div class="ep-table-wrap"><table class="ep-table"><thead><tr><th>Date</th><th>Reference</th><th>Memo</th><th>Source</th><th>Debit</th><th>Credit</th></tr></thead><tbody>{% for e in recent_entries %}<tr><td>{{ e.entry_date|date:"d M Y" }}</td><td><strong>{{ e.reference }}</strong></td><td>{{ e.memo }}</td><td>{{ e.source_type }}</td><td>Rs {{ e.total_debit|floatformat:0|intcomma }}</td><td>Rs {{ e.total_credit|floatformat:0|intcomma }}</td></tr>{% empty %}<tr><td colspan="6">No journal entries yet.</td></tr>{% endfor %}</tbody></table></div></section>
-<div class="ep-message warn" style="margin-top:12px"><strong>Historical note:</strong> Existing Egg POS purchases/sales/payments are backfilled into the ledger during migration. Supplier payments that were made outside the old system must be entered now so old supplier balances become correct.</div>
+<div class="acc-actions"><a class="ep-btn" href="{% url 'egg_pos_general_ledger' %}"><i class="fa-solid fa-book-open"></i>General Ledger</a><a class="ep-btn" href="{% url 'egg_pos_cashbook' %}?period=this_month"><i class="fa-solid fa-money-bill-transfer"></i>Cashbook</a><a class="ep-btn" href="{% url 'egg_pos_trial_balance' %}"><i class="fa-solid fa-scale-balanced"></i>Trial Balance</a><a class="ep-btn primary" href="{% url 'egg_pos_income_statement' %}?period=this_month"><i class="fa-solid fa-chart-line"></i>Income Statement</a></div>
+
+<div class="acc-section">
+  <div class="acc-title"><div><h4>Cash Position & Purchase Readiness</h4><p>What you can safely spend on the next egg purchase, without counting money you have not received yet.</p></div></div>
+  <div class="acc-grid4">
+    <div class="acc-card primary"><small>Main Cash</small><strong>Rs {{ summary.cash|floatformat:0|intcomma }}</strong><div class="hint">Physically with company</div></div>
+    <div class="acc-card"><small>Bank / Digital</small><strong>Rs {{ summary.bank|floatformat:0|intcomma }}</strong><div class="hint">Available company funds</div></div>
+    <div class="acc-card"><small>Committed Payables</small><strong>Rs {{ purchase_readiness.committed_payables|floatformat:0|intcomma }}</strong><div class="hint">Supplier + farm + staff reimbursement + commission</div></div>
+    <div class="acc-card {% if purchase_readiness.available_now < 0 %}bad{% else %}good{% endif %}"><small>Safe Purchase Capacity Now</small><strong>Rs {{ purchase_readiness.available_now|floatformat:0|intcomma }}</strong><div class="hint">Cash + bank − committed payables</div></div>
+    <div class="acc-card"><small>Cash With Sales Staff</small><strong>Rs {{ summary.staff_cash|floatformat:0|intcomma }}</strong><div class="hint">Company money not handed over yet</div></div>
+    <div class="acc-card good"><small>After Staff Handover</small><strong>Rs {{ purchase_readiness.after_staff_handover|floatformat:0|intcomma }}</strong><div class="hint">Available now + staff cash</div></div>
+    <div class="acc-card"><small>Customer Receivables</small><strong>Rs {{ summary.receivables|floatformat:0|intcomma }}</strong><div class="hint">Still due from customers</div></div>
+    <div class="acc-card good"><small>After All Collections</small><strong>Rs {{ purchase_readiness.after_customer_collection|floatformat:0|intcomma }}</strong><div class="hint">After staff handover + customer collection</div></div>
+  </div>
+  <div class="acc-card" style="margin-top:12px;min-height:auto"><small>Quick Purchase Check</small><div class="purchase-check"><input class="ep-input" id="purchaseAmount" type="number" min="0" step="1" placeholder="Enter planned purchase amount, e.g. 42080"><button class="ep-btn" type="button" id="purchaseCheckBtn">Check</button></div><div class="purchase-result" id="purchaseResult">Enter a proposed stock purchase to see whether current cash is enough.</div></div>
+</div>
+
+<div class="acc-section">
+  <div class="acc-title"><div><h4>Sales & Cash Reconciliation</h4><p>This explains exactly where the money from recorded sales is sitting.</p></div></div>
+  <div class="acc-flow">
+    <div class="acc-flow-row"><div class="acc-flow-label"><strong>Total Sales to Date</strong><span>All Egg POS invoices through {{ end_date|date:"d M Y" }}</span></div><div class="acc-flow-value">Rs {{ cash_reconciliation.sales|floatformat:0|intcomma }}</div><div class="acc-flow-formula">Starting point</div></div>
+    <div class="acc-flow-row"><div class="acc-flow-label"><strong>Customer Receivables</strong><span>Sales not collected yet</span></div><div class="acc-flow-value">Rs {{ cash_reconciliation.receivables|floatformat:0|intcomma }}</div><div class="acc-flow-formula">Sales − receivables = collected</div></div>
+    <div class="acc-flow-row"><div class="acc-flow-label"><strong>Customer Payments Collected</strong><span>Cash/bank already received or held by staff</span></div><div class="acc-flow-value">Rs {{ cash_reconciliation.collected|floatformat:0|intcomma }}</div><div class="acc-flow-formula">Direct company + staff collections</div></div>
+    <div class="acc-flow-row"><div class="acc-flow-label"><strong>Direct Company Collections</strong><span>Admin/counter cash + direct bank/digital receipts</span></div><div class="acc-flow-value">Rs {{ cash_reconciliation.direct_company|floatformat:0|intcomma }}</div><div class="acc-flow-formula">Main cash Rs {{ cash_reconciliation.direct_cash|floatformat:0|intcomma }} · Bank Rs {{ cash_reconciliation.direct_bank|floatformat:0|intcomma }}</div></div>
+    <div class="acc-flow-row"><div class="acc-flow-label"><strong>Gross Cash Collected by Sales Staff</strong><span>Before fuel/approved deductions and handovers</span></div><div class="acc-flow-value">Rs {{ cash_reconciliation.staff_gross_collections|floatformat:0|intcomma }}</div><div class="acc-flow-formula">Salesperson customer payments</div></div>
+    <div class="acc-flow-row"><div class="acc-flow-label"><strong>Approved Expenses Paid From Collections</strong><span>Fuel/delivery etc. deducted from staff cash</span></div><div class="acc-flow-value">Rs {{ cash_reconciliation.staff_expenses|floatformat:0|intcomma }}</div><div class="acc-flow-formula">Staff gross cash − expenses = accountable cash</div></div>
+    <div class="acc-flow-row"><div class="acc-flow-label"><strong>Staff Cash Accountable</strong><span>What staff had to hand over after approved deductions</span></div><div class="acc-flow-value">Rs {{ cash_reconciliation.staff_accountable|floatformat:0|intcomma }}</div><div class="acc-flow-formula">Handed over + still with staff</div></div>
+    <div class="acc-flow-row"><div class="acc-flow-label"><strong>Received From Sales Staff</strong><span>Confirmed cash handovers already received</span></div><div class="acc-flow-value">Rs {{ cash_reconciliation.staff_handovers|floatformat:0|intcomma }}</div><div class="acc-flow-formula"><a href="{% url 'egg_pos_cash_settlements' %}" style="text-decoration:none">Open cash handovers →</a></div></div>
+    <div class="acc-flow-row"><div class="acc-flow-label"><strong>Still With Sales Staff</strong><span>Outstanding company cash currently held by staff</span></div><div class="acc-flow-value">Rs {{ cash_reconciliation.staff_outstanding|floatformat:0|intcomma }}</div><div class="acc-flow-formula">Should reconcile to staff accountable − handovers</div></div>
+  </div>
+</div>
+
+<div class="acc-section">
+  <div class="acc-title"><div><h4>Owner Position</h4><p>Capital is separate from profit. Recycled sales cash is never counted as new capital.</p></div><a href="{% url 'egg_pos_owner_capital' %}">Manage capital →</a></div>
+  <div class="acc-capital">
+    <div class="acc-card"><small>Net Owner Capital</small><strong>Rs {{ summary.owner_capital|floatformat:0|intcomma }}</strong><div class="hint">Personal money introduced less withdrawals</div></div>
+    <div class="acc-card {% if cumulative_net_profit < 0 %}bad{% else %}good{% endif %}"><small>Cumulative Profit / Loss</small><strong>Rs {{ cumulative_net_profit|floatformat:0|intcomma }}</strong><div class="hint">Trading result through report date</div></div>
+    <div class="acc-card"><small>Current Owner Equity</small><strong>Rs {{ current_equity|floatformat:0|intcomma }}</strong><div class="hint">Owner capital + cumulative profit/loss</div></div>
+  </div>
+</div>
+
+<div class="acc-section">
+  <div class="acc-title"><div><h4>Selected Period Performance</h4><p>{{ start_date|date:"d M Y" }} – {{ end_date|date:"d M Y" }}</p></div></div>
+  <section class="ep-kpis">
+    <div class="ep-kpi primary"><div class="ep-kpi-label">Sales Revenue</div><strong>Rs {{ statement.revenue|floatformat:0|intcomma }}</strong></div>
+    <div class="ep-kpi"><div class="ep-kpi-label">FIFO COGS</div><strong>Rs {{ statement.cogs|floatformat:0|intcomma }}</strong></div>
+    <div class="ep-kpi {% if statement.gross_profit < 0 %}orange{% else %}green{% endif %}"><div class="ep-kpi-label">Gross Profit</div><strong>Rs {{ statement.gross_profit|floatformat:0|intcomma }}</strong></div>
+    <div class="ep-kpi {% if statement.net_profit < 0 %}orange{% else %}green{% endif %}"><div class="ep-kpi-label">Net Profit</div><strong>Rs {{ statement.net_profit|floatformat:0|intcomma }}</strong><div class="ep-kpi-note">After approved expenses & posted commissions</div></div>
+  </section>
+</div>
+
+<section class="ep-panel" style="margin-top:16px"><div class="ep-panel-head"><span>Recent Journal Entries</span><span class="acc-note">Debit/Credit columns are balanced journal totals, not invoice amounts.</span></div><div class="ep-table-wrap"><table class="ep-table"><thead><tr><th>Date</th><th>Reference</th><th>Memo</th><th>Source</th><th>Journal Debits</th><th>Journal Credits</th></tr></thead><tbody>{% for e in recent_entries %}<tr><td>{{ e.entry_date|date:"d M Y" }}</td><td><strong>{{ e.reference }}</strong></td><td>{{ e.memo }}</td><td>{{ e.source_type }}</td><td>Rs {{ e.total_debit|floatformat:0|intcomma }}</td><td>Rs {{ e.total_credit|floatformat:0|intcomma }}</td></tr>{% empty %}<tr><td colspan="6">No journal entries yet.</td></tr>{% endfor %}</tbody></table></div></section>
+<div class="ep-message warn" style="margin-top:12px"><strong>Historical note:</strong> Existing Egg POS purchases/sales/payments were backfilled into the ledger. Supplier payments made outside the old system must still be entered so old supplier balances become correct.</div>
+{% endblock %}
+{% block extra_js %}{{ block.super }}
+<script>
+(function(){
+ const input=document.getElementById('purchaseAmount'), btn=document.getElementById('purchaseCheckBtn'), out=document.getElementById('purchaseResult');
+ if(!input||!btn||!out)return;
+ const now=parseFloat('{{ purchase_readiness.available_now|default:0 }}')||0;
+ const staff=parseFloat('{{ purchase_readiness.after_staff_handover|default:0 }}')||0;
+ const all=parseFloat('{{ purchase_readiness.after_customer_collection|default:0 }}')||0;
+ const fmt=n=>'Rs '+Math.round(n).toLocaleString();
+ function check(){const amount=parseFloat(input.value)||0;if(amount<=0){out.textContent='Enter a purchase amount greater than zero.';return;}if(now>=amount)out.textContent='You can buy now. Estimated cash remaining: '+fmt(now-amount)+'.';else if(staff>=amount)out.textContent='Not enough cash now. After confirmed staff handovers you could buy it, leaving '+fmt(staff-amount)+'.';else if(all>=amount)out.textContent='You would need customer collections as well. After all collections, estimated balance: '+fmt(all-amount)+'.';else out.textContent='Even after all current collections, estimated shortfall: '+fmt(amount-all)+'.';}
+ btn.addEventListener('click',check);input.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();check();}});
+})();
+</script>
 {% endblock %}

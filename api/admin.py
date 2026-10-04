@@ -433,6 +433,7 @@ from api.models.egg_pos import (
     EggPOSCashSettlement,
     EggPOSCommissionPeriod,
     EggPOSCommissionPayment,
+    EggPOSOwnerCapitalTransaction,
 )
 
 
@@ -488,3 +489,11 @@ class EggPOSCommissionPeriodAdmin(admin.ModelAdmin):
 class EggPOSCommissionPaymentAdmin(admin.ModelAdmin):
     list_display = ("payment_date", "commission", "amount", "payment_method", "recorded_by")
     list_filter = ("payment_method", "payment_date")
+
+
+@admin.register(EggPOSOwnerCapitalTransaction)
+class EggPOSOwnerCapitalTransactionAdmin(admin.ModelAdmin):
+    list_display = ("transaction_date", "transaction_type", "amount", "cash_account", "recorded_by")
+    list_filter = ("transaction_type", "cash_account", "transaction_date")
+    search_fields = ("reference", "notes", "recorded_by__username")
+    ordering = ("-transaction_date", "-id")

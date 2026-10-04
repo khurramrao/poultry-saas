@@ -6,6 +6,7 @@ from api.models.egg_pos import (
     EggPOSCashSettlement,
     EggPOSCommissionPayment,
     EggPOSCommissionPeriod,
+    EggPOSOwnerCapitalTransaction,
     EggPOSExpense,
     EggPOSFarmTransfer,
     EggPOSFarmTransferPayment,
@@ -351,8 +352,35 @@ def sync_commission_payment(payment):
     )
 
 
+
+def sync_owner_capital(transaction):
+    cash_code = "1010" if transaction.cash_account == "bank" else "1000"
+    label = transaction.get_transaction_type_display()
+    if transaction.transaction_type == "withdrawal":
+        lines = [
+            line("3000", debit=transaction.amount, description=label),
+            line(cash_code, credit=transaction.amount, description="Owner withdrawal paid"),
+        ]
+    else:
+        lines = [
+            line(cash_code, debit=transaction.amount, description="Owner funds introduced"),
+            line("3000", credit=transaction.amount, description=label),
+        ]
+    return post_entry(
+        source_key=f"egg_pos:owner_capital:{transaction.id}",
+        entry_date=transaction.transaction_date,
+        reference=transaction.reference or f"CAP-{transaction.id:05d}",
+        memo=label,
+        source_type="egg_pos_owner_capital",
+        source_id=transaction.id,
+        created_by=transaction.recorded_by,
+        lines=lines,
+    )
+
 def sync_all_egg_pos_books():
     """Idempotently rebuild journals from all recorded Egg POS transactions."""
+    for capital in EggPOSOwnerCapitalTransaction.objects.select_related("recorded_by").order_by("id"):
+        sync_owner_capital(capital)
     for purchase in EggPOSPurchase.objects.select_related("supplier", "created_by").prefetch_related("items").order_by("id"):
         sync_purchase(purchase)
     for payment in EggPOSSupplierPayment.objects.select_related("supplier", "purchase", "recorded_by").order_by("id"):

@@ -910,3 +910,43 @@ class EggPOSCommissionPayment(models.Model):
 
     def __str__(self):
         return f"{self.commission.salesperson.username} commission payment - Rs {self.amount}"
+
+class EggPOSOwnerCapitalTransaction(models.Model):
+    TRANSACTION_TYPE_CHOICES = [
+        ("opening", "Opening Owner Capital"),
+        ("additional", "Additional Owner Investment"),
+        ("withdrawal", "Owner Withdrawal"),
+    ]
+    CASH_ACCOUNT_CHOICES = [
+        ("cash", "Main Cash"),
+        ("bank", "Bank / Digital"),
+    ]
+
+    transaction_date = models.DateField(default=timezone.localdate)
+    transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPE_CHOICES, default="opening")
+    amount = models.DecimalField(max_digits=16, decimal_places=2)
+    cash_account = models.CharField(max_length=20, choices=CASH_ACCOUNT_CHOICES, default="cash")
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="egg_pos_owner_capital_transactions_recorded",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-transaction_date", "-id"]
+
+    def clean(self):
+        super().clean()
+        if self.amount is None or self.amount <= MONEY_ZERO:
+            raise ValidationError({"amount": "Capital transaction amount must be greater than zero."})
+
+    @property
+    def is_withdrawal(self):
+        return self.transaction_type == "withdrawal"
+
+    def __str__(self):
+        return f"{self.get_transaction_type_display()} - Rs {self.amount}"
+

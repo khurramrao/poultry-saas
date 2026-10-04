@@ -31,6 +31,7 @@ from api.models.egg_pos import (
     EggPOSCashHandoverRequest,
     EggPOSCommissionPeriod,
     EggPOSCommissionPayment,
+    EggPOSOwnerCapitalTransaction,
 )
 from api.models.sensor import Batch
 from api.models.accounting import ChartOfAccount, JournalEntry, JournalLine
@@ -70,6 +71,7 @@ from api.services.egg_pos_accounting import (
     sync_sale_invoice,
     sync_sale_payment,
     sync_supplier_payment,
+    sync_owner_capital,
 )
 
 
@@ -2249,6 +2251,81 @@ def commissions(request):
 
 
 @login_required
+def owner_capital(request):
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can manage owner capital.")
+    ensure_default_accounts()
+
+    if request.method == "POST":
+        try:
+            action = (request.POST.get("action") or "add").strip().lower()
+            if action == "delete":
+                capital = get_object_or_404(EggPOSOwnerCapitalTransaction, pk=request.POST.get("capital_id"))
+                with transaction.atomic():
+                    JournalEntry.objects.filter(source_key=f"egg_pos:owner_capital:{capital.id}").delete()
+                    label = capital.get_transaction_type_display()
+                    amount = money(capital.amount)
+                    capital.delete()
+                messages.success(request, f"{label} Rs {amount:,.2f} removed and the books were updated.")
+                return redirect("egg_pos_owner_capital")
+
+            transaction_type = (request.POST.get("transaction_type") or "opening").strip()
+            valid_types = {choice[0] for choice in EggPOSOwnerCapitalTransaction.TRANSACTION_TYPE_CHOICES}
+            if transaction_type not in valid_types:
+                raise ValueError("Choose a valid capital transaction type.")
+            if transaction_type == "opening" and EggPOSOwnerCapitalTransaction.objects.filter(transaction_type="opening").exists():
+                raise ValueError("Opening owner capital is already recorded. Use Additional Owner Investment, or delete/correct the opening entry first.")
+            cash_account = (request.POST.get("cash_account") or "cash").strip()
+            valid_accounts = {choice[0] for choice in EggPOSOwnerCapitalTransaction.CASH_ACCOUNT_CHOICES}
+            if cash_account not in valid_accounts:
+                raise ValueError("Choose Main Cash or Bank / Digital.")
+            capital_date = _parse_date(request.POST.get("transaction_date"), "Transaction date")
+            amount = _parse_money(request.POST.get("amount"), "Amount")
+            with transaction.atomic():
+                capital = EggPOSOwnerCapitalTransaction.objects.create(
+                    transaction_date=capital_date,
+                    transaction_type=transaction_type,
+                    amount=amount,
+                    cash_account=cash_account,
+                    reference=(request.POST.get("reference") or "").strip(),
+                    notes=(request.POST.get("notes") or "").strip(),
+                    recorded_by=request.user,
+                )
+                sync_owner_capital(capital)
+            messages.success(request, f"{capital.get_transaction_type_display()} Rs {amount:,.2f} recorded.")
+            return redirect("egg_pos_owner_capital")
+        except Exception as error:
+            messages.error(request, str(error))
+
+    as_of = timezone.localdate()
+    transactions = EggPOSOwnerCapitalTransaction.objects.select_related("recorded_by").all()
+    suggested_date = as_of
+    if not transactions.exists():
+        suggested_date = JournalEntry.objects.filter(module="egg_pos").order_by("entry_date").values_list("entry_date", flat=True).first() or as_of
+    has_opening = EggPOSOwnerCapitalTransaction.objects.filter(transaction_type="opening").exists()
+    invested = money(EggPOSOwnerCapitalTransaction.objects.filter(
+        transaction_type__in=["opening", "additional"]
+    ).aggregate(total=Sum("amount"))["total"] or ZERO)
+    withdrawals = money(EggPOSOwnerCapitalTransaction.objects.filter(
+        transaction_type="withdrawal"
+    ).aggregate(total=Sum("amount"))["total"] or ZERO)
+    net_capital = money(normal_account_balance("3000", as_of=as_of))
+    return render(request, "api/egg_pos_owner_capital.html", {
+        "transactions": transactions,
+        "invested": invested,
+        "withdrawals": withdrawals,
+        "net_capital": net_capital,
+        "main_cash": money(normal_account_balance("1000", as_of=as_of)),
+        "bank": money(normal_account_balance("1010", as_of=as_of)),
+        "today": as_of,
+        "suggested_date": suggested_date,
+        "has_opening": has_opening,
+        "transaction_types": EggPOSOwnerCapitalTransaction.TRANSACTION_TYPE_CHOICES,
+        "cash_accounts": EggPOSOwnerCapitalTransaction.CASH_ACCOUNT_CHOICES,
+    })
+
+
+@login_required
 def accounting_overview(request):
     if not can_manage(request.user):
         return _deny(request, "Only Egg POS management can view accounting reports.")
@@ -2266,13 +2343,85 @@ def accounting_overview(request):
         "farm_payable": money(normal_account_balance("2010", as_of=as_of)),
         "staff_reimbursements": money(normal_account_balance("2020", as_of=as_of)),
         "commission_payable": money(normal_account_balance("2030", as_of=as_of)),
+        "owner_capital": money(normal_account_balance("3000", as_of=as_of)),
     }
+
+    # Purchase-readiness intentionally excludes money still with sales staff/customers.
+    committed_payables = money(
+        max(summary["supplier_payable"], ZERO)
+        + max(summary["farm_payable"], ZERO)
+        + max(summary["staff_reimbursements"], ZERO)
+        + max(summary["commission_payable"], ZERO)
+    )
+    available_now = money(summary["cash"] + summary["bank"] - committed_payables)
+    after_staff_handover = money(available_now + summary["staff_cash"])
+    after_customer_collection = money(after_staff_handover + summary["receivables"])
+    purchase_readiness = {
+        "committed_payables": committed_payables,
+        "available_now": available_now,
+        "after_staff_handover": after_staff_handover,
+        "after_customer_collection": after_customer_collection,
+    }
+
+    # Reconcile customer collections by custody so management can see where sales cash is.
+    payment_lines = JournalLine.objects.filter(
+        entry__module="egg_pos",
+        entry__source_type="egg_pos_sale_payment",
+        entry__entry_date__lte=as_of,
+        account__code__in=["1000", "1010", "1040"],
+    )
+    def debit_for(code):
+        return money(payment_lines.filter(account__code=code).aggregate(total=Sum("debit"))["total"] or ZERO)
+
+    direct_cash = debit_for("1000")
+    direct_bank = debit_for("1010")
+    staff_gross_collections = debit_for("1040")
+    staff_expenses_from_collection = money(JournalLine.objects.filter(
+        entry__module="egg_pos",
+        entry__source_type="egg_pos_expense",
+        entry__entry_date__lte=as_of,
+        account__code="1040",
+    ).aggregate(total=Sum("credit"))["total"] or ZERO)
+    staff_handovers = money(JournalLine.objects.filter(
+        entry__module="egg_pos",
+        entry__source_type="egg_pos_cash_settlement",
+        entry__entry_date__lte=as_of,
+        account__code="1040",
+    ).aggregate(total=Sum("credit"))["total"] or ZERO)
+    total_sales_to_date = money(normal_account_balance("4000", as_of=as_of))
+    total_collected = money(direct_cash + direct_bank + staff_gross_collections)
+    staff_accountable = money(staff_gross_collections - staff_expenses_from_collection)
+    cash_reconciliation = {
+        "sales": total_sales_to_date,
+        "receivables": summary["receivables"],
+        "collected": total_collected,
+        "direct_cash": direct_cash,
+        "direct_bank": direct_bank,
+        "direct_company": money(direct_cash + direct_bank),
+        "staff_gross_collections": staff_gross_collections,
+        "staff_expenses": staff_expenses_from_collection,
+        "staff_accountable": staff_accountable,
+        "staff_handovers": staff_handovers,
+        "staff_outstanding": summary["staff_cash"],
+    }
+
+    first_entry_date = JournalEntry.objects.filter(
+        module="egg_pos", entry_date__lte=as_of
+    ).order_by("entry_date").values_list("entry_date", flat=True).first() or as_of
+    cumulative_statement = build_income_statement(first_entry_date, as_of)
+    current_equity = money(summary["owner_capital"] + cumulative_statement["net_profit"])
+
     recent_entries = JournalEntry.objects.filter(module="egg_pos", entry_date__lte=as_of).prefetch_related("lines__account").order_by("-entry_date", "-id")[:20]
     return render(request, "api/egg_pos_accounting.html", {
         "start_date": start_date,
         "end_date": end_date,
         "statement": statement,
         "summary": summary,
+        "purchase_readiness": purchase_readiness,
+        "cash_reconciliation": cash_reconciliation,
+        "cumulative_net_profit": cumulative_statement["net_profit"],
+        "current_equity": current_equity,
+        "capital_missing": summary["owner_capital"] == ZERO,
         "recent_entries": recent_entries,
     })
 
