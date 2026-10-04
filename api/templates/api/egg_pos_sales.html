@@ -1,1 +1,145 @@
-{% extends "api/egg_pos_base.html" %}{% load humanize %}{% block egg_pos_content %}<div class="ep-page-title"><div><h2>{% if can_manage_pos %}Egg POS Sales{% else %}My Sales{% endif %}</h2><p>Invoices and outstanding balances.</p></div><a class="ep-btn primary" href="{% url 'egg_pos_new_sale' %}">+ New Sale</a></div><section class="ep-panel"><div class="ep-table-wrap"><table class="ep-table desktop-only"><thead><tr><th>Date / Time</th><th>Invoice</th><th>Customer</th><th>Net</th><th>Paid</th><th>Due</th><th>Status</th></tr></thead><tbody>{% for sale in sales %}<tr><td>{{ sale.sale_date|date:"d M Y" }}<br><small>{{ sale.created_at|date:"g:i A" }}</small></td><td><a href="{% url 'egg_pos_sale_detail' sale.id %}">{{ sale.sale_number }}</a></td><td>{{ sale.customer_name|default:"Walk-in" }}</td><td>Rs {{ sale.net_total|floatformat:0|intcomma }}</td><td>Rs {{ sale.amount_paid|floatformat:0|intcomma }}</td><td>Rs {{ sale.balance_due|floatformat:0|intcomma }}</td><td>{{ sale.payment_status_label }}</td></tr>{% empty %}<tr><td colspan="7">No sales yet.</td></tr>{% endfor %}</tbody></table></div><div class="ep-mobile-list">{% for sale in sales %}<div class="ep-sale-card"><div class="ep-sale-card-top"><div><a class="ep-sale-card-title" href="{% url 'egg_pos_sale_detail' sale.id %}">{{ sale.sale_number }}</a><div class="ep-sale-card-meta">{{ sale.customer_name|default:"Walk-in" }}</div></div><div class="ep-sale-card-amount">Rs {{ sale.net_total|floatformat:0|intcomma }}</div></div><div class="ep-sale-card-foot"><span>{{ sale.sale_date|date:"d M Y" }} · {{ sale.created_at|date:"g:i A" }}</span><span>{{ sale.created_by.username }}</span></div><div class="ep-sale-card-foot"><span>Paid Rs {{ sale.amount_paid|floatformat:0|intcomma }}</span><span>Due Rs {{ sale.balance_due|floatformat:0|intcomma }}</span></div><div class="ep-sale-card-foot"><span>{{ sale.payment_status_label }}</span><a href="{% url 'egg_pos_sale_invoice' sale.id %}">Invoice</a></div></div>{% endfor %}</div></section>{% endblock %}
+{% extends "api/egg_pos_base.html" %}
+{% load humanize %}
+{% block egg_pos_content %}
+<style>
+  .ep-sales-panel{border-radius:16px;box-shadow:0 8px 24px rgba(26,67,101,.045)}
+  .ep-sales-table{min-width:1040px}
+  .ep-sales-table th{padding:11px 12px;background:#f5f9fd;border-bottom:1px solid #e3ebf3;color:#61758a;font-size:8px;letter-spacing:.025em}
+  .ep-sales-table td{padding:12px;border-top:1px solid #edf2f6;font-size:10px}
+  .ep-sales-table tbody tr:hover{background:#fbfdff}
+  .ep-sales-date{font-weight:850;color:#173b61;white-space:nowrap}
+  .ep-sales-time{display:block;margin-top:3px;font-size:8px;color:#7b8999;font-weight:700}
+  .ep-sales-invoice{font-weight:950;text-decoration:none}
+  .ep-sales-customer{font-weight:800;color:#244660}
+  .ep-sales-staff{display:flex;align-items:center;gap:7px;white-space:nowrap}
+  .ep-sales-avatar{width:26px;height:26px;border-radius:8px;background:#eaf4ff;color:#1767c6;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:950;text-transform:uppercase}
+  .ep-sales-money{font-weight:900;color:#173b61;white-space:nowrap}
+  .ep-sales-muted{color:#7f8d9c}
+  .ep-sales-profit{font-size:11px;font-weight:950;white-space:nowrap}
+  .ep-sales-profit small{display:block;margin-top:3px;color:#8190a0;font-size:7px;font-weight:700}
+  .ep-sales-status{display:inline-flex;align-items:center;justify-content:center;min-height:25px;padding:0 9px;border-radius:999px;font-size:8px;font-weight:950;white-space:nowrap}
+  .ep-sales-status.paid{background:#e7f7ed;color:#11783a}
+  .ep-sales-status.partial{background:#fff3df;color:#a86100}
+  .ep-sales-status.unpaid{background:#fff0f0;color:#b43333}
+  .ep-sales-mobile-card{margin:10px 10px 0;border:1px solid #e0e9f2;border-radius:14px;background:#fff;box-shadow:0 4px 14px rgba(24,62,94,.04);overflow:hidden}
+  .ep-sales-mobile-card:last-child{margin-bottom:10px}
+  .ep-sales-mobile-main{padding:13px 14px}
+  .ep-sales-mobile-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .ep-sales-mobile-invoice{font-size:12px;font-weight:950;color:#155f9c;text-decoration:none}
+  .ep-sales-mobile-customer{margin-top:3px;font-size:9px;color:#536b80;font-weight:800}
+  .ep-sales-mobile-net{font-size:15px;font-weight:950;color:#0873bb;text-align:right;white-space:nowrap}
+  .ep-sales-mobile-meta{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;padding-top:10px;border-top:1px solid #edf2f6;color:#718095;font-size:8px}
+  .ep-sales-mobile-meta strong{color:#314f69}
+  .ep-sales-mobile-bottom{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 14px;background:#fbfdff;border-top:1px solid #edf2f6}
+  .ep-sales-mobile-profit{font-size:10px;font-weight:950}
+  .ep-sales-mobile-actions{display:flex;align-items:center;gap:8px}
+  .ep-sales-mobile-actions a{font-size:9px;font-weight:900;color:#0b6fb7;text-decoration:none}
+  @media(max-width:768px){
+    .ep-page-title{align-items:flex-start}
+    .ep-page-title .ep-btn{min-height:38px;padding:0 11px}
+    .ep-sales-panel{background:transparent;border:0;box-shadow:none;overflow:visible}
+    .ep-mobile-list{padding-bottom:3px}
+  }
+</style>
+
+<div class="ep-page-title">
+  <div>
+    <h2>{% if can_manage_pos %}Egg POS Sales{% else %}My Sales{% endif %}</h2>
+    <p>{% if can_manage_pos %}Invoices, payment position and locked FIFO profit at a glance.{% else %}Your invoices, payment status and sale times.{% endif %}</p>
+  </div>
+  <a class="ep-btn primary" href="{% url 'egg_pos_new_sale' %}"><i class="fa-solid fa-plus"></i> New Sale</a>
+</div>
+
+<section class="ep-panel ep-sales-panel">
+  <div class="ep-table-wrap">
+    <table class="ep-table ep-sales-table desktop-only">
+      <thead>
+        <tr>
+          <th>Date / Time</th>
+          <th>Invoice</th>
+          <th>Customer</th>
+          {% if can_manage_pos %}<th>Staff</th>{% endif %}
+          <th>Net Sale</th>
+          <th>Paid</th>
+          <th>Due</th>
+          {% if can_manage_pos %}<th>Profit</th>{% endif %}
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for sale in sales %}
+        <tr>
+          <td>
+            <span class="ep-sales-date">{{ sale.sale_date|date:"d M Y" }}</span>
+            <span class="ep-sales-time"><i class="fa-regular fa-clock"></i> {{ sale.created_at|date:"g:i A" }}</span>
+          </td>
+          <td><a class="ep-sales-invoice" href="{% url 'egg_pos_sale_detail' sale.id %}">{{ sale.sale_number }}</a></td>
+          <td><span class="ep-sales-customer">{{ sale.customer_name|default:"Walk-in" }}</span></td>
+          {% if can_manage_pos %}
+          <td>
+            <div class="ep-sales-staff">
+              <span class="ep-sales-avatar">{{ sale.created_by.username|slice:":1" }}</span>
+              <span>{{ sale.created_by.get_full_name|default:sale.created_by.username }}</span>
+            </div>
+          </td>
+          {% endif %}
+          <td><span class="ep-sales-money">Rs {{ sale.net_total|floatformat:0|intcomma }}</span></td>
+          <td><span class="ep-sales-money">Rs {{ sale.amount_paid|floatformat:0|intcomma }}</span></td>
+          <td><span class="{% if sale.balance_due > 0 %}ep-money-neg{% else %}ep-sales-muted{% endif %}">Rs {{ sale.balance_due|floatformat:0|intcomma }}</span></td>
+          {% if can_manage_pos %}
+          <td>
+            <span class="ep-sales-profit {% if sale.profit_total < 0 %}ep-money-neg{% else %}ep-money-pos{% endif %}">
+              Rs {{ sale.profit_total|floatformat:0|intcomma }}
+              <small>COGS Rs {{ sale.cogs_total|floatformat:0|intcomma }}</small>
+            </span>
+          </td>
+          {% endif %}
+          <td>
+            <span class="ep-sales-status {{ sale.payment_status }}">{{ sale.payment_status_label }}</span>
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="{% if can_manage_pos %}9{% else %}7{% endif %}"><div class="ep-empty">No sales yet.</div></td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="ep-mobile-list">
+    {% for sale in sales %}
+    <article class="ep-sales-mobile-card">
+      <div class="ep-sales-mobile-main">
+        <div class="ep-sales-mobile-row">
+          <div>
+            <a class="ep-sales-mobile-invoice" href="{% url 'egg_pos_sale_detail' sale.id %}">{{ sale.sale_number }}</a>
+            <div class="ep-sales-mobile-customer">{{ sale.customer_name|default:"Walk-in" }}</div>
+          </div>
+          <div class="ep-sales-mobile-net">Rs {{ sale.net_total|floatformat:0|intcomma }}</div>
+        </div>
+        <div class="ep-sales-mobile-meta">
+          <span><i class="fa-regular fa-calendar"></i> <strong>{{ sale.sale_date|date:"d M Y" }}</strong></span>
+          <span><i class="fa-regular fa-clock"></i> <strong>{{ sale.created_at|date:"g:i A" }}</strong></span>
+          {% if can_manage_pos %}<span><i class="fa-regular fa-user"></i> <strong>{{ sale.created_by.get_full_name|default:sale.created_by.username }}</strong></span>{% endif %}
+          <span>Paid <strong>Rs {{ sale.amount_paid|floatformat:0|intcomma }}</strong></span>
+          <span>Due <strong class="{% if sale.balance_due > 0 %}ep-money-neg{% endif %}">Rs {{ sale.balance_due|floatformat:0|intcomma }}</strong></span>
+        </div>
+      </div>
+      <div class="ep-sales-mobile-bottom">
+        <div>
+          <span class="ep-sales-status {{ sale.payment_status }}">{{ sale.payment_status_label }}</span>
+          {% if can_manage_pos %}
+          <span class="ep-sales-mobile-profit {% if sale.profit_total < 0 %}ep-money-neg{% else %}ep-money-pos{% endif %}" style="margin-left:8px">Profit Rs {{ sale.profit_total|floatformat:0|intcomma }}</span>
+          {% endif %}
+        </div>
+        <div class="ep-sales-mobile-actions">
+          <a href="{% url 'egg_pos_sale_detail' sale.id %}">Details</a>
+          <a href="{% url 'egg_pos_sale_invoice' sale.id %}">Invoice</a>
+        </div>
+      </div>
+    </article>
+    {% empty %}
+      <div class="ep-empty">No sales yet.</div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
