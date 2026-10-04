@@ -218,6 +218,10 @@
         <strong>{{ sale.customer_phone|default:"—" }}</strong>
       </div>
       <div class="ep-customer-box">
+        <span>Sale Date / Time</span>
+        <strong>{{ sale.sale_date|date:"d M Y" }} · {{ sale.created_at|date:"g:i A" }}</strong>
+      </div>
+      <div class="ep-customer-box">
         <span>Due Date</span>
         <strong>{% if sale.credit_due_date %}{{ sale.credit_due_date|date:"d M Y" }}{% else %}—{% endif %}</strong>
       </div>

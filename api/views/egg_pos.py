@@ -154,17 +154,37 @@ def _stock_rows(products):
             if lot.source_type == "farm"
         )
         value = sum((lot.stock_value for lot in sellable_lots), ZERO)
+
+        # Dashboard stock bars must represent how much of the currently-open
+        # inventory lots is still remaining.  Using the raw egg count as a CSS
+        # percentage (e.g. 270 -> 270%) makes almost every bar look full.
+        # We therefore compare remaining eggs with the original quantity of the
+        # sellable lots that are still open. Fully depleted lots are already
+        # excluded from ``lots`` by the queryset above.
+        stock_reference = sum(int(lot.quantity_received or 0) for lot in sellable_lots)
+        if stock_reference > 0:
+            stock_percent = min(100, max(0, round((current / stock_reference) * 100)))
+        else:
+            stock_percent = 0
+
         rows.append({
             "product": product,
             "stock": current,
+            "stock_reference": stock_reference,
+            "stock_percent": stock_percent,
             "expired_stock": expired,
             "purchase_stock": purchased,
             "farm_stock": farm,
             "stock_value": money(value),
             "low_stock": current <= int(product.low_stock_eggs or 0),
+            # Keep both key names because the admin inventory and the
+            # salesperson mobile dashboard use these practical-unit values.
             "crates": current // 360,
             "trays": current // 30,
             "dozens": current // 12,
+            "max_crates": current // 360,
+            "max_trays": current // 30,
+            "max_dozens": current // 12,
             "lots": lots,
         })
     return rows
