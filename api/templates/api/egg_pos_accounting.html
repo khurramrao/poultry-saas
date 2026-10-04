@@ -9,7 +9,7 @@
 {% block egg_pos_content %}
 <div class="ep-section-title">
   <div><h3>Egg POS Accounting</h3><p>Cash position, sales collections, FIFO profit and double-entry books in one place.</p></div>
-  <a class="ep-btn primary" href="{% url 'egg_pos_owner_capital' %}"><i class="fa-solid fa-sack-dollar"></i> Owner Capital</a>
+  <a class="ep-btn primary" href="{% url 'egg_pos_owner_capital' %}"><i class="fa-solid fa-sack-dollar"></i> Owner Funding</a>
 </div>
 
 {% if capital_missing %}
@@ -20,18 +20,20 @@
 <div class="acc-actions"><a class="ep-btn" href="{% url 'egg_pos_general_ledger' %}"><i class="fa-solid fa-book-open"></i>General Ledger</a><a class="ep-btn" href="{% url 'egg_pos_cashbook' %}?period=this_month"><i class="fa-solid fa-money-bill-transfer"></i>Cashbook</a><a class="ep-btn" href="{% url 'egg_pos_trial_balance' %}"><i class="fa-solid fa-scale-balanced"></i>Trial Balance</a><a class="ep-btn primary" href="{% url 'egg_pos_income_statement' %}?period=this_month"><i class="fa-solid fa-chart-line"></i>Income Statement</a></div>
 
 <div class="acc-section">
-  <div class="acc-title"><div><h4>Cash Position & Purchase Readiness</h4><p>What you can safely spend on the next egg purchase, without counting money you have not received yet.</p></div></div>
+  <div class="acc-title"><div><h4>Cash Position & Purchase Readiness</h4><p>What you can safely spend on the next egg purchase. Owner loans stay visible as liabilities but remain usable until you actually repay them.</p></div></div>
   <div class="acc-grid4">
     <div class="acc-card primary"><small>Main Cash</small><strong>Rs {{ summary.cash|floatformat:0|intcomma }}</strong><div class="hint">Physically with company</div></div>
     <div class="acc-card"><small>Bank / Digital</small><strong>Rs {{ summary.bank|floatformat:0|intcomma }}</strong><div class="hint">Available company funds</div></div>
-    <div class="acc-card"><small>Committed Payables</small><strong>Rs {{ purchase_readiness.committed_payables|floatformat:0|intcomma }}</strong><div class="hint">Supplier + farm + staff reimbursement + commission</div></div>
-    <div class="acc-card {% if purchase_readiness.available_now < 0 %}bad{% else %}good{% endif %}"><small>Safe Purchase Capacity Now</small><strong>Rs {{ purchase_readiness.available_now|floatformat:0|intcomma }}</strong><div class="hint">Cash + bank − committed payables</div></div>
+    <div class="acc-card"><small>Immediate Payables</small><strong>Rs {{ purchase_readiness.committed_payables|floatformat:0|intcomma }}</strong><div class="hint">Supplier + farm + staff reimbursement + commission</div></div>
+    <div class="acc-card {% if purchase_readiness.available_now < 0 %}bad{% else %}good{% endif %}"><small>Safe Purchase Capacity Now</small><strong>Rs {{ purchase_readiness.available_now|floatformat:0|intcomma }}</strong><div class="hint">Cash + bank − immediate operational payables</div></div>
+    <div class="acc-card warn"><small>Owner Loan Outstanding</small><strong>Rs {{ purchase_readiness.owner_loan_outstanding|floatformat:0|intcomma }}</strong><div class="hint">Still owed to owner, but available for business use until repaid</div></div>
+    <div class="acc-card"><small>If Owner Loan Repaid Now</small><strong>Rs {{ purchase_readiness.cash_after_owner_loan_repayment|floatformat:0|intcomma }}</strong><div class="hint">Purchase capacity after repaying the owner loan today</div></div>
     <div class="acc-card"><small>Cash With Sales Staff</small><strong>Rs {{ summary.staff_cash|floatformat:0|intcomma }}</strong><div class="hint">Company money not handed over yet</div></div>
     <div class="acc-card good"><small>After Staff Handover</small><strong>Rs {{ purchase_readiness.after_staff_handover|floatformat:0|intcomma }}</strong><div class="hint">Available now + staff cash</div></div>
     <div class="acc-card"><small>Customer Receivables</small><strong>Rs {{ summary.receivables|floatformat:0|intcomma }}</strong><div class="hint">Still due from customers</div></div>
     <div class="acc-card good"><small>After All Collections</small><strong>Rs {{ purchase_readiness.after_customer_collection|floatformat:0|intcomma }}</strong><div class="hint">After staff handover + customer collection</div></div>
   </div>
-  <div class="acc-card" style="margin-top:12px;min-height:auto"><small>Quick Purchase Check</small><div class="purchase-check"><input class="ep-input" id="purchaseAmount" type="number" min="0" step="1" placeholder="Enter planned purchase amount, e.g. 42080"><button class="ep-btn" type="button" id="purchaseCheckBtn">Check</button></div><div class="purchase-result" id="purchaseResult">Enter a proposed stock purchase to see whether current cash is enough.</div></div>
+  <div class="acc-card" style="margin-top:12px;min-height:auto"><small>Quick Purchase Check</small><div class="hint" style="margin-top:4px">Owner loan is included in usable cash here; it only reduces cash when you record an actual loan repayment.</div><div class="purchase-check"><input class="ep-input" id="purchaseAmount" type="number" min="0" step="1" placeholder="Enter planned purchase amount, e.g. 42080"><button class="ep-btn" type="button" id="purchaseCheckBtn">Check</button></div><div class="purchase-result" id="purchaseResult">Enter a proposed stock purchase to see whether current cash is enough.</div></div>
 </div>
 
 <div class="acc-section">
@@ -50,11 +52,12 @@
 </div>
 
 <div class="acc-section">
-  <div class="acc-title"><div><h4>Owner Position</h4><p>Capital is separate from profit. Recycled sales cash is never counted as new capital.</p></div><a href="{% url 'egg_pos_owner_capital' %}">Manage capital →</a></div>
-  <div class="acc-capital">
-    <div class="acc-card"><small>Net Owner Capital</small><strong>Rs {{ summary.owner_capital|floatformat:0|intcomma }}</strong><div class="hint">Personal money introduced less withdrawals</div></div>
+  <div class="acc-title"><div><h4>Owner Position</h4><p>Permanent capital, temporary owner loans and profit are tracked separately.</p></div><a href="{% url 'egg_pos_owner_capital' %}">Manage owner funding →</a></div>
+  <div class="acc-grid4">
+    <div class="acc-card"><small>Net Owner Capital</small><strong>Rs {{ summary.owner_capital|floatformat:0|intcomma }}</strong><div class="hint">Permanent personal investment less drawings</div></div>
+    <div class="acc-card warn"><small>Owner Loan Payable</small><strong>Rs {{ summary.owner_loan_payable|floatformat:0|intcomma }}</strong><div class="hint">Temporary owner funding still owed back</div></div>
     <div class="acc-card {% if cumulative_net_profit < 0 %}bad{% else %}good{% endif %}"><small>Cumulative Profit / Loss</small><strong>Rs {{ cumulative_net_profit|floatformat:0|intcomma }}</strong><div class="hint">Trading result through report date</div></div>
-    <div class="acc-card"><small>Current Owner Equity</small><strong>Rs {{ current_equity|floatformat:0|intcomma }}</strong><div class="hint">Owner capital + cumulative profit/loss</div></div>
+    <div class="acc-card"><small>Current Owner Equity</small><strong>Rs {{ current_equity|floatformat:0|intcomma }}</strong><div class="hint">Capital + cumulative profit/loss; owner loan excluded</div></div>
   </div>
 </div>
 

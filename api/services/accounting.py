@@ -20,6 +20,7 @@ ACCOUNT_SPECS = {
     "2010": ("Due to RayNoor Egg Production", "liability", "credit"),
     "2020": ("Staff Reimbursements Payable", "liability", "credit"),
     "2030": ("Sales Commission Payable", "liability", "credit"),
+    "2040": ("Owner Loan Payable", "liability", "credit"),
     "3000": ("Owner Capital / Equity", "equity", "credit"),
     "4000": ("Egg Sales", "revenue", "credit"),
     "5000": ("Egg Cost of Goods Sold", "cogs", "debit"),

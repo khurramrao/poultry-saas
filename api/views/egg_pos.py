@@ -2281,6 +2281,10 @@ def owner_capital(request):
             action = (request.POST.get("action") or "add").strip().lower()
             if action == "delete":
                 capital = get_object_or_404(EggPOSOwnerCapitalTransaction, pk=request.POST.get("capital_id"))
+                if capital.transaction_type == "owner_loan":
+                    current_loan_balance = money(normal_account_balance("2040"))
+                    if current_loan_balance - money(capital.amount) < ZERO:
+                        raise ValueError("This owner loan cannot be removed because repayments already depend on it. Reverse or correct the repayment first.")
                 with transaction.atomic():
                     JournalEntry.objects.filter(source_key=f"egg_pos:owner_capital:{capital.id}").delete()
                     label = capital.get_transaction_type_display()
@@ -2301,6 +2305,10 @@ def owner_capital(request):
                 raise ValueError("Choose Main Cash or Bank / Digital.")
             capital_date = _parse_date(request.POST.get("transaction_date"), "Transaction date")
             amount = _parse_money(request.POST.get("amount"), "Amount")
+            if transaction_type == "loan_repayment":
+                loan_balance_at_date = money(normal_account_balance("2040", as_of=capital_date))
+                if amount > loan_balance_at_date:
+                    raise ValueError(f"Loan repayment cannot exceed the owner loan balance of Rs {loan_balance_at_date:,.2f} on {capital_date:%d %b %Y}.")
             with transaction.atomic():
                 capital = EggPOSOwnerCapitalTransaction.objects.create(
                     transaction_date=capital_date,
@@ -2329,12 +2337,22 @@ def owner_capital(request):
     withdrawals = money(EggPOSOwnerCapitalTransaction.objects.filter(
         transaction_type="withdrawal"
     ).aggregate(total=Sum("amount"))["total"] or ZERO)
+    owner_loans_given = money(EggPOSOwnerCapitalTransaction.objects.filter(
+        transaction_type="owner_loan"
+    ).aggregate(total=Sum("amount"))["total"] or ZERO)
+    owner_loans_repaid = money(EggPOSOwnerCapitalTransaction.objects.filter(
+        transaction_type="loan_repayment"
+    ).aggregate(total=Sum("amount"))["total"] or ZERO)
     net_capital = money(normal_account_balance("3000", as_of=as_of))
+    owner_loan_balance = money(normal_account_balance("2040", as_of=as_of))
     return render(request, "api/egg_pos_owner_capital.html", {
         "transactions": transactions,
         "invested": invested,
         "withdrawals": withdrawals,
         "net_capital": net_capital,
+        "owner_loans_given": owner_loans_given,
+        "owner_loans_repaid": owner_loans_repaid,
+        "owner_loan_balance": owner_loan_balance,
         "main_cash": money(normal_account_balance("1000", as_of=as_of)),
         "bank": money(normal_account_balance("1010", as_of=as_of)),
         "today": as_of,
@@ -2363,24 +2381,32 @@ def accounting_overview(request):
         "farm_payable": money(normal_account_balance("2010", as_of=as_of)),
         "staff_reimbursements": money(normal_account_balance("2020", as_of=as_of)),
         "commission_payable": money(normal_account_balance("2030", as_of=as_of)),
+        "owner_loan_payable": money(normal_account_balance("2040", as_of=as_of)),
         "owner_capital": money(normal_account_balance("3000", as_of=as_of)),
     }
 
     # Purchase-readiness intentionally excludes money still with sales staff/customers.
-    committed_payables = money(
+    # Owner loans are liabilities, but they are temporary funding provided specifically so
+    # the business can use the cash. They therefore remain visible on the Balance Sheet
+    # and Owner Position, but are not reserved from day-to-day purchase capacity unless
+    # management actually repays them.
+    immediate_payables = money(
         max(summary["supplier_payable"], ZERO)
         + max(summary["farm_payable"], ZERO)
         + max(summary["staff_reimbursements"], ZERO)
         + max(summary["commission_payable"], ZERO)
     )
-    available_now = money(summary["cash"] + summary["bank"] - committed_payables)
+    available_now = money(summary["cash"] + summary["bank"] - immediate_payables)
     after_staff_handover = money(available_now + summary["staff_cash"])
     after_customer_collection = money(after_staff_handover + summary["receivables"])
+    cash_after_owner_loan_repayment = money(available_now - max(summary["owner_loan_payable"], ZERO))
     purchase_readiness = {
-        "committed_payables": committed_payables,
+        "committed_payables": immediate_payables,
         "available_now": available_now,
         "after_staff_handover": after_staff_handover,
         "after_customer_collection": after_customer_collection,
+        "owner_loan_outstanding": max(summary["owner_loan_payable"], ZERO),
+        "cash_after_owner_loan_repayment": cash_after_owner_loan_repayment,
     }
 
     # Reconcile customer collections by custody so management can see where sales cash is.

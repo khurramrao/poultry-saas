@@ -354,24 +354,45 @@ def sync_commission_payment(payment):
 
 
 def sync_owner_capital(transaction):
+    """Post owner funding without mixing permanent capital with temporary loans."""
     cash_code = "1010" if transaction.cash_account == "bank" else "1000"
     label = transaction.get_transaction_type_display()
+
     if transaction.transaction_type == "withdrawal":
         lines = [
             line("3000", debit=transaction.amount, description=label),
             line(cash_code, credit=transaction.amount, description="Owner withdrawal paid"),
         ]
+        source_type = "egg_pos_owner_capital"
+        reference = transaction.reference or f"CAP-{transaction.id:05d}"
+    elif transaction.transaction_type == "owner_loan":
+        lines = [
+            line(cash_code, debit=transaction.amount, description="Temporary funds received from owner"),
+            line("2040", credit=transaction.amount, description=label),
+        ]
+        source_type = "egg_pos_owner_loan"
+        reference = transaction.reference or f"LOAN-{transaction.id:05d}"
+    elif transaction.transaction_type == "loan_repayment":
+        lines = [
+            line("2040", debit=transaction.amount, description=label),
+            line(cash_code, credit=transaction.amount, description="Owner loan repaid"),
+        ]
+        source_type = "egg_pos_owner_loan"
+        reference = transaction.reference or f"LOANPAY-{transaction.id:05d}"
     else:
         lines = [
             line(cash_code, debit=transaction.amount, description="Owner funds introduced"),
             line("3000", credit=transaction.amount, description=label),
         ]
+        source_type = "egg_pos_owner_capital"
+        reference = transaction.reference or f"CAP-{transaction.id:05d}"
+
     return post_entry(
         source_key=f"egg_pos:owner_capital:{transaction.id}",
         entry_date=transaction.transaction_date,
-        reference=transaction.reference or f"CAP-{transaction.id:05d}",
+        reference=reference,
         memo=label,
-        source_type="egg_pos_owner_capital",
+        source_type=source_type,
         source_id=transaction.id,
         created_by=transaction.recorded_by,
         lines=lines,

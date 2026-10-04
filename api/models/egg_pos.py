@@ -915,7 +915,9 @@ class EggPOSOwnerCapitalTransaction(models.Model):
     TRANSACTION_TYPE_CHOICES = [
         ("opening", "Opening Owner Capital"),
         ("additional", "Additional Owner Investment"),
-        ("withdrawal", "Owner Withdrawal"),
+        ("withdrawal", "Owner Withdrawal / Drawings"),
+        ("owner_loan", "Owner Loan to Business"),
+        ("loan_repayment", "Repay Owner Loan"),
     ]
     CASH_ACCOUNT_CHOICES = [
         ("cash", "Main Cash"),
@@ -946,6 +948,14 @@ class EggPOSOwnerCapitalTransaction(models.Model):
     @property
     def is_withdrawal(self):
         return self.transaction_type == "withdrawal"
+
+    @property
+    def is_owner_loan(self):
+        return self.transaction_type == "owner_loan"
+
+    @property
+    def is_loan_repayment(self):
+        return self.transaction_type == "loan_repayment"
 
     def __str__(self):
         return f"{self.get_transaction_type_display()} - Rs {self.amount}"
