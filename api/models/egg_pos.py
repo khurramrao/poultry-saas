@@ -222,6 +222,13 @@ class EggPOSFarmTransfer(models.Model):
         related_name="egg_pos_farm_transfers_created",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    is_voided = models.BooleanField(default=False)
+    void_reason = models.CharField(max_length=255, blank=True)
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="egg_pos_farm_transfers_voided",
+    )
 
     class Meta:
         ordering = ["-transfer_date", "-id"]
@@ -252,6 +259,8 @@ class EggPOSFarmTransfer(models.Model):
 
     @property
     def balance_due(self):
+        if self.is_voided:
+            return MONEY_ZERO
         return max(Decimal(self.total_amount or 0) - Decimal(self.amount_paid or 0), MONEY_ZERO)
 
     @property
@@ -468,6 +477,16 @@ class EggPOSSale(models.Model):
         related_name="egg_pos_sales",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    is_reversed = models.BooleanField(default=False)
+    reversed_at = models.DateTimeField(null=True, blank=True)
+    reversed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="egg_pos_sales_reversed",
+    )
+    reversal_reason = models.CharField(max_length=255, blank=True)
 
     class Meta:
         ordering = ["-sale_date", "-id"]
@@ -477,16 +496,22 @@ class EggPOSSale(models.Model):
 
     @property
     def amount_paid(self):
+        if self.is_reversed:
+            return MONEY_ZERO
         if not self.pk:
             return MONEY_ZERO
         return sum((Decimal(payment.amount or 0) for payment in self.payments.all()), MONEY_ZERO)
 
     @property
     def balance_due(self):
+        if self.is_reversed:
+            return MONEY_ZERO
         return max(Decimal(self.net_total or 0) - Decimal(self.amount_paid or 0), MONEY_ZERO)
 
     @property
     def payment_status(self):
+        if self.is_reversed:
+            return "reversed"
         paid = Decimal(self.amount_paid or 0)
         total = Decimal(self.net_total or 0)
         if total <= MONEY_ZERO or paid >= total:
@@ -495,7 +520,7 @@ class EggPOSSale(models.Model):
 
     @property
     def payment_status_label(self):
-        return {"paid": "Paid", "partial": "Partially Paid", "unpaid": "Unpaid / Credit"}[self.payment_status]
+        return {"paid": "Paid", "partial": "Partially Paid", "unpaid": "Unpaid / Credit", "reversed": "Reversed"}[self.payment_status]
 
 
 class EggPOSSalePayment(models.Model):

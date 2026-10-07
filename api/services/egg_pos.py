@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from api.models.egg_pos import (
     EggPOSFarmTransfer,
+    EggPOSSale,
     EggPOSInventoryLot,
     EggPOSSaleAllocation,
 )
@@ -75,7 +76,7 @@ def farm_egg_stock(batch):
         or 0
     )
     transferred = 0
-    for transfer in EggPOSFarmTransfer.objects.filter(batch=batch).prefetch_related("items"):
+    for transfer in EggPOSFarmTransfer.objects.filter(batch=batch, is_voided=False).prefetch_related("items"):
         transferred += sum(int(item.quantity or 0) for item in transfer.items.all())
     return {
         "usable": usable,
@@ -139,3 +140,36 @@ def allocate_fifo_to_sale_item(sale_item, sale_date):
     sale_item.cogs_amount = money(cogs)
     sale_item.save(update_fields=["cogs_amount"])
     return sale_item.cogs_amount
+
+
+@transaction.atomic
+def reverse_sale(sale, reversed_by, reason):
+    """Reverse a POS sale without deleting its audit trail."""
+    sale = (EggPOSSale.objects.select_for_update()
+            .prefetch_related("items__lot_allocations__lot", "payments")
+            .get(pk=sale.pk))
+    if sale.is_reversed:
+        raise ValueError(f"{sale.sale_number} is already reversed.")
+    reason = (reason or "").strip()
+    if not reason:
+        raise ValueError("Please enter a reversal reason.")
+
+    # Put exactly the FIFO quantities consumed by this invoice back into their lots.
+    for item in sale.items.all():
+        for allocation in item.lot_allocations.all():
+            lot = EggPOSInventoryLot.objects.select_for_update().get(pk=allocation.lot_id)
+            lot.quantity_remaining += int(allocation.quantity or 0)
+            lot.save(update_fields=["quantity_remaining"])
+
+    sale.is_reversed = True
+    sale.reversed_at = timezone.now()
+    sale.reversed_by = reversed_by
+    sale.reversal_reason = reason[:255]
+    sale.save(update_fields=["is_reversed", "reversed_at", "reversed_by", "reversal_reason"])
+
+    # Remove the financial effect while retaining the source sale/payment rows for audit.
+    from api.models.accounting import JournalEntry
+    JournalEntry.objects.filter(source_key=f"egg_pos:sale:{sale.id}").delete()
+    for payment in sale.payments.all():
+        JournalEntry.objects.filter(source_key=f"egg_pos:sale_payment:{payment.id}").delete()
+    return sale

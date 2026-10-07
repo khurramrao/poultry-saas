@@ -21,6 +21,7 @@
   .ep-sales-status.paid{background:#e7f7ed;color:#11783a}
   .ep-sales-status.partial{background:#fff3df;color:#a86100}
   .ep-sales-status.unpaid{background:#fff0f0;color:#b43333}
+  .ep-sales-status.reversed{background:#f3e8ff;color:#7e22ce}
   .ep-sales-mobile-card{margin:10px 10px 0;border:1px solid #e0e9f2;border-radius:14px;background:#fff;box-shadow:0 4px 14px rgba(24,62,94,.04);overflow:hidden}
   .ep-sales-mobile-card:last-child{margin-bottom:10px}
   .ep-sales-mobile-main{padding:13px 14px}
@@ -107,7 +108,7 @@
 
   <div class="ep-mobile-list">
     {% for sale in sales %}
-    <article class="ep-sales-mobile-card">
+    <article class="ep-sales-mobile-card"{% if sale.is_reversed %} style="opacity:.72"{% endif %}>
       <div class="ep-sales-mobile-main">
         <div class="ep-sales-mobile-row">
           <div>
@@ -133,7 +134,7 @@
         </div>
         <div class="ep-sales-mobile-actions">
           <a href="{% url 'egg_pos_sale_detail' sale.id %}">Details</a>
-          <a href="{% url 'egg_pos_sale_invoice' sale.id %}">Invoice</a>
+          {% if not sale.is_reversed %}<a href="{% url 'egg_pos_sale_invoice' sale.id %}">Invoice</a>{% endif %}
         </div>
       </div>
     </article>

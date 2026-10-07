@@ -45,6 +45,7 @@ from api.services.egg_pos import (
     is_admin,
     make_lot_code,
     money,
+    reverse_sale,
 )
 from api.services.accounting import (
     account_activity,
@@ -204,7 +205,7 @@ def _customer_sales_totals(sales):
 
 
 def _customer_row(customer, user, manage):
-    all_sales = list(customer.sales.all())
+    all_sales = list(customer.sales.filter(is_reversed=False))
     overall = _customer_sales_totals(all_sales)
 
     if manage:
@@ -239,7 +240,7 @@ def dashboard(request):
     products = list(EggPOSProduct.objects.filter(is_active=True).order_by("name"))
     stock_rows = _stock_rows(products)
 
-    sales_qs = EggPOSSale.objects.filter(sale_date=today)
+    sales_qs = EggPOSSale.objects.filter(sale_date=today, is_reversed=False)
     if not can_manage(request.user):
         sales_qs = sales_qs.filter(created_by=request.user)
 
@@ -253,6 +254,7 @@ def dashboard(request):
 
     month_start = today.replace(day=1)
     month_sales_qs = EggPOSSale.objects.filter(
+        is_reversed=False,
         sale_date__gte=month_start,
         sale_date__lte=today,
     )
@@ -274,7 +276,7 @@ def dashboard(request):
     farm_stock_total = sum(row["farm_stock"] for row in stock_rows)
     purchase_stock_total = sum(row["purchase_stock"] for row in stock_rows)
 
-    recent_sales = EggPOSSale.objects.select_related("created_by")
+    recent_sales = EggPOSSale.objects.filter(is_reversed=False).select_related("created_by")
     if not can_manage(request.user):
         recent_sales = recent_sales.filter(created_by=request.user)
     recent_sales = recent_sales.order_by("-sale_date", "-id")[:10]
@@ -874,6 +876,7 @@ def farm_transfer(request):
 
     all_transfers = list(
         EggPOSFarmTransfer.objects
+        .filter(is_voided=False)
         .select_related("batch", "batch__shed", "created_by")
         .prefetch_related("items__product", "payments")
         .order_by("-transfer_date", "-id")
@@ -908,8 +911,11 @@ def farm_transfer_detail(request, transfer_id):
         .prefetch_related("items__product", "payments__recorded_by"),
         pk=transfer_id,
     )
+    editable, edit_reason = _farm_transfer_is_editable(transfer)
     return render(request, "api/egg_pos_farm_transfer_detail.html", {
         "transfer": transfer,
+        "transfer_editable": editable,
+        "transfer_edit_reason": edit_reason,
         "payment_methods": EggPOSFarmTransferPayment.PAYMENT_METHOD_CHOICES,
         "today": timezone.localdate(),
     })
@@ -926,6 +932,8 @@ def record_farm_transfer_payment(request, transfer_id):
         pk=transfer_id,
     )
     try:
+        if transfer.is_voided:
+            raise ValueError("A voided transfer cannot receive payments.")
         balance = money(transfer.balance_due)
         if balance <= ZERO:
             raise ValueError("This internal transfer is already paid in full.")
@@ -1386,7 +1394,7 @@ def customer_detail(request, customer_id):
     )
 
     manage = can_manage(request.user)
-    all_sales = list(customer.sales.all())
+    all_sales = list(customer.sales.filter(is_reversed=False))
     overall = _customer_sales_totals(all_sales)
 
     if manage:
@@ -1437,6 +1445,9 @@ def record_sale_payment(request, sale_id):
     if not can_sell(request.user):
         return _deny(request)
     sale=get_object_or_404(EggPOSSale.objects.prefetch_related("payments"),pk=sale_id)
+    if sale.is_reversed:
+        messages.error(request, "A reversed invoice cannot receive payments.")
+        return redirect("egg_pos_sale_detail", sale_id=sale.id)
     if not can_manage(request.user) and sale.created_by_id != request.user.id:
         return _deny(request,"You can only receive payment against your own sales.")
     try:
@@ -1456,6 +1467,20 @@ def record_sale_payment(request, sale_id):
     except Exception as error:
         messages.error(request,str(error))
     return redirect("egg_pos_sale_detail",sale_id=sale.id)
+
+
+@login_required
+@require_POST
+def reverse_pos_sale(request, sale_id):
+    if not can_manage(request.user):
+        return _deny(request, "Only a POS manager/admin can reverse a sale.")
+    sale = get_object_or_404(EggPOSSale, pk=sale_id)
+    try:
+        reverse_sale(sale, request.user, request.POST.get("reason"))
+        messages.success(request, f"{sale.sale_number} reversed. Stock, cash, revenue and COGS effects were removed.")
+    except Exception as error:
+        messages.error(request, str(error))
+    return redirect("egg_pos_sale_detail", sale_id=sale.id)
 
 
 @login_required
@@ -2629,3 +2654,100 @@ def party_ledger(request, party_type, party_id):
         return _deny(request, "Unknown ledger type.")
 
     return render(request, "api/egg_pos_party_ledger.html", context)
+
+
+def _farm_transfer_is_editable(transfer):
+    if transfer.is_voided or Decimal(transfer.amount_paid or 0) > ZERO:
+        return False, "Only an unpaid, active transfer can be edited or voided."
+    for item in transfer.items.select_related("lot").all():
+        if item.lot_id and int(item.lot.quantity_remaining or 0) != int(item.lot.quantity_received or 0):
+            return False, "This transfer stock has already been used in a sale, so it cannot be edited or voided. Reverse the related sale first."
+    return True, ""
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_farm_transfer(request, transfer_id):
+    if not can_manage(request.user):
+        return _deny(request, "Only Egg POS management can correct internal transfers.")
+    transfer = get_object_or_404(EggPOSFarmTransfer.objects.prefetch_related("items__product", "items__lot", "payments"), pk=transfer_id)
+    editable, reason = _farm_transfer_is_editable(transfer)
+    if not editable:
+        messages.error(request, reason)
+        return redirect("egg_pos_farm_transfer_detail", transfer_id=transfer.id)
+
+    batches = list(Batch.objects.filter(shed__shed_type="layer", is_active=True, status="active").select_related("shed").order_by("-start_date", "-id"))
+    products = EggPOSProduct.objects.filter(is_active=True).order_by("name")
+    old_qty = transfer.total_quantity
+    for batch in batches:
+        batch.pos_stock = farm_egg_stock(batch)
+        if batch.id == transfer.batch_id:
+            batch.pos_stock["available_for_edit"] = batch.pos_stock["available"] + old_qty
+        else:
+            batch.pos_stock["available_for_edit"] = batch.pos_stock["available"]
+
+    if request.method == "POST":
+        try:
+            batch = get_object_or_404(Batch.objects.select_related("shed"), pk=request.POST.get("batch"), shed__shed_type="layer", is_active=True, status="active")
+            transfer_date = _parse_date(request.POST.get("transfer_date"), "Transfer date")
+            due_raw = (request.POST.get("payment_due_date") or "").strip()
+            due_date = _parse_date(due_raw, "Payment due date") if due_raw else None
+            if due_date and due_date < transfer_date:
+                raise ValueError("Payment due date cannot be before the transfer date.")
+            transport_cost = _parse_money(request.POST.get("transport_cost") or "0", "Transport cost", allow_zero=True)
+            transport_method = (request.POST.get("transport_payment_method") or "cash").strip()
+            if transport_method not in {v for v, _ in EggPOSFarmTransfer.TRANSPORT_PAYMENT_CHOICES}:
+                raise ValueError("Select a valid transport payment source.")
+
+            rows=[]; total_qty=0
+            pids=request.POST.getlist("product_id"); qtys=request.POST.getlist("quantity"); costs=request.POST.getlist("unit_cost"); totals=request.POST.getlist("line_total_cost")
+            for i,pid in enumerate(pids):
+                if not pid: continue
+                product=get_object_or_404(EggPOSProduct, pk=pid, is_active=True)
+                qty=_parse_positive_int(qtys[i] if i < len(qtys) else None, "Quantity")
+                traw=(totals[i] if i < len(totals) else "") or ""; uraw=(costs[i] if i < len(costs) else "") or ""
+                if str(traw).strip():
+                    line_cost=_parse_money(traw,"Line transfer cost"); unit=(Decimal(line_cost)/Decimal(qty)).quantize(UNIT_COST_QUANT)
+                else: unit=_parse_unit_cost(uraw,"Farm transfer rate")
+                rows.append((product,qty,unit)); total_qty += qty
+            if not rows: raise ValueError("Add at least one product grading row.")
+            available=farm_egg_stock(batch)["available"] + (old_qty if batch.id == transfer.batch_id else 0)
+            if total_qty > available: raise ValueError(f"Only {available} farm eggs are available for this correction; {total_qty} requested.")
+            transport_per=(Decimal(transport_cost)/Decimal(total_qty)).quantize(UNIT_COST_QUANT) if total_qty and transport_cost > ZERO else Decimal("0.000000")
+
+            with transaction.atomic():
+                for item in list(transfer.items.select_related("lot").all()):
+                    if item.lot_id: item.lot.delete()
+                transfer.items.all().delete()
+                transfer.batch=batch; transfer.transfer_date=transfer_date; transfer.payment_due_date=due_date; transfer.transport_cost=transport_cost; transfer.transport_payment_method=transport_method; transfer.notes=(request.POST.get("notes") or "").strip()
+                transfer.save(update_fields=["batch","transfer_date","payment_due_date","transport_cost","transport_payment_method","notes"])
+                for number,(product,qty,unit) in enumerate(rows,start=1):
+                    item=EggPOSFarmTransferItem.objects.create(transfer=transfer,product=product,quantity=qty,unit_cost=unit)
+                    landed=(Decimal(unit)+transport_per).quantize(UNIT_COST_QUANT)
+                    lot=EggPOSInventoryLot.objects.create(product=product,source_type="farm",farm_batch=batch,farm_transfer=transfer,lot_code=make_lot_code("RN",transfer.id,number),received_date=transfer_date,quantity_received=qty,quantity_remaining=qty,unit_cost=landed,notes=f"RayNoor corrected transfer {transfer.transfer_number} | Base Rs {unit:.4f}/egg + transport Rs {transport_per:.4f}/egg")
+                    item.lot=lot; item.save(update_fields=["lot"])
+                sync_farm_transfer(transfer)
+            messages.success(request, f"{transfer.transfer_number} corrected successfully. Stock, farm payable and accounting were updated together.")
+            return redirect("egg_pos_farm_transfer_detail", transfer_id=transfer.id)
+        except Exception as error: messages.error(request, str(error))
+
+    return render(request,"api/egg_pos_farm_transfer_edit.html",{"transfer":transfer,"batches":batches,"products":products,"transport_methods":EggPOSFarmTransfer.TRANSPORT_PAYMENT_CHOICES})
+
+
+@login_required
+@require_POST
+def void_farm_transfer(request, transfer_id):
+    if not can_manage(request.user): return _deny(request, "Only Egg POS management can void internal transfers.")
+    transfer=get_object_or_404(EggPOSFarmTransfer.objects.prefetch_related("items__lot","payments"),pk=transfer_id)
+    editable, reason=_farm_transfer_is_editable(transfer)
+    if not editable:
+        messages.error(request, reason); return redirect("egg_pos_farm_transfer_detail",transfer_id=transfer.id)
+    reason_text=(request.POST.get("reason") or "Entry made in error").strip()[:255]
+    with transaction.atomic():
+        for item in list(transfer.items.select_related("lot").all()):
+            if item.lot_id: item.lot.delete()
+        JournalEntry.objects.filter(source_key=f"egg_pos:farm_transfer:{transfer.id}").delete()
+        transfer.is_voided=True; transfer.void_reason=reason_text; transfer.voided_at=timezone.now(); transfer.voided_by=request.user
+        transfer.save(update_fields=["is_voided","void_reason","voided_at","voided_by"])
+    messages.success(request,f"{transfer.transfer_number} voided. Its POS stock, farm payable and accounting effect were removed.")
+    return redirect("egg_pos_farm_transfer_detail",transfer_id=transfer.id)

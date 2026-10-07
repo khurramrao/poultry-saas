@@ -280,6 +280,7 @@ def sync_cash_settlement(settlement):
 
 def commission_preview(salesperson, start_date, end_date):
     sales = EggPOSSale.objects.filter(
+        is_reversed=False,
         created_by=salesperson,
         sale_date__gte=start_date,
         sale_date__lte=end_date,
@@ -406,13 +407,17 @@ def sync_all_egg_pos_books():
         sync_purchase(purchase)
     for payment in EggPOSSupplierPayment.objects.select_related("supplier", "purchase", "recorded_by").order_by("id"):
         sync_supplier_payment(payment)
-    for transfer in EggPOSFarmTransfer.objects.select_related("batch", "created_by").prefetch_related("items").order_by("id"):
+    for transfer in EggPOSFarmTransfer.objects.filter(is_voided=False).select_related("batch", "created_by").prefetch_related("items").order_by("id"):
         sync_farm_transfer(transfer)
     for payment in EggPOSFarmTransferPayment.objects.select_related("transfer__batch", "recorded_by").order_by("id"):
         sync_farm_transfer_payment(payment)
     for sale in EggPOSSale.objects.select_related("customer", "created_by").order_by("id"):
+        if sale.is_reversed:
+            continue
         sync_sale_invoice(sale)
     for payment in EggPOSSalePayment.objects.select_related("sale__customer", "recorded_by").order_by("id"):
+        if payment.sale.is_reversed:
+            continue
         sync_sale_payment(payment)
     for expense in EggPOSExpense.objects.select_related("used_by", "entered_by", "approved_by").order_by("id"):
         sync_expense(expense)

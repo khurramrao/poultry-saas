@@ -271,13 +271,13 @@ def _batch_egg_totals(batch):
 
     sold = sum(int(sale.eggs_sold or 0) for sale in sales)
     transferred = int(
-        EggPOSFarmTransferItem.objects.filter(transfer__batch=batch)
+        EggPOSFarmTransferItem.objects.filter(transfer__batch=batch, transfer__is_voided=False)
         .aggregate(total=Sum("quantity"))["total"]
         or 0
     )
     transfers = list(
         EggPOSFarmTransfer.objects
-        .filter(batch=batch)
+        .filter(batch=batch, is_voided=False)
         .select_related("created_by")
         .prefetch_related("items", "payments")
         .order_by("-transfer_date", "-id")
