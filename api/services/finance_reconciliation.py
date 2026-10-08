@@ -9,7 +9,7 @@ from django.db.models import Sum, Q
 from api.models.sensor import Batch, MortalityRecord
 from api.models.sales import ChickCostEntry, SaleRecord, Expense
 from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
-from api.models.eggs import EggProductionEntry, EggSale, LayerHenCountHistory
+from api.models.eggs import EggProductionEntry, EggSale, EggStockWastage, LayerHenCountHistory
 from api.services.poultry_inventory import get_batch_bird_position
 
 
@@ -331,9 +331,13 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             eggs_collected = int(egg_production["collected"] or 0)
             damaged_eggs = int(egg_production["damaged"] or 0)
             usable_eggs = max(eggs_collected - damaged_eggs, 0)
+            post_collection_wastage = int(
+                EggStockWastage.objects.filter(batch=batch).aggregate(total=Sum("quantity"))["total"] or 0
+            )
+            damaged_eggs += post_collection_wastage
 
             egg_sales_records = list(
-                EggSale.objects.filter(batch=batch).order_by(
+                EggSale.objects.filter(batch=batch, is_voided=False).order_by(
                     "-sale_date",
                     "-id",
                 )
@@ -343,7 +347,7 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                 int(sale.eggs_sold or 0)
                 for sale in egg_sales_records
             )
-            egg_stock = max(usable_eggs - eggs_sold, 0)
+            egg_stock = max(usable_eggs - eggs_sold - post_collection_wastage, 0)
 
             egg_gross_sales_revenue = money(
                 sum(

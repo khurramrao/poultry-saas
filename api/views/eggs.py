@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
@@ -11,7 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from api.models.eggs import EggProductionEntry, EggSale, LayerHenCountHistory
+from api.models.eggs import EggProductionEntry, EggSale, EggStockWastage, EggSaleCorrectionAudit, LayerHenCountHistory
 from api.models.egg_pos import EggPOSFarmTransfer, EggPOSFarmTransferItem
 from api.models.investors import InvestorAllocation
 from api.models.sensor import Batch
@@ -104,11 +105,12 @@ def _daily_production_rows(entries, hen_history):
     return rows
 
 
-def _monthly_performance(production_days, sales, display_ratio):
+def _monthly_performance(production_days, sales, wastages, display_ratio):
     monthly = defaultdict(
         lambda: {
             "collected": 0,
             "damaged": 0,
+            "wasted": 0,
             "usable": 0,
             "sold": 0,
             "days_recorded": 0,
@@ -128,6 +130,11 @@ def _monthly_performance(production_days, sales, display_ratio):
         if day["active_hens"]:
             row["days_with_hens"] += 1
             row["hen_days"] += int(day["active_hens"])
+
+    for waste in wastages:
+        month = waste.damage_date.replace(day=1)
+        monthly[month]["damaged"] += int(waste.quantity)
+        monthly[month]["wasted"] += int(waste.quantity)
 
     for sale in sales:
         month = sale.sale_date.replace(day=1)
@@ -157,6 +164,7 @@ def _monthly_performance(production_days, sales, display_ratio):
             "month": month,
             "collected": row["collected"],
             "damaged": row["damaged"],
+            "wasted": row["wasted"],
             "usable": row["usable"],
             "sold": row["sold"],
             "days_recorded": row["days_recorded"],
@@ -266,8 +274,10 @@ def _batch_egg_totals(batch):
     usable = max(collected - damaged, 0)
 
     sales = list(
-        EggSale.objects.filter(batch=batch).order_by("-sale_date", "-id")
+        EggSale.objects.filter(batch=batch, is_voided=False).order_by("-sale_date", "-id")
     )
+    wasted = int(EggStockWastage.objects.filter(batch=batch).aggregate(
+        total=Sum("quantity"))["total"] or 0)
 
     sold = sum(int(sale.eggs_sold or 0) for sale in sales)
     transferred = int(
@@ -285,7 +295,7 @@ def _batch_egg_totals(batch):
     pos_transfer_value = _money(sum((Decimal(t.total_amount or 0) for t in transfers), MONEY_ZERO))
     pos_transfer_received = _money(sum((Decimal(t.amount_paid or 0) for t in transfers), MONEY_ZERO))
     pos_transfer_receivable = _money(sum((Decimal(t.balance_due or 0) for t in transfers), MONEY_ZERO))
-    stock = max(usable - sold - transferred, 0)
+    stock = max(usable - sold - transferred - wasted, 0)
 
     gross_sales = sum(
         (_money(sale.gross_amount) for sale in sales),
@@ -302,7 +312,9 @@ def _batch_egg_totals(batch):
 
     return {
         "collected": collected,
-        "damaged": damaged,
+        "damaged": damaged + wasted,
+        "production_damaged": damaged,
+        "wasted": wasted,
         "usable": usable,
         "sold": sold,
         "transferred_to_pos": transferred,
@@ -407,8 +419,15 @@ def egg_dashboard(request):
             ).quantize(MONEY_UNIT)
 
         display_ratio = Decimal("1") if is_admin else ratio
-        for sale in totals["sales"][:12]:
+        history_sales = (
+            EggSale.objects.filter(batch=batch).order_by("-sale_date", "-id")[:12]
+            if is_admin else totals["sales"][:12]
+        )
+        for sale in history_sales:
             recent_sales.append({
+                "id": sale.id,
+                "is_voided": sale.is_voided,
+                "is_wastage": (sale.is_voided and EggStockWastage.objects.filter(source_sale=sale).exists()),
                 "sale_date": sale.sale_date,
                 "buyer_name": sale.buyer_name,
                 "eggs_sold": sale.eggs_sold,
@@ -417,7 +436,7 @@ def egg_dashboard(request):
                     _money(sale.discount_amount) * display_ratio
                 ).quantize(MONEY_UNIT),
                 "display_amount": (
-                    _money(sale.total_amount) * display_ratio
+                    (_money(sale.total_amount) if not sale.is_voided else MONEY_ZERO) * display_ratio
                 ).quantize(MONEY_UNIT),
             })
 
@@ -435,9 +454,11 @@ def egg_dashboard(request):
                 "payment_status_label": transfer.payment_status_label,
             })
 
+        wastage_entries = list(EggStockWastage.objects.filter(batch=batch).order_by("-damage_date", "-id"))
         monthly_rows = _monthly_performance(
             production_days,
             totals["sales"],
+            wastage_entries,
             display_ratio,
         )
         current_month_row = next(
@@ -451,6 +472,7 @@ def egg_dashboard(request):
             "totals": totals,
             "production_days": production_days[:12],
             "recent_sales": recent_sales,
+            "recent_wastages": wastage_entries[:6],
             "ownership_percent": ownership_percent,
             "egg_sales_share": egg_sales_share,
             "egg_transfer_value_share": egg_transfer_value_share,
@@ -887,3 +909,181 @@ def add_egg_sale(request):
         "api/add_egg_sale.html",
         {"batches": batch_options},
     )
+
+
+# Direct Egg Management adjustments. These are deliberately separate from Egg POS.
+def _egg_sale_snapshot(sale):
+    waste = EggStockWastage.objects.filter(source_sale=sale).first()
+    return {
+        "date": str(sale.sale_date), "buyer": sale.buyer_name,
+        "eggs": sale.eggs_sold, "rate": str(sale.rate_per_egg),
+        "discount": str(sale.discount_amount),
+        "net_revenue": "0.00" if sale.is_voided else str(sale.total_amount),
+        "payment_method": sale.payment_method, "notes": sale.notes,
+        "is_voided": sale.is_voided,
+        "wastage_id": waste.id if waste else None,
+        "wastage_quantity": waste.quantity if waste else 0,
+    }
+
+
+def _verify_egg_admin(request):
+    return bool(
+        request.user.is_authenticated and _is_admin(request.user)
+        and request.user.has_usable_password()
+        and request.user.check_password(request.POST.get("admin_password") or "")
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def manage_egg_sale(request, sale_id):
+    if not _is_admin(request.user):
+        return HttpResponseForbidden("Only administrators may correct egg sales.")
+    sale = get_object_or_404(EggSale.objects.select_related("batch"), pk=sale_id)
+    if request.method == "POST":
+        if not _verify_egg_admin(request):
+            messages.error(request, "Admin password is incorrect. No records were changed.")
+            return redirect("manage_egg_sale", sale_id=sale_id)
+        action = (request.POST.get("action") or "").strip()
+        reason = (request.POST.get("reason") or "").strip()
+        if len(reason) < 5 or len(reason) > 255:
+            messages.error(request, "Enter a correction reason (5–255 characters).")
+            return redirect("manage_egg_sale", sale_id=sale_id)
+        if action not in {"edit", "reverse", "restore", "damage"}:
+            messages.error(request, "Invalid correction type.")
+            return redirect("manage_egg_sale", sale_id=sale_id)
+        try:
+            with transaction.atomic():
+                sale = get_object_or_404(EggSale.objects.select_for_update(), pk=sale_id)
+                batch = Batch.objects.select_for_update().get(pk=sale.batch_id)
+                before = _egg_sale_snapshot(sale)
+                stock = _batch_egg_totals(batch)["stock"]
+                if action == "edit":
+                    if sale.is_voided:
+                        raise ValidationError("Restore the sale before editing it.")
+                    try:
+                        qty = int(request.POST.get("eggs_sold") or 0)
+                        rate = Decimal(str(request.POST.get("rate_per_egg") or "0")).quantize(MONEY_UNIT)
+                        discount = Decimal(str(request.POST.get("discount_amount") or "0")).quantize(MONEY_UNIT)
+                        sale_date = date.fromisoformat(request.POST.get("sale_date") or "")
+                    except (ValueError, InvalidOperation, TypeError):
+                        raise ValidationError("Enter a valid date, quantity, rate and discount.")
+                    if sale_date > timezone.localdate():
+                        raise ValidationError("Sale date cannot be in the future.")
+                    if qty > stock + sale.eggs_sold:
+                        raise ValidationError(f"Insufficient available stock. Maximum: {stock + sale.eggs_sold} eggs.")
+                    sale.sale_date = sale_date
+                    sale.eggs_sold = qty
+                    sale.rate_per_egg = rate
+                    sale.discount_amount = discount
+                    sale.buyer_name = (request.POST.get("buyer_name") or "").strip()
+                    sale.payment_method = (request.POST.get("payment_method") or "cash").strip()
+                    sale.notes = (request.POST.get("notes") or "").strip()
+                    sale.full_clean()
+                    sale.save()
+                elif action == "reverse":
+                    if sale.is_voided:
+                        raise ValidationError("This sale was already reversed.")
+                    sale.is_voided = True
+                    sale.voided_at = timezone.now()
+                    sale.voided_by = request.user
+                    sale.void_reason = reason
+                    sale.save(update_fields=["is_voided", "voided_at", "voided_by", "void_reason", "updated_at"])
+                elif action == "restore":
+                    if not sale.is_voided:
+                        raise ValidationError("The sale is already active.")
+                    if EggStockWastage.objects.filter(source_sale=sale).exists():
+                        raise ValidationError("This sale was reclassified as damaged eggs; it cannot be restored as a sale.")
+                    if stock < sale.eggs_sold:
+                        raise ValidationError(f"Cannot restore sale: only {stock} eggs currently available.")
+                    sale.is_voided = False
+                    sale.voided_at = None
+                    sale.voided_by = None
+                    sale.void_reason = ""
+                    sale.save(update_fields=["is_voided", "voided_at", "voided_by", "void_reason", "updated_at"])
+                elif action == "damage":
+                    if sale.is_voided:
+                        raise ValidationError("This sale has already been reversed or reclassified.")
+                    # Same physical deduction: direct sale disappears, wastage replaces it.
+                    waste = EggStockWastage(
+                        batch=batch, damage_date=sale.sale_date,
+                        quantity=sale.eggs_sold, reason=reason,
+                        source_sale=sale, recorded_by=request.user,
+                    )
+                    waste.full_clean()
+                    sale.is_voided = True
+                    sale.voided_at = timezone.now()
+                    sale.voided_by = request.user
+                    sale.void_reason = f"Reclassified as damaged: {reason}"[:255]
+                    sale.save(update_fields=["is_voided", "voided_at", "voided_by", "void_reason", "updated_at"])
+                    waste.save()
+                after = _egg_sale_snapshot(sale)
+                EggSaleCorrectionAudit.objects.create(
+                    sale=sale, action=action, reason=reason,
+                    admin=request.user, before=before, after=after,
+                )
+        except ValidationError as error:
+            messages.error(request, "; ".join(error.messages))
+            return redirect("manage_egg_sale", sale_id=sale_id)
+        messages.success(request, {
+            "edit": "Egg sale updated; stock and revenue totals have been recalculated.",
+            "reverse": "Sale reversed and eggs returned to available stock.",
+            "restore": "Sale restored; eggs deducted from available stock.",
+            "damage": "Sale reclassified to damaged stock. No eggs were added back to stock.",
+        }[action])
+        return redirect("egg_dashboard")
+
+    return render(request, "api/manage_egg_sale.html", {
+        "sale": sale,
+        "is_damage": EggStockWastage.objects.filter(source_sale=sale).exists(),
+        "stock": _batch_egg_totals(sale.batch)["stock"],
+        "audit_entries": sale.correction_audit.select_related("admin").all()[:12],
+        "payment_methods": EggSale.PAYMENT_METHOD_CHOICES,
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def add_egg_damage(request):
+    if not _is_admin(request.user):
+        return HttpResponseForbidden("Only administrators may record damaged eggs.")
+    batches = list(_available_layer_batches(request.user, include_closed=False))
+    for batch in batches:
+        batch.current_egg_stock = _batch_egg_totals(batch)["stock"]
+    if request.method == "POST":
+        if not _verify_egg_admin(request):
+            messages.error(request, "Admin password incorrect. Nothing was recorded.")
+            return redirect("add_egg_damage")
+        try:
+            with transaction.atomic():
+                batch = get_object_or_404(
+                    Batch.objects.select_for_update(), pk=request.POST.get("batch_id"),
+                    shed__shed_type="layer", is_active=True, status="active",
+                )
+                try:
+                    quantity = int(request.POST.get("quantity") or 0)
+                    damage_date = date.fromisoformat(request.POST.get("damage_date") or "")
+                except (TypeError, ValueError):
+                    raise ValidationError("Enter a valid date and damaged egg quantity.")
+                if damage_date > timezone.localdate():
+                    raise ValidationError("Damage date cannot be in the future.")
+                reason = (request.POST.get("reason") or "").strip()
+                if not (5 <= len(reason) <= 255):
+                    raise ValidationError("Enter a damage reason (5–255 characters).")
+                if quantity > _batch_egg_totals(batch)["stock"]:
+                    raise ValidationError("Not enough usable eggs in this batch.")
+                waste = EggStockWastage(
+                    batch=batch, damage_date=damage_date, quantity=quantity,
+                    reason=reason, recorded_by=request.user,
+                )
+                waste.full_clean()
+                waste.save()
+        except ValidationError as error:
+            messages.error(request, "; ".join(error.messages))
+            return redirect("add_egg_damage")
+        messages.success(request, f"Recorded {quantity} damaged eggs without creating sales revenue.")
+        return redirect("egg_dashboard")
+    return render(request, "api/add_egg_damage.html", {
+        "batches": batches,
+        "today": timezone.localdate(),
+    })

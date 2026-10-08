@@ -118,6 +118,13 @@ class EggSale(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_voided = models.BooleanField(default=False)
+    void_reason = models.CharField(max_length=255, blank=True)
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="voided_direct_egg_sales",
+    )
 
     class Meta:
         ordering = ["-sale_date", "-id"]
@@ -229,3 +236,50 @@ class LayerHenCountHistory(models.Model):
             f"{self.active_hens} active hens"
         )
 
+
+
+class EggStockWastage(models.Model):
+    """Post-collection damage. Separate from damage counted on production day."""
+    batch = models.ForeignKey(Batch, on_delete=models.CASCADE, related_name="egg_stock_wastage")
+    damage_date = models.DateField(default=timezone.localdate)
+    quantity = models.PositiveIntegerField()
+    reason = models.CharField(max_length=255)
+    source_sale = models.OneToOneField(
+        EggSale, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="wastage_reclassification",
+    )
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
+        related_name="egg_wastage_recorded",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-damage_date", "-id"]
+
+    def clean(self):
+        super().clean()
+        if not self.quantity or self.quantity <= 0:
+            raise ValidationError({"quantity": "Damaged quantity must be positive."})
+        if self.batch_id and self.batch.shed.shed_type != "layer":
+            raise ValidationError({"batch": "Damaged eggs must belong to a Layer batch."})
+
+
+class EggSaleCorrectionAudit(models.Model):
+    ACTIONS = [
+        ("edit", "Edit"), ("reverse", "Reverse"), ("restore", "Undo reversal"),
+        ("damage", "Convert to damage"),
+    ]
+    sale = models.ForeignKey(EggSale, on_delete=models.PROTECT, related_name="correction_audit")
+    action = models.CharField(max_length=12, choices=ACTIONS)
+    reason = models.CharField(max_length=255)
+    before = models.JSONField(default=dict)
+    after = models.JSONField(default=dict)
+    admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="direct_egg_sale_corrections",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]

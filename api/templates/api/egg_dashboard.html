@@ -49,6 +49,11 @@
     .egg-btn-sale { background:#176bc1; color:#fff; box-shadow:0 7px 16px rgba(23,107,193,.16); }
     .egg-btn-hens { background:#7a4fd4; color:#fff; box-shadow:0 7px 16px rgba(122,79,212,.16); }
     .egg-btn-pos { background:#b87900; color:#fff; box-shadow:0 7px 16px rgba(184,121,0,.16); }
+    .egg-btn-damage { background:#b66b16; color:#fff; }
+    .egg-link-correct { display:inline-flex; padding:5px 9px; background:#ecf4ff; color:#13599e; border-radius:8px; text-decoration:none; margin-top:6px; font-weight:800; font-size:11px; }
+    .egg-badge-void { font-size:10px; padding:3px 7px; background:#fee2e2; color:#a72b2b; border-radius:7px; font-weight:800; }
+    .egg-badge-waste { font-size:10px; padding:3px 7px; background:#fff1d6; color:#905300; border-radius:7px; font-weight:800; }
+    .egg-wastage-note { background:#fff8ed; padding:10px 14px; border-top:1px solid #f4dfc3; font-size:12px; color:#7e581e; }
 
     .kpi-grid {
         display:grid;
@@ -397,6 +402,9 @@
             <a class="egg-btn egg-btn-sale" href="{% url 'add_egg_sale' %}">
                 <i class="fa-solid fa-cart-shopping"></i> Record Egg Sale
             </a>
+            <a class="egg-btn egg-btn-damage" href="{% url 'add_egg_damage' %}">
+                <i class="fa-solid fa-triangle-exclamation"></i> Record Damage
+            </a>
             <a class="egg-btn egg-btn-hens" href="{% url 'active_hens_history' %}">
                 <i class="fa-solid fa-venus"></i> Active Hens
             </a>
@@ -413,7 +421,7 @@
         <div class="kpi-card">
             <div class="kpi-label">Damaged</div>
             <div class="kpi-value">{{ overview.month_damaged }}</div>
-            <div class="kpi-help">{{ current_month|date:"M Y" }} damaged eggs.</div>
+            <div class="kpi-help">{{ current_month|date:"M Y" }} production damage + post-collection wastage.</div>
         </div>
         <div class="kpi-card">
             <div class="kpi-label">Usable Produced</div>
@@ -577,7 +585,9 @@
                                 <div class="history-date">{{ sale.sale_date|date:"d M Y" }}</div>
                                 <div class="history-main">
                                     {{ sale.eggs_sold }} eggs × Rs {{ sale.rate_per_egg|floatformat:2 }}
-                                    <div class="history-sub">{{ sale.buyer_name|default:"Buyer not specified" }}{% if sale.discount_amount %} · Discount Rs {{ sale.discount_amount|floatformat:0 }}{% endif %}</div>
+                                    {% if sale.is_wastage %}<span class="egg-badge-waste">Reclassified as damage</span>{% elif sale.is_voided %}<span class="egg-badge-void">Reversed</span>{% endif %}
+                                    <div class="history-sub">{{ sale.buyer_name|default:"Buyer not specified" }}{% if sale.discount_amount and not sale.is_voided %} · Discount Rs {{ sale.discount_amount|floatformat:0 }}{% endif %}</div>
+                                    {% if is_admin %}<a class="egg-link-correct" href="{% url 'manage_egg_sale' sale.id %}"><i class="fa-solid fa-pen-to-square"></i>&nbsp; Correct sale</a>{% endif %}
                                 </div>
                                 <div class="history-amount">Rs {{ sale.display_amount|floatformat:0 }}</div>
                             </div>
@@ -586,6 +596,13 @@
                             <div class="empty">No egg sales recorded yet.</div>
                         {% endif %}
                     </div>
+                    {% if row.recent_wastages %}
+                    <div class="egg-wastage-note"><strong>Post-collection damaged eggs:</strong>
+                        {% for wasted in row.recent_wastages %}
+                            {{ wasted.damage_date|date:"d M" }} · {{ wasted.quantity }} eggs{% if wasted.source_sale_id %} (corrected sale){% endif %}{% if not forloop.last %}; {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 

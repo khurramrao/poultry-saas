@@ -119,7 +119,7 @@ def _farm_sale_proceeds_snapshot(batch):
         ZERO,
     ))
     egg_sale_share = _money(sum(
-        (_money(sale.total_amount * ratio) for sale in EggSale.objects.filter(batch=batch)),
+        (_money(sale.total_amount * ratio) for sale in EggSale.objects.filter(batch=batch, is_voided=False)),
         ZERO,
     ))
     total_sale_share = _money(bird_sale_share + egg_sale_share)
@@ -215,7 +215,7 @@ def _sale_proceeds_snapshot(allocation):
         ZERO,
     ))
     egg_sale_share = _money(sum(
-        (_money(sale.total_amount * ratio) for sale in EggSale.objects.filter(batch=allocation.batch)),
+        (_money(sale.total_amount * ratio) for sale in EggSale.objects.filter(batch=allocation.batch, is_voided=False)),
         ZERO,
     ))
     total_sale_share = _money(bird_sale_share + egg_sale_share)
@@ -565,7 +565,7 @@ def _build_sale_statement(allocation):
             "payout": ZERO,
         })
 
-    for sale in EggSale.objects.filter(batch=allocation.batch).order_by("sale_date", "id"):
+    for sale in EggSale.objects.filter(batch=allocation.batch, is_voided=False).order_by("sale_date", "id"):
         details = f"Egg sale · {sale.eggs_sold} eggs @ Rs {sale.rate_per_egg}/egg"
         if sale.buyer_name:
             details += f" · {sale.buyer_name}"
@@ -722,7 +722,7 @@ def _build_farm_sale_statement(batch):
             "withdrawal": ZERO,
         })
 
-    for sale in EggSale.objects.filter(batch=batch).order_by("sale_date", "id"):
+    for sale in EggSale.objects.filter(batch=batch, is_voided=False).order_by("sale_date", "id"):
         details = f"Egg sale · {sale.eggs_sold} eggs @ Rs {sale.rate_per_egg}/egg"
         if sale.buyer_name:
             details += f" · {sale.buyer_name}"

@@ -1,0 +1,38 @@
+{% extends "api/base_dashboard.html" %}
+{% block title %}Direct Egg Sale Correction | RayNoor{% endblock %}
+{% block extra_css %}
+<style>
+ .correction-wrap{max-width:1040px;margin:0 auto;color:#193956}
+ .correction-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin:18px 0}
+ .correction-heading h1{margin:0;color:#143f69;font-size:25px}
+ .correction-heading p,.help{color:#677a8d;font-size:13px;line-height:1.5}
+ .correction-panel{background:#fff;border:1px solid #dae5ef;border-radius:16px;margin:14px 0;padding:22px;box-shadow:0 5px 16px #163b5709}
+ .correction-panel h2{font-size:17px;margin:0 0 12px;color:#1b466d}
+ .correction-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+ .correction-field{display:flex;flex-direction:column;gap:5px}
+ .correction-field label{font-size:12px;font-weight:800;color:#39526b}
+ .correction-field input,.correction-field select,.correction-field textarea{width:100%;box-sizing:border-box;min-height:42px;border:1px solid #cedbe8;border-radius:9px;padding:9px 11px;background:#fff;color:#1b3753;font:inherit;font-size:14px}
+ .correction-span{grid-column:1/-1}
+ .correction-btn{border:0;border-radius:11px;padding:12px 18px;background:#1768bb;color:#fff;font-weight:800;cursor:pointer;font-size:13px}
+ .correction-btn.danger{background:#b72f36}.correction-btn.warning{background:#b56c0d}.correction-btn.success{background:#13834f}
+ .correction-back{display:inline-flex;text-decoration:none;color:#1768bb;font-weight:800}
+ .correction-alert{background:#fff7e8;border:1px solid #efdaad;color:#75531d;border-radius:12px;padding:13px 15px;margin:12px 0;font-size:13px;line-height:1.5}
+ .correction-warning{border-color:#f4c9c9;background:#fff8f7}
+ .correction-summary{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0}
+ .correction-stat{background:#f0f6fc;border-radius:10px;padding:12px 16px;flex:1;min-width:110px}
+ .correction-stat strong{display:block;margin-top:5px;font-size:20px}
+ .correction-stat span{font-size:11px;color:#597086}
+ .correction-hist{padding:10px 0;border-bottom:1px solid #e7edf5;font-size:13px}
+ @media(max-width:600px){.correction-panel{padding:15px}.correction-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}<div class="correction-wrap"><div class="correction-heading"><div><h1>Record damaged eggs</h1><p>Post-collection damage · No customer sale is created</p></div><a class="correction-back" href="{% url 'egg_dashboard' %}">← Egg Management</a></div>
+<div class="correction-alert">Use this when eggs break or become unusable <strong>after</strong> they were counted as good production. Damage already entered in a daily production record should not be recorded again.</div>
+<section class="correction-panel"><h2>Damage / wastage entry</h2><form method="post">{% csrf_token %}<div class="correction-grid">
+ <div class="correction-field"><label>Layer batch</label><select name="batch_id" required>{% for batch in batches %}<option value="{{ batch.id }}">#{{ batch.batch_number }} — {{ batch.current_egg_stock }} eggs available</option>{% endfor %}</select></div>
+ <div class="correction-field"><label>Damage date</label><input type="date" name="damage_date" value="{{ today|date:'Y-m-d' }}" required /></div>
+ <div class="correction-field"><label>Damaged eggs</label><input type="number" name="quantity" min="1" required /></div>
+ <div class="correction-field"><label>Reason</label><input name="reason" minlength="5" maxlength="255" placeholder="e.g. Broken during sorting" required /></div>
+ <div class="correction-field correction-span"><label>Your admin password</label><input type="password" name="admin_password" required /></div></div>
+ <p><button type="submit" class="correction-btn warning">Save damage and deduct stock</button></p>
+ </form></section></div>{% endblock %}

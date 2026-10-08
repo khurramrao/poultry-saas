@@ -10,7 +10,7 @@ from api.models.egg_pos import (
     EggPOSInventoryLot,
     EggPOSSaleAllocation,
 )
-from api.models.eggs import EggProductionEntry, EggSale
+from api.models.eggs import EggProductionEntry, EggSale, EggStockWastage
 
 
 ZERO = Decimal("0.00")
@@ -72,9 +72,10 @@ def farm_egg_stock(batch):
     damaged = int(production["damaged"] or 0)
     usable = max(collected - damaged, 0)
     old_direct_sales = int(
-        EggSale.objects.filter(batch=batch).aggregate(total=Sum("eggs_sold"))["total"]
+        EggSale.objects.filter(batch=batch, is_voided=False).aggregate(total=Sum("eggs_sold"))["total"]
         or 0
     )
+    wasted = int(EggStockWastage.objects.filter(batch=batch).aggregate(total=Sum("quantity"))["total"] or 0)
     transferred = 0
     for transfer in EggPOSFarmTransfer.objects.filter(batch=batch, is_voided=False).prefetch_related("items"):
         transferred += sum(int(item.quantity or 0) for item in transfer.items.all())
@@ -82,7 +83,8 @@ def farm_egg_stock(batch):
         "usable": usable,
         "direct_sales": old_direct_sales,
         "transferred": transferred,
-        "available": max(usable - old_direct_sales - transferred, 0),
+        "wasted": wasted,
+        "available": max(usable - old_direct_sales - transferred - wasted, 0),
     }
 
 

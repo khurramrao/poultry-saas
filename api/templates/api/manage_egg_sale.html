@@ -1,0 +1,84 @@
+{% extends "api/base_dashboard.html" %}
+{% block title %}Direct Egg Sale Correction | RayNoor{% endblock %}
+{% block extra_css %}
+<style>
+ .correction-wrap{max-width:1040px;margin:0 auto;color:#193956}
+ .correction-heading{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin:18px 0}
+ .correction-heading h1{margin:0;color:#143f69;font-size:25px}
+ .correction-heading p,.help{color:#677a8d;font-size:13px;line-height:1.5}
+ .correction-panel{background:#fff;border:1px solid #dae5ef;border-radius:16px;margin:14px 0;padding:22px;box-shadow:0 5px 16px #163b5709}
+ .correction-panel h2{font-size:17px;margin:0 0 12px;color:#1b466d}
+ .correction-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+ .correction-field{display:flex;flex-direction:column;gap:5px}
+ .correction-field label{font-size:12px;font-weight:800;color:#39526b}
+ .correction-field input,.correction-field select,.correction-field textarea{width:100%;box-sizing:border-box;min-height:42px;border:1px solid #cedbe8;border-radius:9px;padding:9px 11px;background:#fff;color:#1b3753;font:inherit;font-size:14px}
+ .correction-span{grid-column:1/-1}
+ .correction-btn{border:0;border-radius:11px;padding:12px 18px;background:#1768bb;color:#fff;font-weight:800;cursor:pointer;font-size:13px}
+ .correction-btn.danger{background:#b72f36}.correction-btn.warning{background:#b56c0d}.correction-btn.success{background:#13834f}
+ .correction-back{display:inline-flex;text-decoration:none;color:#1768bb;font-weight:800}
+ .correction-alert{background:#fff7e8;border:1px solid #efdaad;color:#75531d;border-radius:12px;padding:13px 15px;margin:12px 0;font-size:13px;line-height:1.5}
+ .correction-warning{border-color:#f4c9c9;background:#fff8f7}
+ .correction-summary{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0}
+ .correction-stat{background:#f0f6fc;border-radius:10px;padding:12px 16px;flex:1;min-width:110px}
+ .correction-stat strong{display:block;margin-top:5px;font-size:20px}
+ .correction-stat span{font-size:11px;color:#597086}
+ .correction-hist{padding:10px 0;border-bottom:1px solid #e7edf5;font-size:13px}
+ @media(max-width:600px){.correction-panel{padding:15px}.correction-grid{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="correction-wrap">
+  <div class="correction-heading"><div><h1>Correct Direct Egg Sale #{{ sale.id }}</h1><p>Egg Management · Layer Batch #{{ sale.batch.batch_number }}</p></div><a href="{% url 'egg_dashboard' %}" class="correction-back">← Egg Management</a></div>
+  <div class="correction-summary">
+    <div class="correction-stat"><span>Recorded eggs</span><strong>{{ sale.eggs_sold }}</strong></div>
+    <div class="correction-stat"><span>Original invoice amount</span><strong>Rs {{ sale.total_amount|floatformat:2 }}</strong></div>
+    <div class="correction-stat"><span>Current farm stock</span><strong>{{ stock }} eggs</strong></div>
+    <div class="correction-stat"><span>Status</span><strong>{% if is_damage %}Damaged{% elif sale.is_voided %}Reversed{% else %}Active{% endif %}</strong></div>
+  </div>
+  <div class="correction-alert">Only an administrator may change this record. Every action requires your own admin password and a reason. Revenue and farm stock are recalculated automatically. If the money was physically collected or distributed, reconcile the actual cash separately.</div>
+  {% if not sale.is_voided %}
+  <section class="correction-panel">
+    <h2><i class="fa-solid fa-pen-to-square"></i> Edit sale details</h2>
+    <p class="help">Use this to correct a genuine sale. Changing quantity automatically adjusts available eggs; Egg POS transfers are unaffected.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="edit" />
+      <div class="correction-grid">
+        <div class="correction-field"><label>Sale date</label><input type="date" name="sale_date" value="{{ sale.sale_date|date:'Y-m-d' }}" required /></div>
+        <div class="correction-field"><label>Buyer</label><input name="buyer_name" maxlength="150" value="{{ sale.buyer_name }}" /></div>
+        <div class="correction-field"><label>Quantity (eggs)</label><input type="number" name="eggs_sold" min="1" value="{{ sale.eggs_sold }}" required /></div>
+        <div class="correction-field"><label>Rate per egg (Rs)</label><input type="number" name="rate_per_egg" min="0.01" step="0.01" value="{{ sale.rate_per_egg }}" required /></div>
+        <div class="correction-field"><label>Discount (Rs)</label><input type="number" name="discount_amount" min="0" step="0.01" value="{{ sale.discount_amount }}" /></div>
+        <div class="correction-field"><label>Payment method</label><select name="payment_method">{% for value,label in payment_methods %}<option value="{{ value }}" {% if sale.payment_method == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+        <div class="correction-field correction-span"><label>Original notes</label><textarea name="notes" rows="2">{{ sale.notes }}</textarea></div>
+        <div class="correction-field"><label>Correction reason</label><input name="reason" minlength="5" maxlength="255" placeholder="e.g. Corrected wrong quantity" required /></div>
+        <div class="correction-field"><label>Your admin password</label><input type="password" name="admin_password" autocomplete="current-password" required /></div>
+      </div><p><button class="correction-btn" type="submit">Save corrected sale</button></p>
+    </form>
+  </section>
+  <section class="correction-panel correction-warning">
+    <h2><i class="fa-solid fa-triangle-exclamation"></i> Reclassify as damaged eggs</h2>
+    <p class="help">Use this for your 7 Oct entry of <strong>30 damaged eggs</strong> recorded at Rs 0.01. Removes it from sales revenue, records damage and <strong>does not return eggs to usable stock</strong>.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="damage" />
+      <div class="correction-grid"><div class="correction-field"><label>Damage reason</label><input name="reason" minlength="5" maxlength="255" placeholder="e.g. 30 broken eggs, not a customer sale" required /></div>
+      <div class="correction-field"><label>Your admin password</label><input type="password" name="admin_password" required /></div></div>
+      <p><button class="correction-btn warning" type="submit" onclick="return confirm('Convert this sale to damaged eggs? It will NOT add eggs back into stock.');">Convert sale to damaged eggs</button></p>
+    </form>
+  </section>
+  <section class="correction-panel correction-warning">
+    <h2>Reverse an incorrect sale</h2>
+    <p class="help">Reversal removes the revenue and returns {{ sale.eggs_sold }} eggs to available farm stock. Do not use this for damaged eggs.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="reverse" />
+      <div class="correction-grid"><div class="correction-field"><label>Reversal reason</label><input name="reason" minlength="5" maxlength="255" required /></div><div class="correction-field"><label>Your admin password</label><input name="admin_password" type="password" required /></div></div>
+      <p><button class="correction-btn danger" type="submit" onclick="return confirm('Reverse this sale and return eggs to farm stock?');">Reverse sale</button></p>
+    </form>
+  </section>
+  {% elif not is_damage %}
+  <section class="correction-panel"><h2>Undo reversal</h2><p class="help">Restore this previously reversed sale if its original eggs are still available in farm stock.</p>
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="restore" />
+      <div class="correction-grid"><div class="correction-field"><label>Reason</label><input name="reason" minlength="5" maxlength="255" required /></div><div class="correction-field"><label>Your admin password</label><input type="password" name="admin_password" required /></div></div>
+      <p><button class="correction-btn success" type="submit" onclick="return confirm('Restore this sale and deduct its eggs from stock?');">Restore sale</button></p>
+    </form>
+  </section>
+  {% else %}<section class="correction-panel"><h2>Recorded as wastage</h2><p>This sale was converted into a damage record and cannot be mistakenly restored as revenue.</p></section>{% endif %}
+  {% if audit_entries %}<section class="correction-panel"><h2>Correction history</h2>{% for item in audit_entries %}<div class="correction-hist"><strong>{{ item.get_action_display }}</strong> · {{ item.created_at|date:"d M Y · g:i A" }} · {{ item.admin.username }}<div class="help">{{ item.reason }}</div></div>{% endfor %}</section>{% endif %}
+</div>
+{% endblock %}

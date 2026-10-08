@@ -64,6 +64,8 @@ path(
     path("eggs/production/add/", eggs.add_egg_production, name="add_egg_production"),
     path("eggs/active-hens/", eggs.active_hens_history, name="active_hens_history"),
     path("eggs/sales/add/", eggs.add_egg_sale, name="add_egg_sale"),
+    path("eggs/sales/<int:sale_id>/manage/", eggs.manage_egg_sale, name="manage_egg_sale"),
+    path("eggs/damage/add/", eggs.add_egg_damage, name="add_egg_damage"),
     path("egg-pos/", egg_pos.dashboard, name="egg_pos_dashboard"),
     path("egg-pos/inventory/", egg_pos.inventory, name="egg_pos_inventory"),
     path("egg-pos/products/", egg_pos.products, name="egg_pos_products"),
