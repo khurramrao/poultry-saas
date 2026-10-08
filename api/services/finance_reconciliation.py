@@ -10,7 +10,7 @@ from api.models.sensor import Batch, MortalityRecord
 from api.models.sales import ChickCostEntry, SaleRecord, Expense
 from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
 from api.models.eggs import EggProductionEntry, EggSale, EggStockWastage, LayerHenCountHistory
-from api.models.egg_pos import EggPOSFarmTransfer
+from api.models.egg_pos import EggPOSFarmTransfer, EggPOSFarmTransferItem
 from api.services.poultry_inventory import get_batch_bird_position
 
 
@@ -350,7 +350,18 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                 int(sale.eggs_sold or 0)
                 for sale in egg_sales_records
             )
-            egg_stock = max(usable_eggs - eggs_sold - post_collection_wastage, 0)
+            # Match Egg Management: transferring eggs to Egg POS removes
+            # them from Farm Egg Management stock (but not combined stock).
+            eggs_transferred_to_pos = int(
+                EggPOSFarmTransferItem.objects.filter(
+                    transfer__batch=batch,
+                    transfer__is_voided=False,
+                ).aggregate(total=Sum("quantity"))["total"] or 0
+            )
+            egg_stock = max(
+                usable_eggs - eggs_sold - eggs_transferred_to_pos - post_collection_wastage,
+                0,
+            )
 
             egg_gross_sales_revenue = money(
                 sum(
