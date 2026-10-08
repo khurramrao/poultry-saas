@@ -1675,7 +1675,7 @@
 
                                 {% if row.is_layer_batch %}
                                     <div class="detail-row"><span>Point-of-Lay Cost Share</span><strong>Rs {{ owner.point_of_lay_cost|floatformat:0|intcomma }}</strong></div>
-                                    <div class="detail-row"><span>Egg Net Sales Share</span><strong>Rs {{ owner.egg_revenue|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row"><span>Egg Net Sales Share</span><strong>Rs {{ owner.egg_sales_display|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Laying Operating Cost Share</span><strong>Rs {{ owner.laying_operating_cost|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row total"><span>Egg Operations Profit / Loss</span><strong class="{% if owner.egg_operating_profit < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ owner.egg_operating_profit|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Egg Discount Share</span><strong>Rs {{ owner.egg_discount_share|floatformat:0|intcomma }}</strong></div>

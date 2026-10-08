@@ -382,9 +382,11 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                 )
             )
 
-            # Segment-only turnover: transferred eggs are valued at their
-            # internal invoice amount. This is NOT external revenue for the
-            # combined farm + Egg POS business, and is excluded from P/L.
+            # Management segment turnover: include internal transfers in the
+            # layer operation's Egg Net Sales and Egg Operations P/L ONLY.
+            # They are NOT external revenue for the combined farm + Egg POS
+            # business; consolidated revenue, P/L and investor allocations
+            # continue to use direct egg sales alone.
             egg_internal_transfers = money(sum(
                 (transfer.total_amount for transfer in
                  EggPOSFarmTransfer.objects.filter(batch=batch, is_voided=False)
@@ -620,11 +622,16 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         total_cogs = money(point_of_lay_cost + laying_operating_cost)
         bird_cost_basis = point_of_lay_cost if is_layer_batch else total_cogs
 
-        egg_operating_profit = money(egg_net_sales - laying_operating_cost)
+        # Segment P/L uses the same turnover shown on the Egg Net Sales card.
+        # The consolidated batch result below deliberately uses egg_net_sales
+        # (direct external sales only), so internal transfers are not double
+        # counted across the Farm and Egg POS.
+        egg_segment_sales = money(egg_net_sales + egg_internal_transfers)
+        egg_operating_profit = money(egg_segment_sales - laying_operating_cost)
         egg_cost_coverage_percent = None
         if laying_operating_cost > 0:
             egg_cost_coverage_percent = (
-                egg_net_sales / laying_operating_cost * Decimal("100")
+                egg_segment_sales / laying_operating_cost * Decimal("100")
             ).quantize(percent_unit)
 
         # -----------------------------------------------------
@@ -1069,12 +1076,12 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             )
             owner["total_revenue"] = money(owner["revenue"] + owner["egg_revenue"])
             owner["egg_operating_profit"] = money(
-                owner["egg_revenue"] - owner["laying_operating_cost"]
+                owner["egg_sales_display"] - owner["laying_operating_cost"]
             )
             owner["egg_cost_coverage_percent"] = None
             if owner["laying_operating_cost"] > 0:
                 owner["egg_cost_coverage_percent"] = (
-                    owner["egg_revenue"] / owner["laying_operating_cost"]
+                    owner["egg_sales_display"] / owner["laying_operating_cost"]
                     * Decimal("100")
                 ).quantize(percent_unit)
             owner["remaining_cogs"] = zero_money if all_birds_sold else max(owner["bird_cost_basis"] - owner["historical_locked_cogs"], zero_money)
