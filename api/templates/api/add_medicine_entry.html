@@ -118,6 +118,23 @@
                             </div>
                         </div>
                         <div class="form-group full">
+                            <label class="form-label" for="payment_source">Paid From</label>
+                            <select class="entry-select" name="payment_source" id="payment_source" required>
+                                <option value="outside">Paid separately (staff / investor / personal cash)</option>
+                                <option value="farm_cash">Farm Management Cash in Hand — deduct automatically</option>
+                                <option value="farm_bank">Farm Management Bank / Wallet — deduct automatically</option>
+                                <option value="unpaid">Unpaid / supplier credit — no cash deducted</option>
+                            </select>
+                            <div class="field-help" id="farmPaidSourceHelp" style="padding:9px 11px;background:#eef8ff;border:1px solid #cfe5f6;border-radius:9px;margin-top:7px;line-height:1.45;">
+                                Select Farm Management Cash only if the money physically came from Egg Management cash. One purchase is one expense; the payment source determines which cash balance changes.
+                            </div>
+                        </div>
+                        <div class="form-group full" id="farmPaidAdminWrap" style="display:none;">
+                            <label class="form-label" for="admin_password">Confirm Admin Password</label>
+                            <input class="entry-input" type="password" name="admin_password" id="admin_password" autocomplete="current-password" placeholder="Required when spending Farm Management cash / bank">
+                            <div class="field-help">Security confirmation before withdrawing money from the Egg Management cashbook.</div>
+                        </div>
+                        <div class="form-group full">
                             <label class="form-label" for="notes">Notes</label>
                             <textarea class="entry-textarea" name="notes" id="notes" rows="4" placeholder="Example: First dose, for respiratory issue, weekly supplement..."></textarea>
                         </div>
@@ -187,5 +204,29 @@
     [batchSelect, typeSelect, nameInput, amountInput, dateInput].forEach(function (el) { el.addEventListener('input', updatePreview); el.addEventListener('change', updatePreview); });
     updatePreview();
 })();
+
+    // Farm cash/bank options only apply to Layer flock batch expenses.
+    const farmPaidSelect = document.getElementById('payment_source');
+    const farmPaidWrap = document.getElementById('farmPaidAdminWrap');
+    const farmPaidPassword = document.getElementById('admin_password');
+    const farmPaidHelp = document.getElementById('farmPaidSourceHelp');
+    function syncFarmPaidSource() {
+        const chosen = batchSelect.options[batchSelect.selectedIndex];
+        const isLayer = chosen && chosen.value && (chosen.dataset.shed || '').toLowerCase() === 'layer';
+        Array.from(farmPaidSelect.options).forEach(function (opt) {
+            if (opt.value === 'farm_cash' || opt.value === 'farm_bank') opt.disabled = !isLayer;
+        });
+        if (!isLayer && (farmPaidSelect.value === 'farm_cash' || farmPaidSelect.value === 'farm_bank')) farmPaidSelect.value = 'outside';
+        const fromFarm = farmPaidSelect.value === 'farm_cash' || farmPaidSelect.value === 'farm_bank';
+        farmPaidWrap.style.display = fromFarm ? '' : 'none';
+        farmPaidPassword.required = fromFarm;
+        if (!fromFarm) farmPaidPassword.value = '';
+        farmPaidHelp.textContent = fromFarm
+            ? 'This expense will be saved ONCE and the same amount automatically deducted from Egg Management ' + (farmPaidSelect.value === 'farm_cash' ? 'cash in hand.' : 'bank / wallet.') + ' Do NOT enter the payment again in the Cashbook.'
+            : 'Paid separately / unpaid does not reduce Egg Management funds. Choose a Layer batch to use Farm Management Cash.';
+    }
+    batchSelect.addEventListener('change', syncFarmPaidSource);
+    farmPaidSelect.addEventListener('change', syncFarmPaidSource);
+    syncFarmPaidSource();
 </script>
 {% endblock %}

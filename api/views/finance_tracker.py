@@ -1,4 +1,8 @@
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from datetime import date
+from api.services.farm_egg_payment_source import validate_expense_payment
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.contrib import messages
@@ -461,14 +465,25 @@ def add_feed_entry(request):
         amount = request.POST.get("amount") or 0
         notes = request.POST.get("notes", "")
 
-        FeedEntry.objects.create(
-            batch=batch,
-            entry_date=entry_date,
-            amount=amount,
-            notes=notes,
-        )
+        try:
+            with transaction.atomic():
+                # Lock the batch so simultaneous submissions cannot overdraw
+                # its shared farm cash ledger during source validation.
+                batch = Batch.objects.select_for_update().select_related("shed").get(pk=batch.pk)
+                day = date.fromisoformat(str(entry_date))
+                source, paid_amount = validate_expense_payment(
+                    request, batch=batch, amount=amount, expense_date=day,
+                )
+                FeedEntry.objects.create(
+                    batch=batch, entry_date=day, amount=paid_amount,
+                    payment_source=source, notes=notes,
+                )
+        except (ValidationError, ValueError, TypeError) as exc:
+            problem = "; ".join(exc.messages) if isinstance(exc, ValidationError) else "Invalid feed date or amount."
+            messages.error(request, problem)
+            return redirect("add_feed_entry")
 
-        messages.success(request, "Feed entry added successfully.")
+        messages.success(request, "Feed entry saved. Farm Egg cash/bank updated automatically when selected.")
         return redirect("finance_tracker")
 
     return render(request, "api/add_feed_entry.html", {
@@ -583,16 +598,25 @@ def add_medicine_entry(request):
         medicine_name = request.POST.get("medicine_name", "").strip()
         medicine_type = request.POST.get("medicine_type", "medicine")
 
-        MedicineEntry.objects.create(
-            batch=batch,
-            entry_date=entry_date,
-            medicine_name=medicine_name or "Not specified",
-            medicine_type=medicine_type,
-            amount=amount,
-            notes=notes,
-        )
+        try:
+            with transaction.atomic():
+                batch = Batch.objects.select_for_update().select_related("shed").get(pk=batch.pk)
+                day = date.fromisoformat(str(entry_date))
+                source, paid_amount = validate_expense_payment(
+                    request, batch=batch, amount=amount, expense_date=day,
+                )
+                MedicineEntry.objects.create(
+                    batch=batch, entry_date=day,
+                    medicine_name=medicine_name or "Not specified",
+                    medicine_type=medicine_type, amount=paid_amount,
+                    payment_source=source, notes=notes,
+                )
+        except (ValidationError, ValueError, TypeError) as exc:
+            problem = "; ".join(exc.messages) if isinstance(exc, ValidationError) else "Invalid medicine date or amount."
+            messages.error(request, problem)
+            return redirect("add_medicine_entry")
 
-        messages.success(request, "Medicine entry added successfully.")
+        messages.success(request, "Medicine entry saved. Farm Egg cash/bank updated automatically when selected.")
         return redirect("finance_tracker")
 
     return render(

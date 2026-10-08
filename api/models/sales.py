@@ -151,6 +151,14 @@ class BatchBirdSaleReconciliation(models.Model):
 
 
 
+FARM_EXPENSE_PAYMENT_CHOICES = [
+    ("outside", "Paid externally / staff or investor funds (not farm cashbook)"),
+    ("farm_cash", "Paid from Farm Management Cash in Hand"),
+    ("farm_bank", "Paid from Farm Management Bank / Wallet"),
+    ("unpaid", "Unpaid / Supplier credit"),
+]
+
+
 class Expense(models.Model):
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
 
@@ -172,6 +180,10 @@ class Expense(models.Model):
     )
 
     description = models.CharField(max_length=255, blank=True)
+    payment_source = models.CharField(
+        max_length=12, choices=FARM_EXPENSE_PAYMENT_CHOICES, default="outside",
+        help_text="How this expense was paid; farm cash/bank entries flow into the Egg Farm Cashbook automatically.",
+    )
 
     amount = models.DecimalField(
         max_digits=12,

@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from decimal import Decimal
 from django.db import models
 from api.models.sensor import Batch
+from api.models.sales import FARM_EXPENSE_PAYMENT_CHOICES
 from django.utils import timezone
 
 class UserProfile(models.Model):
@@ -85,6 +86,7 @@ class BatchCost(models.Model):
 
 
 class FeedEntry(models.Model):
+    payment_source = models.CharField(max_length=12, choices=FARM_EXPENSE_PAYMENT_CHOICES, default="outside")
     batch = models.ForeignKey(Batch, on_delete=models.CASCADE)
     entry_date = models.DateField()
     amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -97,6 +99,7 @@ class FeedEntry(models.Model):
 
 
 class MedicineEntry(models.Model):
+    payment_source = models.CharField(max_length=12, choices=FARM_EXPENSE_PAYMENT_CHOICES, default="outside")
 
     MEDICINE_TYPE_CHOICES = [
         ("vaccine", "Vaccine"),

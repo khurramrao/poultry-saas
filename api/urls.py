@@ -61,6 +61,7 @@ path(
     path("meat-sales/<int:batch_id>/", sales.meat_sale_detail, name="meat_sale_detail"),
     path("daily-log/", logs.daily_log, name="daily_log"),
     path("eggs/", eggs.egg_dashboard, name="egg_dashboard"),
+    path("eggs/cashbook/", eggs.farm_egg_cashbook, name="farm_egg_cashbook"),
     path("eggs/production/add/", eggs.add_egg_production, name="add_egg_production"),
     path("eggs/active-hens/", eggs.active_hens_history, name="active_hens_history"),
     path("eggs/sales/add/", eggs.add_egg_sale, name="add_egg_sale"),

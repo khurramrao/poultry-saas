@@ -283,3 +283,60 @@ class EggSaleCorrectionAudit(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+
+
+class FarmEggCashMovement(models.Model):
+    """Admin-posted farm egg cash/bank movements, distinct from farm profit/COGS.
+
+    POS transfer payments and direct-sale collections are NEVER copied here;
+    the cashbook reads those original transaction tables directly.
+    """
+    MOVEMENT_TYPES = [
+        ("opening", "Opening balance (not previously recorded)"),
+        ("capital_in", "Capital introduced"),
+        ("other_in", "Other cash received"),
+        ("expense", "Payment for an already recorded farm expense"),
+        ("withdrawal", "Owner/investor withdrawal"),
+        ("other_out", "Other payment out"),
+        ("cash_to_bank", "Transfer physical cash to bank"),
+        ("bank_to_cash", "Withdraw bank funds into physical cash"),
+    ]
+    ACCOUNT_CHOICES = [("cash", "Physical cash"), ("bank", "Bank / wallet")]
+    movement_date = models.DateField(default=timezone.localdate)
+    movement_type = models.CharField(max_length=22, choices=MOVEMENT_TYPES)
+    account = models.CharField(max_length=8, choices=ACCOUNT_CHOICES, default="cash")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    batch = models.ForeignKey(
+        Batch, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="egg_cash_movements",
+    )
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="farm_egg_cash_movements_created",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_voided = models.BooleanField(default=False)
+    void_reason = models.CharField(max_length=255, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="farm_egg_cash_movements_voided",
+    )
+    voided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-movement_date", "-id"]
+
+    def clean(self):
+        super().clean()
+        if self.amount is None or self.amount <= 0:
+            raise ValidationError({"amount": "The amount must be greater than zero."})
+        if self.movement_date and self.movement_date > timezone.localdate():
+            raise ValidationError({"movement_date": "A future date is not allowed."})
+        if self.batch_id and self.batch.shed.shed_type != "layer":
+            raise ValidationError({"batch": "Choose a layer batch."})
+        if self.movement_type in ("cash_to_bank", "bank_to_cash"):
+            # A transfer is ALWAYS represented by two sides in the reporting
+            # service, but only one source model row, preventing duplicates.
+            self.account = "cash" if self.movement_type == "cash_to_bank" else "bank"

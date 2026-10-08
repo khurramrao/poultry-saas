@@ -1,0 +1,66 @@
+{% extends "api/base_dashboard.html" %}
+{% load humanize %}
+{% block title %}Egg Farm Cashbook | RayNoor{% endblock %}
+{% block extra_css %}
+<style>
+.fec-page{max-width:1200px;margin:0 auto;color:#183955}
+.fec-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin:15px 0 18px}
+.fec-head h1{font-size:25px;margin:0;color:#123b60}.fec-head p{font-size:13px;color:#698098;margin:4px 0 0}
+.fec-back{color:#1d6cba;text-decoration:none;font-weight:800;font-size:13px}
+.fec-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.fec-kpi{background:#fff;border:1px solid #dee9f0;border-radius:14px;padding:17px;min-width:0}
+.fec-kpi span{display:block;font-size:10px;letter-spacing:.04em;color:#697f91;text-transform:uppercase;font-weight:800}
+.fec-kpi strong{display:block;font-size:24px;color:#174567;margin-top:8px;overflow-wrap:anywhere}
+.fec-kpi.cash{background:#eaf9ef;border-color:#bfe5ce}.fec-kpi.cash strong{color:#128048}
+.fec-panel{border:1px solid #dce7f0;border-radius:15px;background:#fff;padding:18px;margin-bottom:18px}
+.fec-panel h2{font-size:17px;color:#144268;margin:0 0 8px}.fec-help{font-size:12px;color:#637d90;line-height:1.5}
+.fec-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
+.fec-field{display:flex;flex-direction:column;gap:5px}.fec-field label{font-size:11px;font-weight:850;color:#506a82}
+.fec-field input,.fec-field select,.fec-field textarea{border:1px solid #cddce8;border-radius:9px;padding:11px;min-height:44px;font:inherit;font-size:13px;background:#fff;max-width:100%;box-sizing:border-box}
+.fec-span{grid-column:1/-1}.fec-actions{grid-column:1/-1;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.fec-btn{border:0;border-radius:10px;background:#158048;color:white;padding:12px 17px;font-weight:850;cursor:pointer;min-height:43px}
+.fec-note{background:#fff9e8;border:1px solid #f2dca8;border-radius:10px;padding:12px 14px;margin:12px 0;font-size:12px;color:#7a602a;line-height:1.55}
+.fec-warning{background:#fff0ef;border-color:#f4bdb8;color:#923a2f}
+.fec-table-scroll{overflow-x:auto}.fec-table{width:100%;border-collapse:collapse;min-width:720px;font-size:12px}
+.fec-table td,.fec-table th{border-bottom:1px solid #e9f0f5;padding:10px;text-align:left;vertical-align:top}
+.fec-table th{background:#f5f9fc;color:#547087;text-transform:uppercase;font-size:10px}
+.fec-pos{color:#12814c;font-weight:850}.fec-neg{color:#b44239;font-weight:850}.fec-table small{display:block;color:#7b8c9f;margin-top:4px}
+.fec-void{font-size:11px;background:#fff2f1;padding:12px;border:1px solid #f4d2cd;border-radius:10px;margin:11px 0}
+.fec-void form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.fec-void input{padding:9px;border:1px solid #d2dfe8;border-radius:7px;min-width:155px}
+.fec-void button{background:#9b3333;color:white;border:0;padding:10px;border-radius:8px;font-weight:750}
+@media(max-width:880px){.fec-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.fec-form{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.fec-form{grid-template-columns:1fr}.fec-panel{padding:13px}.fec-kpis{gap:8px}.fec-kpi strong{font-size:20px}}
+</style>
+{% endblock %}
+{% block content %}
+<div class="fec-page">
+<header class="fec-head"><div><h1><i class="fa-solid fa-wallet"></i> Egg Farm Cashbook</h1><p>Money actually received and paid · separate from sales, receivables and COGS</p></div><a class="fec-back" href="{% url 'egg_dashboard' %}">← Egg Management</a></header>
+<div class="fec-kpis">
+<div class="fec-kpi cash"><span>Tracked cash in hand</span><strong>Rs {{ cashbook.cash_balance|floatformat:0|intcomma }}</strong></div>
+<div class="fec-kpi"><span>Bank / wallet balance</span><strong>Rs {{ cashbook.bank_balance|floatformat:0|intcomma }}</strong></div>
+<div class="fec-kpi"><span>Cash money received</span><strong>Rs {{ cashbook.cash_in|floatformat:0|intcomma }}</strong></div>
+<div class="fec-kpi"><span>Cash payments / withdrawals</span><strong>Rs {{ cashbook.cash_out|floatformat:0|intcomma }}</strong></div>
+</div>
+<div class="fec-note"><strong>Automatic Egg POS receipts:</strong> payments physically handed over as <strong>Cash</strong> are added to farm cash in hand automatically; bank/wallet payments go to Bank/Wallet instead. The same Egg POS payment is never entered again here. New feed, medicine, and other farm costs marked <strong>Paid From Farm Management Cash</strong> also deduct cash automatically. A Rs 150 cash payment is an <strong>increase in cash</strong>, not additional farm sales. These balances are only complete when opening balances, expenses and withdrawals have been recorded. Direct cash sales are treated as received by the farm; if staff still holds that cash, it requires separate reconciliation.</div>
+{% if cashbook.has_negative_cash or cashbook.has_negative_bank %}<div class="fec-note fec-warning"><strong>Warning: Negative tracked balance.</strong> Review missing opening cash, money collected by staff or unrecorded bank/cash movements.</div>{% endif %}
+<section class="fec-panel"><h2>Record farm cash movement</h2><p class="fec-help">Admin-only, password confirmed. Record payments and owner cash movements here to update available farm cash. For <strong>new</strong> Feed, Medicine and Expense entries, select <strong>Paid From → Farm Management Cash</strong> in the original expense form. The deduction appears here automatically. Use a manual cashbook expense only for an older expense with no recorded payment source; never enter both.</p>
+<form method="post" class="fec-form">{% csrf_token %}<input type="hidden" name="action" value="add">
+<div class="fec-field"><label>Movement</label><select name="movement_type" required>{% for value,label in movement_types %}<option value="{{ value }}" {% if value == 'expense' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+<div class="fec-field"><label>Account / Paid from</label><select name="account">{% for value,label in accounts %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></div>
+<div class="fec-field"><label>Amount (Rs)</label><input type="number" name="amount" min="0.01" step="0.01" placeholder="e.g. 500" required></div>
+<div class="fec-field"><label>Date</label><input type="date" name="movement_date" value="{{ today|date:'Y-m-d' }}" max="{{ today|date:'Y-m-d' }}" required></div>
+<div class="fec-field"><label>Related layer batch (optional)</label><select name="batch_id"><option value="">Farm-wide / unallocated</option>{% for batch in batches %}<option value="{{ batch.id }}">#{{ batch.batch_number }}</option>{% endfor %}</select></div>
+<div class="fec-field"><label>Reference (optional)</label><input name="reference" maxlength="120" placeholder="Bill number / receipt"></div>
+<div class="fec-field fec-span"><label>Reason / note</label><input name="notes" maxlength="255" minlength="5" placeholder="e.g. Feed bill already entered under flock expenses" required></div>
+<div class="fec-field"><label>Confirm admin password</label><input type="password" name="admin_password" autocomplete="current-password" required></div>
+<div class="fec-actions"><button type="submit" class="fec-btn">Save Cash Movement</button><span class="fec-help">Do not enter money received from Egg POS a second time.</span></div>
+</form></section>
+<section class="fec-panel"><h2>Farm Cashbook Transactions</h2><p class="fec-help">Latest 100 entries · across all current and past layer batches. Cash and bank running balances are separate.</p>
+<div class="fec-table-scroll"><table class="fec-table"><thead><tr><th>Date</th><th>Account</th><th>Source / Reference</th><th>Cash In</th><th>Cash Out</th><th>Running balance</th></tr></thead><tbody>
+{% for r in cashbook.rows %}<tr><td>{{ r.date|date:'d M Y' }}</td><td>{{ r.account|title }}</td><td><strong>{{ r.reference }}</strong><small>{{ r.description }}{% if r.batch %} · Layer #{{ r.batch }}{% endif %}</small></td><td>{% if r.inflow %}<span class="fec-pos">+ Rs {{ r.inflow|floatformat:0|intcomma }}</span>{% else %}—{% endif %}</td><td>{% if r.outflow %}<span class="fec-neg">− Rs {{ r.outflow|floatformat:0|intcomma }}</span>{% else %}—{% endif %}</td><td><strong>Rs {{ r.balance|floatformat:0|intcomma }}</strong></td></tr>{% empty %}<tr><td colspan="6">No recorded cashbook transactions.</td></tr>{% endfor %}
+</tbody></table></div></section>
+{% if manual_movements %}<section class="fec-panel"><h2>Correct a manual cash movement</h2><p class="fec-help">Only manual cashbook movements may be voided here. Automatic Egg POS payment entries must be corrected at the original transfer payment.</p>
+{% for m in manual_movements %}<div class="fec-void"><strong>#{{ m.id }} · {{ m.get_movement_type_display }} · Rs {{ m.amount|floatformat:0|intcomma }}</strong> <small>({{ m.movement_date|date:'d M Y' }} · {{ m.created_by.username }})</small>
+<form method="post">{% csrf_token %}<input type="hidden" name="action" value="void"><input type="hidden" name="movement_id" value="{{ m.id }}"><input name="void_reason" placeholder="Reason for voiding" minlength="5" required><input type="password" name="admin_password" placeholder="Admin password" required><button type="submit" onclick="return confirm('Void this cash movement and recalculate the balance?')">Void movement</button></form></div>{% endfor %}</section>{% endif %}
+</div>
+{% endblock %}

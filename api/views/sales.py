@@ -1,4 +1,7 @@
 from datetime import date
+from django.db import transaction
+from django.core.exceptions import ValidationError
+from api.services.farm_egg_payment_source import validate_expense_payment
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -219,15 +222,24 @@ def add_expense(request):
             messages.error(request, "This batch is closed.")
             return redirect("expense_list")
 
-        Expense.objects.create(
-            batch=batch,
-            category=category,
-            amount=amount,
-            expense_date=expense_date,
-            description=description,
-        )
+        try:
+            with transaction.atomic():
+                batch = Batch.objects.select_for_update().select_related("shed").get(pk=batch.pk)
+                day = date.fromisoformat(str(expense_date))
+                source, paid_amount = validate_expense_payment(
+                    request, batch=batch, amount=amount, expense_date=day,
+                )
+                Expense.objects.create(
+                    batch=batch, category=category, amount=paid_amount,
+                    expense_date=day, description=description,
+                    payment_source=source,
+                )
+        except (ValidationError, ValueError, TypeError) as exc:
+            problem = "; ".join(exc.messages) if isinstance(exc, ValidationError) else "Invalid expense date or amount."
+            messages.error(request, problem)
+            return redirect("add_expense")
 
-        messages.success(request, "Expense added successfully.")
+        messages.success(request, "Expense saved. Farm Egg cash/bank updated automatically when selected.")
         return redirect("expense_list")
 
     return render(request, "api/add_expense.html", {

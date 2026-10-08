@@ -16,6 +16,8 @@ from api.models.eggs import EggProductionEntry, EggSale, EggStockWastage, EggSal
 from api.models.egg_pos import EggPOSFarmTransfer, EggPOSFarmTransferItem
 from api.models.investors import InvestorAllocation
 from api.models.sensor import Batch
+from api.services.egg_farm_receipts import get_farm_egg_receipts
+from api.services.egg_farm_cashbook import get_farm_egg_cashbook
 
 
 MONEY_ZERO = Decimal("0.00")
@@ -528,6 +530,11 @@ def egg_dashboard(request):
             overview["month_hen_days"],
         )
 
+    farm_egg_receipts = get_farm_egg_receipts(batches) if is_admin else None
+    # Cash is a farm-wide account, including historic/closed layer batches.
+    cash_batches = list(Batch.objects.filter(shed__shed_type="layer")) if is_admin else []
+    farm_egg_cash = get_farm_egg_cashbook(cash_batches) if is_admin else None
+
     return render(
         request,
         "api/egg_dashboard.html",
@@ -536,6 +543,8 @@ def egg_dashboard(request):
             "overview": overview,
             "is_admin": is_admin,
             "current_month": current_month,
+            "farm_egg_receipts": farm_egg_receipts,
+            "farm_egg_cash": farm_egg_cash,
         },
     )
 
@@ -1084,6 +1093,104 @@ def add_egg_damage(request):
         messages.success(request, f"Recorded {quantity} damaged eggs without creating sales revenue.")
         return redirect("egg_dashboard")
     return render(request, "api/add_egg_damage.html", {
+        "batches": batches,
+        "today": timezone.localdate(),
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def farm_egg_cashbook(request):
+    """Admin-only tracked farm egg cash and bank register.
+
+    Existing POS transfer payments flow in automatically. Manual movements are
+    restricted to independent cash movements to avoid duplicated revenue/COGS.
+    """
+    if not _is_admin(request.user):
+        return HttpResponseForbidden("Only farm admins may access the cashbook.")
+    from django.core.exceptions import ValidationError
+    from api.models.eggs import FarmEggCashMovement
+    from api.services.egg_farm_cashbook import get_farm_egg_cashbook
+
+    if request.method == "POST":
+        if not request.user.check_password(request.POST.get("admin_password") or ""):
+            messages.error(request, "Incorrect admin password. No cash movement was changed.")
+            return redirect("farm_egg_cashbook")
+        action = request.POST.get("action")
+        try:
+            with transaction.atomic():
+                if action == "void":
+                    movement = get_object_or_404(
+                        FarmEggCashMovement.objects.select_for_update(),
+                        pk=request.POST.get("movement_id"),
+                    )
+                    if movement.is_voided:
+                        raise ValidationError("This movement is already voided.")
+                    reason = (request.POST.get("void_reason") or "").strip()
+                    if len(reason) < 5:
+                        raise ValidationError("Enter a reason of at least 5 characters.")
+                    movement.is_voided = True
+                    movement.void_reason = reason
+                    movement.voided_by = request.user
+                    movement.voided_at = timezone.now()
+                    movement.save(update_fields=["is_voided", "void_reason", "voided_by", "voided_at"])
+                    messages.success(request, "Manual cash movement voided; cash balance recalculated.")
+                elif action == "add":
+                    from decimal import InvalidOperation
+                    try:
+                        amount = Decimal(request.POST.get("amount") or "0").quantize(MONEY_UNIT)
+                    except (InvalidOperation, ValueError):
+                        raise ValidationError("Enter a valid positive amount.")
+                    movement_type = (request.POST.get("movement_type") or "").strip()
+                    account = (request.POST.get("account") or "cash").strip()
+                    allowed_types = {v for v, _ in FarmEggCashMovement.MOVEMENT_TYPES}
+                    if movement_type not in allowed_types:
+                        raise ValidationError("Invalid transaction type.")
+                    if account not in {"cash", "bank"}:
+                        raise ValidationError("Invalid cash account.")
+                    movement_date = date.fromisoformat(request.POST.get("movement_date") or "")
+                    batch_id = request.POST.get("batch_id") or None
+                    batch = None
+                    if batch_id:
+                        batch = get_object_or_404(Batch, pk=batch_id, shed__shed_type="layer")
+                    notes = (request.POST.get("notes") or "").strip()
+                    if len(notes) < 5:
+                        raise ValidationError("Enter a reason/description of at least 5 characters.")
+                    if movement_type == "opening" and FarmEggCashMovement.objects.filter(
+                        movement_type="opening", account=account, is_voided=False,
+                    ).exists():
+                        raise ValidationError("An opening balance already exists for this account. Void it before replacing.")
+                    movement = FarmEggCashMovement(
+                        movement_date=movement_date,
+                        movement_type=movement_type,
+                        account=account,
+                        amount=amount,
+                        batch=batch,
+                        reference=(request.POST.get("reference") or "").strip()[:120],
+                        notes=notes[:255],
+                        created_by=request.user,
+                    )
+                    movement.full_clean()
+                    movement.save()
+                    messages.success(request, "Farm egg cashbook updated. No duplicate sale or flock expense was created.")
+                else:
+                    raise ValidationError("Unknown cashbook action.")
+        except (ValidationError, ValueError, TypeError) as exc:
+            if isinstance(exc, ValidationError):
+                problem = "; ".join(exc.messages)
+            else:
+                problem = "The entered values are invalid."
+            messages.error(request, problem)
+        return redirect("farm_egg_cashbook")
+
+    batches = list(Batch.objects.filter(shed__shed_type="layer").select_related("shed"))
+    cashbook = get_farm_egg_cashbook(batches, max_rows=100)
+    manual_movements = list(FarmEggCashMovement.objects.filter(is_voided=False).select_related("created_by")[:60])
+    return render(request, "api/farm_egg_cashbook.html", {
+        "cashbook": cashbook,
+        "manual_movements": manual_movements,
+        "movement_types": FarmEggCashMovement.MOVEMENT_TYPES,
+        "accounts": FarmEggCashMovement.ACCOUNT_CHOICES,
         "batches": batches,
         "today": timezone.localdate(),
     })

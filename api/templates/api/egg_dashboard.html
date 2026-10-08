@@ -81,6 +81,24 @@
     .kpi-card.sales { background:#edf5ff; border-color:#cfe1f5; }
     .kpi-card.sales .kpi-value { color:#155eac; }
 
+    .egg-receipts-panel { margin:0 0 20px; padding:17px 18px; background:#fff; border:1px solid #d5e5ee; border-radius:17px; box-shadow:0 6px 16px rgba(10,47,72,.045); }
+    .egg-receipts-head { display:flex; gap:10px; justify-content:space-between; align-items:start; flex-wrap:wrap; margin-bottom:13px; }
+    .egg-receipts-head h2 { margin:0 0 4px; font-size:17px; color:#124968; }
+    .egg-receipts-head p { margin:0; font-size:12px; color:#667b8c; max-width:670px; }
+    .egg-receipts-kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; margin-bottom:12px; }
+    .egg-receipts-kpi { padding:11px 12px; background:#f4f9fc; border:1px solid #e1eaf0; border-radius:11px; min-width:0; }
+    .egg-receipts-kpi span { display:block; font-size:10px; font-weight:850; color:#5c7488; text-transform:uppercase; }
+    .egg-receipts-kpi strong { display:block; margin-top:4px; font-size:19px; color:#123f63; }
+    .egg-receipts-kpi.total { background:#e9f7ee; border-color:#bfdfcd; }
+    .egg-receipts-kpi.total strong { color:#117747; }
+    .egg-receipts-table-scroll { overflow-x:auto; }
+    .egg-receipts-table { width:100%; min-width:590px; border-collapse:collapse; font-size:12px; }
+    .egg-receipts-table th { padding:9px 10px; text-align:left; background:#f6f9fc; color:#65798a; font-size:10px; text-transform:uppercase; }
+    .egg-receipts-table td { padding:9px 10px; border-top:1px solid #edf1f5; color:#375169; }
+    .egg-receipts-table td:last-child { text-align:right; font-weight:850; color:#117747; }
+    .egg-receipts-note { font-size:11px; color:#8b6a31; padding:10px 12px; border:1px solid #f3e5c6; background:#fffcf4; border-radius:9px; margin-top:11px; }
+    @media(max-width:760px){.egg-receipts-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.egg-receipts-panel{padding:13px}}
+
     .section-heading {
         display:flex; justify-content:space-between; align-items:center; gap:12px;
         margin:20px 2px 12px;
@@ -498,6 +516,51 @@
             </div>
         </div>
     </section>
+
+    {% if is_admin and farm_egg_cash %}
+    <section class="egg-receipts-panel" aria-label="Farm Egg Cash in Hand" style="border-color:#aedec0;background:#f8fffa">
+        <div class="egg-receipts-head">
+            <div><h2><i class="fa-solid fa-money-bill-wave"></i> Farm Egg Cash in Hand</h2>
+            <p>Actual cash received from direct farm sales and Egg POS, less cash expenses and withdrawals recorded in the farm cashbook.</p></div>
+            <a class="internal-receivable-action" href="{% url 'farm_egg_cashbook' %}"><i class="fa-solid fa-book-open"></i> View Cashbook / Record Expenses</a>
+        </div>
+        <div class="egg-receipts-kpis">
+            <div class="egg-receipts-kpi total"><span>Cash in Hand (Tracked)</span><strong>Rs {{ farm_egg_cash.cash_balance|floatformat:0|intcomma }}</strong></div>
+            <div class="egg-receipts-kpi"><span>Cash Collected / Received</span><strong>Rs {{ farm_egg_cash.cash_in|floatformat:0|intcomma }}</strong></div>
+            <div class="egg-receipts-kpi"><span>Cash Spent / Withdrawn</span><strong>Rs {{ farm_egg_cash.cash_out|floatformat:0|intcomma }}</strong></div>
+            <div class="egg-receipts-kpi"><span>Bank / Wallet (Tracked)</span><strong>Rs {{ farm_egg_cash.bank_balance|floatformat:0|intcomma }}</strong></div>
+        </div>
+        <div class="egg-receipts-note">The money received from Egg POS is included automatically from the existing payment. It is <strong>not another sale</strong>. Enter missing opening funds or cash expenses in Cashbook to match physical cash. Figures depend on all cash movements being entered.</div>
+    </section>
+    {% endif %}
+
+    {% if is_admin and farm_egg_receipts %}
+    <section class="egg-receipts-panel" aria-label="Farm Egg receipt ledger">
+        <div class="egg-receipts-head">
+            <div><h2><i class="fa-solid fa-wallet"></i> Farm Egg Cash &amp; Bank Receipts</h2>
+            <p>Actual recorded money received from direct farm egg sales and Egg POS transfer payments. An Egg POS payment appears here automatically, without another farm sale.</p></div>
+        </div>
+        <div class="egg-receipts-kpis">
+            <div class="egg-receipts-kpi"><span>Direct Sale Collections</span><strong>Rs {{ farm_egg_receipts.direct_receipts|floatformat:0|intcomma }}</strong></div>
+            <div class="egg-receipts-kpi"><span>Received from Egg POS</span><strong>Rs {{ farm_egg_receipts.pos_receipts|floatformat:0|intcomma }}</strong></div>
+            <div class="egg-receipts-kpi"><span>Cash / Notes</span><strong>Rs {{ farm_egg_receipts.cash_receipts|floatformat:0|intcomma }}</strong></div>
+            <div class="egg-receipts-kpi total"><span>Total Recorded Receipts</span><strong>Rs {{ farm_egg_receipts.gross_receipts|floatformat:0|intcomma }}</strong></div>
+        </div>
+        <div style="font-size:12px;color:#60788d;margin-bottom:9px">Bank &amp; mobile wallet receipts: <strong>Rs {{ farm_egg_receipts.bank_wallet_receipts|floatformat:0|intcomma }}</strong>{% if farm_egg_receipts.unclassified_receipts %} · Other/Unclassified: <strong>Rs {{ farm_egg_receipts.unclassified_receipts|floatformat:0|intcomma }}</strong>{% endif %}</div>
+        <div class="egg-receipts-table-scroll">
+            <table class="egg-receipts-table"><thead><tr><th>Date</th><th>From / Reference</th><th>Batch</th><th>Method</th><th>Received</th></tr></thead><tbody>
+            {% for r in farm_egg_receipts.rows %}
+            <tr>
+                <td>{{ r.date|date:"d M Y" }}</td>
+                <td><strong>{{ r.source }}</strong><br><span style="font-size:11px;color:#788b99">{{ r.detail }} · {{ r.reference }}</span>{% if r.pos_transfer_id %}<br><a href="{% url 'egg_pos_farm_transfer_detail' r.pos_transfer_id %}">View transfer →</a>{% endif %}</td>
+                <td>#{{ r.batch }}</td><td>{{ r.method }}</td><td>+Rs {{ r.amount|floatformat:0|intcomma }}</td>
+            </tr>
+            {% empty %}<tr><td colspan="5">No cash or bank receipts have been recorded yet.</td></tr>{% endfor %}
+            </tbody></table>
+        </div>
+        <div class="egg-receipts-note"><strong>Receipts, not available cash:</strong> These figures are before farm expenses, withdrawals and any money still held by staff. Cash payments are separate from bank/wallet receipts. Do not record the same Rs 400 as another sale or contribution.</div>
+    </section>
+    {% endif %}
 
     <div class="section-heading">
         <div>
