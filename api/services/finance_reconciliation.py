@@ -10,6 +10,7 @@ from api.models.sensor import Batch, MortalityRecord
 from api.models.sales import ChickCostEntry, SaleRecord, Expense
 from api.models.investors import InvestorAllocation, FeedEntry, MedicineEntry
 from api.models.eggs import EggProductionEntry, EggSale, EggStockWastage, LayerHenCountHistory
+from api.models.egg_pos import EggPOSFarmTransfer
 from api.services.poultry_inventory import get_batch_bird_position
 
 
@@ -196,6 +197,7 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         "current_birds": 0,
         "net_sales": zero_money,
         "egg_sales": zero_money,
+        "egg_internal_transfers_display": zero_money,
         "realized_cogs": zero_money,
         "realized_expenses": zero_money,
         "net_income": zero_money,
@@ -309,6 +311,7 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
         egg_gross_sales_revenue = zero_money
         egg_discount = zero_money
         egg_net_sales = zero_money
+        egg_internal_transfers = zero_money
         egg_sale_history = []
         laying_start_date = None
         laying_start_source = None
@@ -367,6 +370,16 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
                     zero_money,
                 )
             )
+
+            # Segment-only turnover: transferred eggs are valued at their
+            # internal invoice amount. This is NOT external revenue for the
+            # combined farm + Egg POS business, and is excluded from P/L.
+            egg_internal_transfers = money(sum(
+                (transfer.total_amount for transfer in
+                 EggPOSFarmTransfer.objects.filter(batch=batch, is_voided=False)
+                 .prefetch_related("items")),
+                zero_money,
+            ))
 
             egg_sale_history = [
                 {
@@ -1037,6 +1050,12 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             owner["egg_gross_revenue"] = money(sum((h["gross_revenue"] for h in owner["egg_sale_history"]), zero_money))
             owner["egg_discount_share"] = money(sum((h["discount"] for h in owner["egg_sale_history"]), zero_money))
             owner["egg_revenue"] = money(sum((h["net_revenue"] for h in owner["egg_sale_history"]), zero_money))
+            owner["egg_internal_transfers_display"] = money_share(
+                egg_internal_transfers, owner["share_ratio"]
+            )
+            owner["egg_sales_display"] = money(
+                owner["egg_revenue"] + owner["egg_internal_transfers_display"]
+            )
             owner["total_revenue"] = money(owner["revenue"] + owner["egg_revenue"])
             owner["egg_operating_profit"] = money(
                 owner["egg_revenue"] - owner["laying_operating_cost"]
@@ -1089,6 +1108,7 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             overview["current_birds"] += current_birds
             overview["net_sales"] += total_sales_revenue
             overview["egg_sales"] += egg_net_sales
+            overview["egg_internal_transfers_display"] += egg_internal_transfers
             overview["realized_cogs"] += batch_locked_cogs_total
             overview["net_income"] += batch_net_income
             overview["investment"] += batch_total_investment
@@ -1101,6 +1121,9 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             overview["current_birds"] += current_user_owner["current_birds"]
             overview["net_sales"] += current_user_owner["revenue"]
             overview["egg_sales"] += current_user_owner["egg_revenue"]
+            overview["egg_internal_transfers_display"] += current_user_owner[
+                "egg_internal_transfers_display"
+            ]
             overview["realized_cogs"] += current_user_owner["locked_cogs"]
             overview["net_income"] += current_user_owner["net_income"]
             overview["investment"] += current_user_owner["investment"]
@@ -1158,6 +1181,8 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
             "egg_gross_sales_revenue": egg_gross_sales_revenue,
             "egg_discount": egg_discount,
             "egg_net_sales": egg_net_sales,
+            "egg_internal_transfers_display": egg_internal_transfers,
+            "egg_sales_display": money(egg_net_sales + egg_internal_transfers),
             "laying_start_date": laying_start_date,
             "laying_start_source": laying_start_source,
             "point_of_lay_cost": point_of_lay_cost,
@@ -1214,6 +1239,12 @@ def build_finance_data(user, status_filter="all", batch_ids=None):
 
     overview["net_sales"] = money(overview["net_sales"])
     overview["egg_sales"] = money(overview["egg_sales"])
+    overview["egg_internal_transfers_display"] = money(
+        overview["egg_internal_transfers_display"]
+    )
+    overview["egg_sales_display"] = money(
+        overview["egg_sales"] + overview["egg_internal_transfers_display"]
+    )
     overview["realized_cogs"] = money(overview["realized_cogs"])
     overview["realized_expenses"] = money(overview["realized_expenses"])
     overview["net_income"] = money(overview["net_income"])

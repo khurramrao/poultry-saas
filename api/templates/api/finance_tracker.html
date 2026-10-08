@@ -1220,8 +1220,8 @@
                 <div class="overview-icon"><i class="fa-solid fa-egg"></i></div>
                 <div class="overview-label">Egg Net Sales</div>
             </div>
-            <div class="overview-value">Rs {{ overview.egg_sales|floatformat:0|intcomma }}</div>
-            <div class="overview-note">Layer egg sales after discounts</div>
+            <div class="overview-value">Rs {{ overview.egg_sales_display|floatformat:0|intcomma }}</div>
+            <div class="overview-note">Direct sales + farm transfers to Egg POS (segment view)</div>
         </article>
 
         <article class="overview-card">
@@ -1467,7 +1467,7 @@
                         </div>
                         <div class="layer-finance-grid">
                             <div class="layer-stat"><span>Rearing Cost Carried to Layers</span><strong>Rs {{ row.point_of_lay_cost_carried|floatformat:0|intcomma }}</strong></div>
-                            <div class="layer-stat"><span>Egg Net Sales</span><strong>Rs {% if is_admin %}{{ row.egg_net_sales|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.egg_revenue|floatformat:0|intcomma }}{% endif %}</strong></div>
+                            <div class="layer-stat"><span>Egg Net Sales</span><strong>Rs {% if is_admin %}{{ row.egg_sales_display|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.egg_sales_display|floatformat:0|intcomma }}{% endif %}</strong></div>
                             <div class="layer-stat"><span>Laying Costs</span><strong>Rs {% if is_admin %}{{ row.laying_operating_cost|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.laying_operating_cost|floatformat:0|intcomma }}{% endif %}</strong></div>
                             <div class="layer-stat profit"><span>Egg Operations P/L</span>{% if is_admin %}<strong class="{% if row.egg_operating_profit < 0 %}money-negative{% endif %}">Rs {{ row.egg_operating_profit|floatformat:0|intcomma }}</strong>{% else %}<strong class="{% if row.current_user_owner.egg_operating_profit < 0 %}money-negative{% endif %}">Rs {{ row.current_user_owner.egg_operating_profit|floatformat:0|intcomma }}</strong>{% endif %}</div>
                             <div class="layer-stat"><span>Total Revenue</span><strong>Rs {% if is_admin %}{{ row.total_batch_revenue|floatformat:0|intcomma }}{% else %}{{ row.current_user_owner.total_revenue|floatformat:0|intcomma }}{% endif %}</strong></div>
@@ -1905,7 +1905,7 @@
                                     <div class="detail-row"><span>Current Egg Stock</span><strong>{{ row.egg_stock|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Egg Gross Sales</span><strong>Rs {{ row.egg_gross_sales_revenue|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Egg Discounts</span><strong class="money-negative">− Rs {{ row.egg_discount|floatformat:0|intcomma }}</strong></div>
-                                    <div class="detail-row total"><span>Egg Net Sales</span><strong>Rs {{ row.egg_net_sales|floatformat:0|intcomma }}</strong></div>
+                                    <div class="detail-row total"><span>Egg Net Sales (direct + internal Egg POS)</span><strong>Rs {{ row.egg_sales_display|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row total"><span>Egg Operations Profit / Loss</span><strong class="{% if row.egg_operating_profit < 0 %}money-negative{% else %}money-positive{% endif %}">Rs {{ row.egg_operating_profit|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row"><span>Net Bird Sales</span><strong>Rs {{ row.total_sales_revenue|floatformat:0|intcomma }}</strong></div>
                                     <div class="detail-row total"><span>Total Layer Revenue</span><strong>Rs {{ row.total_batch_revenue|floatformat:0|intcomma }}</strong></div>
@@ -1914,7 +1914,7 @@
                                     <div class="detail-row"><span>Overall Layer ROI</span><strong class="{% if row.layer_roi_to_date < 0 %}money-negative{% else %}money-positive{% endif %}">{{ row.layer_roi_to_date|floatformat:1 }}%</strong></div>
 
                                     <div class="profit-formula">
-                                        <strong>Phase accounting:</strong>
+                                        <strong>Accounting:</strong> Internal farm-to-Egg-POS transfers are included in Egg Net Sales for segment reporting only; they are excluded from consolidated revenue and profit. <strong>Phase accounting:</strong>
                                         Costs before the first egg-production date build Point-of-Lay Cost. Feed, medicine and expenses on/after that date are Egg Operations. Overall Layer P/L still includes every lifetime cost.
                                     </div>
 
