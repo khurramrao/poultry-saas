@@ -985,3 +985,18 @@ class EggPOSOwnerCapitalTransaction(models.Model):
     def __str__(self):
         return f"{self.get_transaction_type_display()} - Rs {self.amount}"
 
+
+
+class EggPOSSaleAudit(models.Model):
+    """Append-only snapshot of every privileged invoice correction."""
+    ACTION_CHOICES = [("edit", "Edit"), ("reverse", "Reverse"), ("restore", "Restore")]
+    sale = models.ForeignKey(EggPOSSale, on_delete=models.PROTECT, related_name="correction_history")
+    admin = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="egg_pos_invoice_corrections")
+    action = models.CharField(max_length=12, choices=ACTION_CHOICES)
+    reason = models.CharField(max_length=255)
+    before = models.JSONField(default=dict)
+    after = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]

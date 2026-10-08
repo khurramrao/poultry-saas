@@ -86,6 +86,8 @@ path(
     path("egg-pos/sales/<int:sale_id>/invoice/", egg_pos.sale_invoice, name="egg_pos_sale_invoice"),
     path("egg-pos/sales/<int:sale_id>/payment/", egg_pos.record_sale_payment, name="egg_pos_record_sale_payment"),
     path("egg-pos/sales/<int:sale_id>/reverse/", egg_pos.reverse_pos_sale, name="egg_pos_reverse_sale"),
+    path("egg-pos/sales/<int:sale_id>/edit/", egg_pos.edit_pos_sale, name="egg_pos_edit_sale"),
+    path("egg-pos/sales/<int:sale_id>/restore/", egg_pos.undo_pos_sale_reversal, name="egg_pos_restore_sale"),
     path("egg-pos/staff-access/", egg_pos.staff_access, name="egg_pos_staff_access"),
     path("egg-pos/expenses/", egg_pos.expenses, name="egg_pos_expenses"),
     path("egg-pos/expenses/<int:expense_id>/approve/", egg_pos.approve_expense, name="egg_pos_approve_expense"),

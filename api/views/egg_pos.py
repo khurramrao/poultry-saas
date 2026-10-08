@@ -3,6 +3,8 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth import authenticate
+from django.core.cache import cache
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q, Sum
@@ -60,6 +62,7 @@ from api.services.accounting import (
     supplier_balance as gl_supplier_balance,
     trial_balance as build_trial_balance,
 )
+from api.services.egg_pos_corrections import edit_invoice, reverse_invoice, restore_invoice
 from api.services.egg_pos_accounting import (
     commission_preview,
     sync_cash_settlement,
@@ -1430,21 +1433,121 @@ def sales(request):
         qs=qs.filter(created_by=request.user)
     return render(request,"api/egg_pos_sales.html",{"sales":qs.order_by("-sale_date","-id")[:200],"can_manage_pos":can_manage(request.user)})
 
+def _invoice_admin(request):
+    """Business POS managers are not Django administrators."""
+    u = request.user
+    return bool(u.is_authenticated and u.is_active and (u.is_superuser or u.is_staff))
+
+
+def _verify_invoice_admin_password(request):
+    """Require re-auth for each correction. Never store submitted credentials."""
+    if not _invoice_admin(request):
+        return False
+    key = f"eggpos:admin-auth:{request.user.pk}"
+    failures = cache.get(key, 0)
+    if failures >= 5:
+        messages.error(request, "Too many password attempts. Try again in 15 minutes.")
+        return False
+    password = request.POST.get("admin_password") or ""
+    verified = authenticate(request, username=request.user.get_username(), password=password)
+    if verified is None or verified.pk != request.user.pk or not _invoice_admin(request):
+        cache.set(key, failures + 1, 15 * 60)
+        messages.error(request, "Admin password incorrect. No invoice changes were made.")
+        return False
+    cache.delete(key)
+    return True
+
+
 @login_required
 def sale_detail(request, sale_id):
     if not can_sell(request.user):
         return _deny(request)
-    sale=get_object_or_404(EggPOSSale.objects.select_related("created_by").prefetch_related("items__product","items__lot_allocations__lot","payments__recorded_by"),pk=sale_id)
+    sale = get_object_or_404(
+        EggPOSSale.objects.select_related("created_by")
+        .prefetch_related("items__product", "items__lot_allocations__lot", "payments__recorded_by"),
+        pk=sale_id,
+    )
     if not can_manage(request.user) and sale.created_by_id != request.user.id:
-        return _deny(request,"You can only view Egg POS sales created by your login.")
-    return render(request,"api/egg_pos_sale_detail.html",{"sale":sale,"can_manage_pos":can_manage(request.user),"payment_methods":EggPOSSalePayment.PAYMENT_METHOD_CHOICES,"today":timezone.localdate()})
+        return _deny(request, "You can only view Egg POS sales created by your login.")
+    is_admin_user = _invoice_admin(request)
+    return render(request, "api/egg_pos_sale_detail.html", {
+        "sale": sale,
+        "can_manage_pos": can_manage(request.user),
+        "can_correct_invoice": is_admin_user,
+        "correction_history": list(sale.correction_history.select_related("admin")[:10]) if is_admin_user else [],
+        "payment_methods": EggPOSSalePayment.PAYMENT_METHOD_CHOICES,
+        "today": timezone.localdate(),
+    })
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def edit_pos_sale(request, sale_id):
+    if not _invoice_admin(request):
+        return _deny(request, "Only an administrator can edit invoices.")
+    sale = get_object_or_404(EggPOSSale.objects.prefetch_related("items__product", "payments"), pk=sale_id)
+    if sale.is_reversed:
+        messages.error(request, "Restore the reversed invoice before editing it.")
+        return redirect("egg_pos_sale_detail", sale_id=sale_id)
+    if request.method == "POST":
+        if not _verify_invoice_admin_password(request):
+            return redirect("egg_pos_edit_sale", sale_id=sale_id)
+        try:
+            names = ("item_id", "product_id", "sale_unit", "unit_count", "unit_rate")
+            columns = {key: request.POST.getlist(key) for key in names}
+            sizes = {len(values) for values in columns.values()}
+            if len(sizes) != 1:
+                raise ValueError("Submitted invoice rows do not match. Reload and try again.")
+            rows = [dict(zip(names, values)) for values in zip(*(columns[key] for key in names))]
+            edit_invoice(sale.pk, request.user, rows, request.POST.get("discount_amount"),
+                         (request.POST.get("reason") or "").strip())
+            messages.success(request, f"{sale.sale_number} updated. FIFO stock, invoice and profit recalculated; payments unchanged.")
+            return redirect("egg_pos_sale_detail", sale_id=sale.pk)
+        except (ValueError, ArithmeticError) as error:
+            messages.error(request, str(error))
+    # Legacy invoices stored loose-egg quantities before unit_count was introduced.
+    # Show the actual original quantity/rate instead of its old default of 1.
+    size_by_unit = {"egg": 1, "dozen": 12, "tray": 30, "crate": 360}
+    for item in sale.items.all():
+        unit_size = size_by_unit.get(item.sale_unit, 1)
+        count = int(item.unit_count or 0)
+        item.edit_sale_unit = item.sale_unit
+        if count * unit_size != item.quantity:
+            if item.quantity % unit_size:
+                item.edit_sale_unit = "egg"
+                unit_size = 1
+            count = item.quantity // unit_size
+        item.edit_unit_count = count
+        item.edit_unit_rate = item.unit_rate if item.unit_rate > 0 else money(item.unit_price * unit_size)
+    return render(request, "api/egg_pos_sale_edit.html", {
+        "sale": sale,
+        "products": EggPOSProduct.objects.filter(is_active=True).order_by("name"),
+        "unit_choices": EggPOSSaleItem.SALE_UNIT_CHOICES,
+    })
+
 
 @login_required
 @require_POST
+def undo_pos_sale_reversal(request, sale_id):
+    if not _invoice_admin(request):
+        return _deny(request, "Only an administrator can restore invoices.")
+    if not _verify_invoice_admin_password(request):
+        return redirect("egg_pos_sale_detail", sale_id=sale_id)
+    try:
+        sale = restore_invoice(sale_id, request.user, (request.POST.get("reason") or "").strip())
+        messages.success(request, f"{sale.sale_number} restored. Original FIFO lots, payments and ledger entries are active again.")
+    except (ValueError, ArithmeticError) as error:
+        messages.error(request, str(error))
+    return redirect("egg_pos_sale_detail", sale_id=sale_id)
+
+
+@login_required
+@require_POST
+@transaction.atomic
 def record_sale_payment(request, sale_id):
     if not can_sell(request.user):
         return _deny(request)
-    sale=get_object_or_404(EggPOSSale.objects.prefetch_related("payments"),pk=sale_id)
+    sale=get_object_or_404(EggPOSSale.objects.select_for_update().prefetch_related("payments"),pk=sale_id)
     if sale.is_reversed:
         messages.error(request, "A reversed invoice cannot receive payments.")
         return redirect("egg_pos_sale_detail", sale_id=sale.id)
@@ -1472,15 +1575,16 @@ def record_sale_payment(request, sale_id):
 @login_required
 @require_POST
 def reverse_pos_sale(request, sale_id):
-    if not can_manage(request.user):
-        return _deny(request, "Only a POS manager/admin can reverse a sale.")
-    sale = get_object_or_404(EggPOSSale, pk=sale_id)
+    if not _invoice_admin(request):
+        return _deny(request, "Only an administrator can reverse invoices.")
+    if not _verify_invoice_admin_password(request):
+        return redirect("egg_pos_sale_detail", sale_id=sale_id)
     try:
-        reverse_sale(sale, request.user, request.POST.get("reason"))
-        messages.success(request, f"{sale.sale_number} reversed. Stock, cash, revenue and COGS effects were removed.")
-    except Exception as error:
+        sale = reverse_invoice(sale_id, request.user, (request.POST.get("reason") or "").strip())
+        messages.success(request, f"{sale.sale_number} reversed. Original stock allocations were returned and accounting removed.")
+    except (ValueError, ArithmeticError) as error:
         messages.error(request, str(error))
-    return redirect("egg_pos_sale_detail", sale_id=sale.id)
+    return redirect("egg_pos_sale_detail", sale_id=sale_id)
 
 
 @login_required

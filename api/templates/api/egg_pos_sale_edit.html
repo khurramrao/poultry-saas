@@ -1,0 +1,120 @@
+{% extends "api/egg_pos_base.html" %}
+{% load humanize %}
+{% block egg_pos_css %}
+<style>
+.ep-edit-wrap{max-width:1050px;margin:0 auto}
+.ep-edit-title{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px}
+.ep-edit-title h2{margin:0;color:#133d63;font-size:24px}
+.ep-edit-note{border:1px solid #cce2f6;background:#f0f8ff;padding:14px 16px;border-radius:14px;color:#245579;font-size:13px;margin-bottom:14px}
+.ep-edit-card{border:1px solid #dbe7f0;background:#fff;border-radius:16px;overflow:hidden;margin-bottom:14px}
+.ep-edit-head{padding:14px 18px;background:#f8fbff;border-bottom:1px solid #e5edf4;font-weight:800;color:#193d60}
+.ep-edit-body{padding:17px}
+.ep-edit-grid{display:grid;grid-template-columns:minmax(160px,2fr) minmax(100px,1fr) minmax(86px,1fr) minmax(115px,1fr) 38px;gap:9px;align-items:end}
+.ep-edit-line{border-bottom:1px dashed #e5eaf0;padding:13px 0}
+.ep-edit-line:last-child{border:0}
+.ep-edit-line label{display:block;font-size:11px;font-weight:800;color:#647990;margin-bottom:5px}
+.ep-edit-line input,.ep-edit-line select,.ep-edit-input{width:100%;border:1px solid #d7e1ec;border-radius:9px;padding:10px;background:#fff;min-height:42px;box-sizing:border-box;font-size:13px;color:#254965}
+.ep-edit-button{border:1px solid #d6e1ee;background:#fff;color:#1e5683;padding:10px 14px;border-radius:10px;font-weight:800;cursor:pointer}
+.ep-edit-button.danger{color:#c03948;border-color:#eec9cc}
+.ep-edit-button.primary{background:#1768bb;color:white;border-color:#1768bb}
+.ep-edit-foot{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:15px}
+.ep-edit-summary{display:grid;grid-template-columns:repeat(3,minmax(110px,1fr));gap:10px;margin-top:12px}
+.ep-edit-stat{padding:12px;background:#f5f9fd;border:1px solid #e0eaf4;border-radius:11px}
+.ep-edit-stat span{display:block;font-size:11px;color:#687f94;margin-bottom:4px}
+.ep-edit-stat strong{font-size:17px;color:#1e4d7c}
+.ep-edit-alert{color:#9e4c22;font-size:12px;margin-top:10px}
+.ep-edit-guard{border:1px solid #f1d9bc;background:#fff8ef;border-radius:12px;padding:14px;margin-top:15px}
+.ep-edit-guard label{display:block;font-weight:800;font-size:12px;margin-bottom:7px}
+@media(max-width:780px){.ep-edit-grid{grid-template-columns:1fr 1fr}.ep-edit-grid>div:first-child{grid-column:1/-1}.ep-edit-grid>div:last-child{align-self:end}.ep-edit-summary{grid-template-columns:1fr 1fr}}
+</style>
+{% endblock %}
+{% block egg_pos_content %}
+<div class="ep-edit-wrap">
+  <div class="ep-edit-title">
+    <div><h2><i class="fa-solid fa-pen-to-square"></i> Edit Invoice {{ sale.sale_number }}</h2><div style="font-size:12px;color:#73869a;margin-top:6px">Admin authorization required · Original sale {{ sale.sale_date|date:"d M Y" }}</div></div>
+    <a class="ep-edit-button" href="{% url 'egg_pos_sale_detail' sale.id %}"><i class="fa-solid fa-arrow-left"></i> Back to invoice</a>
+  </div>
+  <div class="ep-edit-note"><i class="fa-solid fa-circle-info"></i> Adjust quantities, products and selling rates. Removing eggs puts them back into their original FIFO lots. <b>Existing Rs {{ sale.amount_paid|floatformat:2|intcomma }} of payments will not be changed.</b> The edit will be blocked if the revised invoice is smaller than money already received.</div>
+  <form method="post" id="epEditInvoice">
+    {% csrf_token %}
+    <section class="ep-edit-card">
+      <div class="ep-edit-head">Invoice items <span style="float:right;font-weight:500;font-size:12px">Set quantity to 0 to remove a row</span></div>
+      <div class="ep-edit-body">
+        <div id="epEditRows">
+        {% for item in sale.items.all %}
+          <div class="ep-edit-line"><div class="ep-edit-grid">
+            <input type="hidden" name="item_id" value="{{ item.id }}">
+            <div><label>Egg product</label><select name="product_id" required>
+            {% for p in products %}<option value="{{ p.id }}" {% if p.id == item.product_id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+            </select></div>
+            <div><label>Unit</label><select name="sale_unit">{% for value,label in unit_choices %}<option value="{{ value }}" {% if item.edit_sale_unit == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+            <div><label>Quantity</label><input name="unit_count" type="number" min="0" max="100000" step="1" value="{{ item.edit_unit_count }}" required></div>
+            <div><label>Rate (Rs / unit)</label><input name="unit_rate" type="number" min="0.01" step="0.01" value="{{ item.edit_unit_rate }}" required></div>
+            <div><label>Remove</label><button class="ep-edit-button danger" type="button" data-remove-item title="Set quantity to zero"><i class="fa-solid fa-trash"></i></button></div>
+          </div></div>
+        {% endfor %}
+        </div>
+        <button type="button" class="ep-edit-button" id="epAddRow" style="margin-top:12px"><i class="fa-solid fa-plus"></i> Add Product</button>
+      </div>
+    </section>
+    <section class="ep-edit-card"><div class="ep-edit-head">Amounts and authorization</div><div class="ep-edit-body">
+      <div class="ep-edit-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+        <div><label style="display:block;font-size:12px;margin-bottom:6px">Invoice discount (Rs)</label><input class="ep-edit-input" type="number" name="discount_amount" min="0" step="0.01" value="{{ sale.discount_amount }}" required></div>
+        <div><label style="display:block;font-size:12px;margin-bottom:6px">Payment already received (unchanged)</label><input class="ep-edit-input" readonly value="Rs {{ sale.amount_paid|floatformat:2 }}"></div>
+      </div>
+      <div class="ep-edit-summary">
+        <div class="ep-edit-stat"><span>New invoice total (estimate)</span><strong id="epNetPreview">—</strong></div>
+        <div class="ep-edit-stat"><span>Paid (unchanged)</span><strong>Rs {{ sale.amount_paid|floatformat:0|intcomma }}</strong></div>
+        <div class="ep-edit-stat"><span>New outstanding (estimate)</span><strong id="epBalancePreview">—</strong></div>
+      </div>
+      <p class="ep-edit-alert" id="epEditWarning" role="status">Totals are previews. FIFO stock and COGS are recalculated when saved.</p>
+      <div class="ep-edit-guard">
+        <label>Correction reason (saved in audit history)</label>
+        <textarea name="reason" class="ep-edit-input" rows="2" maxlength="255" required placeholder="What was entered incorrectly?"></textarea>
+        <label style="margin-top:12px">Confirm your own admin password</label>
+        <input class="ep-edit-input" type="password" name="admin_password" required autocomplete="current-password" placeholder="Password is not stored">
+      </div>
+      <div class="ep-edit-foot"><span style="font-size:12px;color:#65798d"><i class="fa-solid fa-shield-halved"></i> Staff cannot use this screen.</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="ep-edit-button" href="{% url 'egg_pos_sale_detail' sale.id %}">Cancel</a><button type="submit" id="epSaveEdit" class="ep-edit-button primary"><i class="fa-solid fa-check"></i> Save Invoice Correction</button></div>
+      </div>
+    </div></section>
+  </form>
+</div>
+<template id="epNewRow">
+ <div class="ep-edit-line"><div class="ep-edit-grid">
+   <input type="hidden" name="item_id" value="">
+   <div><label>Egg product</label><select name="product_id" required>{% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+   <div><label>Unit</label><select name="sale_unit">{% for value,label in unit_choices %}<option value="{{ value }}" {% if value == 'tray' %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+   <div><label>Quantity</label><input name="unit_count" type="number" min="0" max="100000" value="1" step="1" required></div>
+   <div><label>Rate (Rs / unit)</label><input name="unit_rate" type="number" min="0.01" step="0.01" value="1" required></div>
+   <div><label>Remove</label><button type="button" data-remove-item class="ep-edit-button danger"><i class="fa-solid fa-trash"></i></button></div>
+ </div></div>
+</template>
+<script>
+(function(){
+ const form=document.getElementById('epEditInvoice'),rows=document.getElementById('epEditRows');
+ const paid=Number('{{ sale.amount_paid }}');
+ const units={egg:1,dozen:12,tray:30,crate:360};
+ const money=n=>'Rs '+(Number.isFinite(n)?n:0).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2});
+ function update(){
+  let subtotal=0,eggs=0;
+  rows.querySelectorAll('.ep-edit-line').forEach(row=>{
+    const count=Number(row.querySelector('[name=unit_count]').value)||0;
+    const rate=Number(row.querySelector('[name=unit_rate]').value)||0;
+    const unit=row.querySelector('[name=sale_unit]').value;
+    subtotal+=count*rate;eggs+=count*(units[unit]||1);
+  });
+  const discount=Number(form.querySelector('[name=discount_amount]').value)||0,net=subtotal-discount;
+  document.getElementById('epNetPreview').textContent=money(net);
+  document.getElementById('epBalancePreview').textContent=money(Math.max(0,net-paid));
+  const invalid=net+0.001<paid || net<=0 || !eggs;
+  document.getElementById('epSaveEdit').disabled=invalid;
+  document.getElementById('epEditWarning').textContent=net+0.001<paid?'New sale total is below payments already received. Please resolve excess payment separately.':(!eggs?'Keep at least one egg item.':'Stock and COGS will be validated before saving.');
+ }
+ document.getElementById('epAddRow').addEventListener('click',()=>{rows.appendChild(document.getElementById('epNewRow').content.cloneNode(true));update();});
+ rows.addEventListener('click',e=>{const b=e.target.closest('[data-remove-item]');if(!b)return;const row=b.closest('.ep-edit-line');if(row.querySelector('[name=item_id]').value){row.querySelector('[name=unit_count]').value='0';row.style.opacity='.5';}else{row.remove();}update();});
+ form.addEventListener('input',update);form.addEventListener('change',update);update();
+ form.addEventListener('submit',e=>{if(!confirm('Apply changes to this invoice and recalculate FIFO stock, COGS and customer balance?'))e.preventDefault();});
+})();
+</script>
+{% endblock %}
