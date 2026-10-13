@@ -70,26 +70,9 @@
 </div>
 <div class="ep-appbar">
   <div class="ep-brand"><div class="ep-brand-icon"><i class="fa-solid fa-egg"></i></div><div><h1>Egg POS</h1><p>Sales, FIFO stock and egg inventory.</p></div></div>
-  {% if request.user.is_superuser or request.user.is_staff %}<a class="ep-admin-back" href="{% url 'dashboard' %}"><i class="fa-solid fa-arrow-left"></i> Farm Dashboard</a>{% endif %}
+
 </div>
-<nav class="ep-nav">
-  <a href="{% url 'egg_pos_dashboard' %}" class="{% if request.resolver_match.url_name == 'egg_pos_dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge-high"></i>Dashboard</a>
-  <a href="{% url 'egg_pos_new_sale' %}" class="sale {% if request.resolver_match.url_name == 'egg_pos_new_sale' %}active{% endif %}"><i class="fa-solid fa-cart-plus"></i>New Sale</a>
-  <a href="{% url 'egg_pos_sales' %}" class="{% if request.resolver_match.url_name == 'egg_pos_sales' or request.resolver_match.url_name == 'egg_pos_sale_detail' %}active{% endif %}"><i class="fa-solid fa-receipt"></i>{% if request.user.is_superuser or request.user.is_staff or request.user.egg_pos_access.can_manage %}Sales{% else %}My Sales{% endif %}</a>
-  <a href="{% url 'egg_pos_customers' %}" class="{% if request.resolver_match.url_name == 'egg_pos_customers' or request.resolver_match.url_name == 'egg_pos_customer_detail' %}active{% endif %}"><i class="fa-solid fa-users"></i>Customers</a>
-  <a href="{% url 'egg_pos_inventory' %}" class="{% if request.resolver_match.url_name == 'egg_pos_inventory' %}active{% endif %}"><i class="fa-solid fa-boxes-stacked"></i>Inventory</a>
-  <a href="{% url 'egg_pos_expenses' %}" class="{% if request.resolver_match.url_name == 'egg_pos_expenses' %}active{% endif %}"><i class="fa-solid fa-gas-pump"></i>Fuel & Expenses</a>
-  <a href="{% url 'egg_pos_commissions' %}" class="{% if request.resolver_match.url_name == 'egg_pos_commissions' %}active{% endif %}"><i class="fa-solid fa-percent"></i>Commission</a>
-  <a href="{% url 'egg_pos_cash_settlements' %}" class="{% if request.resolver_match.url_name == 'egg_pos_cash_settlements' %}active{% endif %}"><i class="fa-solid fa-hand-holding-dollar"></i>{% if request.user.is_superuser or request.user.is_staff or request.user.egg_pos_access.can_manage %}Cash Handover{% else %}My Cash{% endif %}</a>
-  {% if request.user.is_superuser or request.user.is_staff or request.user.egg_pos_access.can_manage %}
-  <a href="{% url 'egg_pos_add_purchase' %}" class="{% if request.resolver_match.url_name == 'egg_pos_add_purchase' or request.resolver_match.url_name == 'egg_pos_purchase_list' %}active{% endif %}"><i class="fa-solid fa-truck-ramp-box"></i>Stock In</a>
-  <a href="{% url 'egg_pos_farm_transfer' %}" class="{% if request.resolver_match.url_name == 'egg_pos_farm_transfer' %}active{% endif %}"><i class="fa-solid fa-arrow-right-arrow-left"></i>Farm Transfer</a>
-  <a href="{% url 'egg_pos_products' %}" class="{% if request.resolver_match.url_name == 'egg_pos_products' %}active{% endif %}"><i class="fa-solid fa-egg"></i>Products</a>
-  <a href="{% url 'egg_pos_suppliers' %}" class="{% if request.resolver_match.url_name == 'egg_pos_suppliers' or request.resolver_match.url_name == 'egg_pos_supplier_detail' %}active{% endif %}"><i class="fa-solid fa-building"></i>Suppliers</a>
-  <a href="{% url 'egg_pos_accounting' %}" class="{% if request.resolver_match.url_name == 'egg_pos_accounting' or request.resolver_match.url_name == 'egg_pos_general_ledger' or request.resolver_match.url_name == 'egg_pos_cashbook' or request.resolver_match.url_name == 'egg_pos_trial_balance' or request.resolver_match.url_name == 'egg_pos_income_statement' or request.resolver_match.url_name == 'egg_pos_party_ledger' or request.resolver_match.url_name == 'egg_pos_owner_capital' %}active{% endif %}"><i class="fa-solid fa-book"></i>Accounts</a>
-  {% endif %}
-  {% if request.user.is_superuser or request.user.is_staff %}<a href="{% url 'egg_pos_staff_access' %}" class="{% if request.resolver_match.url_name == 'egg_pos_staff_access' %}active{% endif %}"><i class="fa-solid fa-user-shield"></i>Staff Access</a>{% endif %}
-</nav>
+{# Egg POS navigation is now directly in the left sidebar; mobile bottom actions remain. #}
 {% block egg_pos_content %}{% endblock %}
 <nav class="ep-mobile-bottom" aria-label="Egg POS mobile navigation">
   {% if request.user.is_superuser or request.user.is_staff or request.user.egg_pos_access.can_manage %}

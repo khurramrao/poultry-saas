@@ -26,7 +26,7 @@
 <section class="inv-product">
   <div class="inv-product-head">
     <div class="inv-product-title"><div class="inv-icon"><i class="fa-solid fa-egg"></i></div><div><div class="inv-name">{{ row.product.name }}</div><div class="inv-meta">{{ row.product.sku }}{% if row.product.weight_grams %} · {{ row.product.weight_grams|floatformat:0 }}g{% endif %}{% if row.low_stock %} · <span style="color:#d97706;font-weight:900">LOW STOCK</span>{% endif %}</div></div></div>
-    <div class="inv-stock"><strong>{{ row.stock|intcomma }}</strong><span>eggs available</span></div>
+    <div class="inv-stock"><strong>{{ row.stock|intcomma }}</strong><span>eggs physically in stock</span></div>
   </div>
   <div class="inv-units">
     <div class="inv-unit"><strong>{{ row.stock|intcomma }}</strong><span>Loose Eggs</span></div>
@@ -34,7 +34,8 @@
     <div class="inv-unit"><strong>{{ row.trays|intcomma }}</strong><span>Full Trays</span></div>
     <div class="inv-unit"><strong>{{ row.crates|intcomma }}</strong><span>Full Crates</span></div>
   </div>
-  <div class="inv-note">Dozen, tray and crate are alternative views of the same stock (12 / 30 / 360 eggs). They are not additional stock.</div>
+  <div class="inv-note">Online orders reserved: <strong>{{ row.online_reserved|intcomma }}</strong> eggs · Available to sell now: <strong>{{ row.free_stock|intcomma }}</strong> eggs. Physical FIFO stock is not deducted until delivery.</div>
+  <div class="inv-note">Dozen, tray and crate are alternative views of the same physical stock (12 / 30 / 360 eggs). They are not additional stock.</div>
   <div class="inv-split">
     <div><small>RayNoor Farm</small><strong>{{ row.farm_stock|intcomma }} eggs</strong></div>
     <div><small>Purchased</small><strong>{{ row.purchase_stock|intcomma }} eggs</strong></div>

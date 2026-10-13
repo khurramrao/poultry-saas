@@ -1,0 +1,52 @@
+{% extends 'api/online_base.html' %}
+{% block page_title %}Track Your Order · RayNoor{% endblock %}
+{% block body %}
+<section class="hero" aria-labelledby="lookup-title">
+  <div class="eyebrow">Guest order tracking · Lahore</div>
+  <h1 id="lookup-title">Track your egg delivery</h1>
+  <p class="lead">No account or SMS required. Enter your order number and the phone number used at checkout to check the current delivery stage.</p>
+</section>
+<div class="cols" style="margin-top:22px">
+  <section class="card" aria-labelledby="lookup-form-heading">
+    <h2 id="lookup-form-heading" style="font-size:21px;margin:0 0 10px">Find an order</h2>
+    <form method="post" action="{% url 'raynoor_order_lookup' %}" autocomplete="off">
+      {% csrf_token %}
+      <div class="field">
+        <label for="online-order-number">Order number</label>
+        <input id="online-order-number" name="order_number" placeholder="RNWEB-000002" maxlength="30" required value="{{ request.POST.order_number|default:'' }}" autocapitalize="characters">
+      </div>
+      <div class="field">
+        <label for="online-order-phone">Checkout mobile number</label>
+        <input id="online-order-phone" type="tel" name="phone" placeholder="03XXXXXXXXX" inputmode="tel" autocomplete="tel" maxlength="20" required>
+        <small>Use the same number you entered when ordering.</small>
+      </div>
+      <button class="button" type="submit">Check Order Status</button>
+    </form>
+    {% if lookup_error %}<div class="alert error" role="alert">{{ lookup_error }}</div>{% endif %}
+    {% if lookup_order %}
+      <div class="tracking-lookup-result" role="status" aria-live="polite">
+        <div class="tracking-banner{% if status_context.is_stopped %} is-stopped{% endif %}">
+          <span class="tracking-banner-icon" aria-hidden="true">{% if status_context.is_stopped %}!{% else %}✓{% endif %}</span>
+          <div><strong>{{ status_context.status_label }}</strong><p>{{ status_context.status_note }}</p></div>
+        </div>
+        <p class="muted small">{{ lookup_order.order_number }} · Updated {{ lookup_order.updated_at|date:'d M Y, g:i A' }} (Pakistan time)</p>
+        {% include 'api/online_order_progress.html' with progress_steps=status_context.progress_steps %}
+        <p class="muted small">For your address, charges, and customer invoice, use the private tracking link shown after checkout.</p>
+      </div>
+    {% endif %}
+  </section>
+  <aside class="card">
+    <h2 style="font-size:21px;margin:0 0 8px">Your recent orders</h2>
+    <p class="muted small">Orders placed or opened on this browser are saved here for convenience. They may disappear if you clear your browser cookies or change devices.</p>
+    {% for recent in recent_orders %}
+      <a href="{% url 'raynoor_order_tracking' token=recent.token %}" class="summary-row" style="align-items:center">
+        <span><b>{{ recent.order_number }}</b><br><span class="muted small">{{ recent.get_status_display }}</span></span>
+        <b aria-hidden="true">→</b>
+      </a>
+    {% empty %}
+      <div class="alert">No recent orders on this browser. Use the order number and phone form.</div>
+    {% endfor %}
+    <a class="button outline" href="{% url 'raynoor_store' %}" style="margin-top:18px">Back to Egg Shop</a>
+  </aside>
+</div>
+{% endblock %}

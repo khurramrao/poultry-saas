@@ -1,0 +1,11 @@
+<div class="tracking-progress" aria-label="Order progress">
+  {% for step in progress_steps %}
+  <div class="tracking-stage is-{{ step.state }}"{% if step.is_current %} aria-current="step"{% endif %}>
+    <span class="tracking-stage-marker" aria-hidden="true">{% if step.state == 'done' %}✓{% else %}{{ step.number }}{% endif %}</span>
+    <span>
+      {% if step.is_current %}<span class="tracking-current-label">Current status</span>{% endif %}
+      {{ step.label }}
+    </span>
+  </div>
+  {% endfor %}
+</div>

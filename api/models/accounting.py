@@ -122,3 +122,36 @@ class JournalLine(models.Model):
     def __str__(self):
         side = self.debit if self.debit else self.credit
         return f"{self.account.code} - {side}"
+
+
+class EggPOSFundsTransfer(models.Model):
+    """Immutable recorded cash/bank move; voids retain an audit trail."""
+    CASH_TO_BANK = 'cash_to_bank'
+    BANK_TO_CASH = 'bank_to_cash'
+    DIRECTION_CHOICES = [
+        (CASH_TO_BANK, 'Main Cash → Bank / Digital'),
+        (BANK_TO_CASH, 'Bank / Digital → Main Cash'),
+    ]
+    transfer_date = models.DateField(default=timezone.localdate)
+    created_at = models.DateTimeField(auto_now_add=True)
+    direction = models.CharField(max_length=20, choices=DIRECTION_CHOICES)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.CharField(max_length=500, blank=True)
+    request_token = models.UUIDField(unique=True, editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='egg_pos_funds_transfers'
+    )
+    is_voided = models.BooleanField(default=False)
+    void_reason = models.CharField(max_length=500, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        related_name='egg_pos_funds_transfers_voided', null=True, blank=True
+    )
+    voided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'FT-{self.pk:06d} {self.get_direction_display()} Rs {self.amount}'

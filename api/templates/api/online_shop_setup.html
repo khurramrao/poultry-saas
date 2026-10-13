@@ -1,0 +1,63 @@
+{% extends 'api/egg_pos_base.html' %}
+{% load humanize %}
+{% block egg_pos_content %}
+<style>
+.shop-setup-hero{background:linear-gradient(115deg,#15533c,#20845b);color:#fff;border-radius:17px;padding:25px;margin:12px 0 16px;display:flex;gap:15px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.shop-setup-hero h2{color:white;margin:0 0 7px;font-size:24px}.shop-setup-hero p{margin:0;color:#e0f5e8;font-size:12px}
+.shop-setup-hero a{background:white;color:#15533c;padding:11px 16px;border-radius:10px;text-decoration:none;font-weight:800;font-size:12px}
+.setup-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0 18px}.setup-metric{background:white;border:1px solid #dfeae3;border-radius:12px;padding:15px}.setup-metric strong{display:block;font-size:25px;color:#155b43}.setup-metric span{font-size:11px;color:#5d7069;font-weight:750}
+.setup-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}.setup-card{background:#fff;border:1px solid #dce6df;border-radius:15px;padding:19px;min-width:0}.setup-card h3{font-size:18px;margin:0 0 6px;color:#174532}.setup-card p{font-size:12px;color:#677c70;line-height:1.6}
+.setup-field{margin:0 0 14px}.setup-errors{padding:12px 25px;color:#a12f2f;background:#fff3f2;border-radius:10px;font-size:12px}.setup-form label{font-size:12px;font-weight:800;display:block;margin-bottom:5px;color:#2c5b46}.setup-form input:not([type=checkbox]),.setup-form select{display:block;box-sizing:border-box;width:100%;min-height:42px;padding:9px 11px;border:1px solid #c9d9ce;border-radius:8px;background:white;font-size:14px}.setup-form input[type=checkbox]{margin-right:8px;transform:scale(1.1)}.setup-form .setup-check{display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px}.setup-form .setup-check input{margin:0}.setup-form .helptext{display:block;font-size:11px;color:#6e8076}.setup-form .errorlist{padding:0;list-style:none;color:#ae3d3d;font-size:12px}
+.setup-actions{display:flex;gap:9px;flex-wrap:wrap}.setup-primary{padding:12px 18px;border:0;background:#22805a;border-radius:10px;color:white;font-weight:850;cursor:pointer}.setup-secondary{padding:10px 14px;border:1px solid #cdded1;border-radius:10px;color:#275a42;text-decoration:none;font-size:13px}.setup-grid{overflow-x:auto}.setup-grid table{width:100%;border-collapse:collapse;font-size:12px;min-width:400px}.setup-grid td,.setup-grid th{padding:10px;border-bottom:1px solid #edf1ed;text-align:left}.setup-grid th{color:#678073;font-size:10px;text-transform:uppercase}.setup-grid a{color:#176b47;font-weight:800}.setup-tag{display:inline-block;border-radius:25px;background:#e3f4e8;color:#136d40;font-size:10px;font-weight:800;padding:4px 8px}.setup-tag.off{background:#f3efeb;color:#8a6757}
+@media(max-width:860px){.setup-columns{grid-template-columns:1fr}.setup-metrics{grid-template-columns:repeat(3,1fr)}}@media(max-width:500px){.setup-metrics{grid-template-columns:1fr}.shop-setup-hero{padding:20px}}
+</style>
+<section class="shop-setup-hero">
+  <div><h2>Online Shop Setup</h2><p>Create egg packs from your existing POS products and choose Lahore delivery areas. No additional stock is created.</p></div>
+  <a href="{% url 'raynoor_store' %}" target="_blank" rel="noopener">Preview Customer Store ↗</a>
+</section>
+<div class="setup-metrics" aria-label="Online shop setup status">
+  <div class="setup-metric"><strong>{{ product_count }}</strong><span>Active Egg POS products</span></div>
+  <div class="setup-metric"><strong>{{ active_offer_count }}</strong><span>Published egg packs</span></div>
+  <div class="setup-metric"><strong>{{ active_zone_count }}</strong><span>Enabled delivery areas</span></div>
+</div>
+{% if not product_count %}<div class="ep-panel" style="padding:13px;margin-bottom:12px"><strong>No active Egg POS products yet.</strong> First add a product under <a href="{% url 'egg_pos_products' %}">Egg POS → Products</a>.</div>{% endif %}
+<div class="setup-columns">
+  <section class="setup-card" id="packs">
+    <h3>{% if edit_offer %}Edit egg pack{% else %}Create an egg pack{% endif %}</h3>
+    <p>Select a real Egg POS product, pack size and retail selling price. Only active packs appear on the customer store. Pack stock comes directly from Egg POS FIFO inventory.</p>
+    <form method="post" class="setup-form">{% csrf_token %}<input type="hidden" name="kind" value="offer"><input type="hidden" name="object_id" value="{{ edit_offer.pk|default:'' }}">
+      {% if offer_form.errors %}<ul class="setup-errors">{% for field, errors in offer_form.errors.items %}{% for error in errors %}<li>{{ field }}: {{ error }}</li>{% endfor %}{% endfor %}</ul>{% endif %}
+      <div class="setup-field"><label for="setup-product">Egg POS product</label><select id="setup-product" name="product" required><option value="">Select a product</option>{% for product in products %}<option value="{{ product.pk }}" {% if product.pk|stringformat:'s' == offer_values.product %}selected{% endif %}>{{ product.name }} ({{ product.sku }}){% if not product.is_active %} — inactive{% endif %}</option>{% endfor %}</select></div>
+      <div class="setup-field"><label for="setup-pack">Retail pack size</label><select id="setup-pack" name="pack_size" required><option value="6" {% if offer_values.pack_size == '6' %}selected{% endif %}>6 eggs</option><option value="12" {% if offer_values.pack_size == '12' %}selected{% endif %}>12 eggs</option><option value="30" {% if offer_values.pack_size == '30' %}selected{% endif %}>30 eggs</option></select></div>
+      <div class="setup-field"><label for="setup-title">Pack title (optional)</label><input id="setup-title" name="title" maxlength="160" value="{{ offer_values.title }}" placeholder="Fresh white eggs · Dozen"></div>
+      <div class="setup-field"><label for="setup-price">Retail price per pack (Rs)</label><input id="setup-price" type="number" name="price_per_pack" min="0.01" step="0.01" value="{{ offer_values.price_per_pack }}" required></div>
+      <div class="setup-field"><label for="setup-order">Display order</label><input id="setup-order" type="number" name="sort_order" min="0" value="{{ offer_values.sort_order }}"></div>
+      <div class="setup-field"><label class="setup-check"><input name="is_active" type="checkbox" {% if offer_values.is_active %}checked{% endif %}> Publish this pack on online store</label></div>
+      <div class="setup-actions"><button class="setup-primary" type="submit">{% if edit_offer %}Save pack changes{% else %}Save egg pack{% endif %}</button>{% if edit_offer %}<a class="setup-secondary" href="{% url 'raynoor_shop_setup' %}#packs">Cancel edit</a>{% endif %}</div>
+    </form>
+    <div class="setup-grid" style="margin-top:18px"><table><thead><tr><th>Retail pack</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
+    {% for offer in offers %}<tr><td><strong>{{ offer.title|default:offer.product.name }}</strong><br><small>{{ offer.pack_size }} eggs · {{ offer.product.name }}</small></td><td>Rs {{ offer.price_per_pack|floatformat:0|intcomma }}</td><td><span class="setup-tag {% if not offer.is_active %}off{% endif %}">{% if offer.is_active %}Active{% else %}Draft{% endif %}</span></td><td><a href="?offer={{ offer.pk }}#packs">Edit</a></td></tr>
+    {% empty %}<tr><td colspan="4">No egg packs configured. Create your first pack above.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+  <section class="setup-card" id="zones">
+    <h3>{% if edit_zone %}Edit Lahore delivery area{% else %}Create delivery area{% endif %}</h3>
+    <p>Enter a Lahore area, the fee charged to customers and any minimum egg order subtotal. You can choose own rider, third party or both.</p>
+    <form method="post" class="setup-form">{% csrf_token %}<input type="hidden" name="kind" value="zone"><input type="hidden" name="object_id" value="{{ edit_zone.pk|default:'' }}">
+      {% if zone_form.errors %}<ul class="setup-errors">{% for field, errors in zone_form.errors.items %}{% for error in errors %}<li>{{ field }}: {{ error }}</li>{% endfor %}{% endfor %}</ul>{% endif %}
+      <div class="setup-field"><label for="setup-zone-name">Lahore area</label><input id="setup-zone-name" name="name" maxlength="100" required placeholder="e.g. Johar Town" value="{{ zone_values.name }}"></div>
+      <div class="setup-field"><label for="setup-zone-fee">Delivery charge to customer (Rs)</label><input id="setup-zone-fee" type="number" name="delivery_fee" min="0" step="0.01" required value="{{ zone_values.delivery_fee }}"></div>
+      <div class="setup-field"><label for="setup-zone-min">Minimum egg subtotal (Rs)</label><input id="setup-zone-min" type="number" name="minimum_order" min="0" step="0.01" value="{{ zone_values.minimum_order }}"></div>
+      <div class="setup-field"><label class="setup-check"><input name="own_rider_allowed" type="checkbox" {% if zone_values.own_rider_allowed %}checked{% endif %}> Our own rider</label></div>
+      <div class="setup-field"><label class="setup-check"><input name="third_party_allowed" type="checkbox" {% if zone_values.third_party_allowed %}checked{% endif %}> Third-party delivery</label></div>
+      <div class="setup-field"><label class="setup-check"><input name="is_active" type="checkbox" {% if zone_values.is_active %}checked{% endif %}> Allow customer checkout in this area</label></div>
+      <div class="setup-actions"><button class="setup-primary" type="submit">{% if edit_zone %}Save area changes{% else %}Save delivery area{% endif %}</button>{% if edit_zone %}<a class="setup-secondary" href="{% url 'raynoor_shop_setup' %}#zones">Cancel edit</a>{% endif %}</div>
+    </form>
+    <div class="setup-grid" style="margin-top:18px"><table><thead><tr><th>Lahore area</th><th>Fee</th><th>Status</th><th></th></tr></thead><tbody>
+    {% for zone in zones %}<tr><td><strong>{{ zone.name }}</strong></td><td>Rs {{ zone.delivery_fee|floatformat:0|intcomma }}</td><td><span class="setup-tag {% if not zone.is_active %}off{% endif %}">{% if zone.is_active %}Active{% else %}Draft{% endif %}</span></td><td><a href="?zone={{ zone.pk }}#zones">Edit</a></td></tr>
+    {% empty %}<tr><td colspan="4">No delivery areas configured yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </section>
+</div>
+<div class="ep-panel" style="padding:17px;margin-bottom:20px"><strong>Before opening the online shop:</strong> Add at least one active egg pack and delivery zone, confirm POS stock, then test guest checkout and cancellation locally. Prices and delivery fees entered here are applied to new orders; previous orders keep their recorded values.</div>
+{% endblock %}

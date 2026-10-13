@@ -39,3 +39,7 @@ from .egg_pos import (
     EggPOSCommissionPayment,
     EggPOSOwnerCapitalTransaction,
 )
+
+# Online retail customers are intentionally separate from staff and wholesale customers.
+from .online_shop import OnlineRetailAccount, OnlineOffer, OnlineDeliveryZone, OnlineOrder, OnlineOrderItem, OnlineOrderEvent
+from .accounting import EggPOSFundsTransfer

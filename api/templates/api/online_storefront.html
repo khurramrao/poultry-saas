@@ -1,0 +1,32 @@
+{% extends 'api/online_base.html' %}{% load humanize %}
+{% block page_title %}Fresh Eggs in Lahore · RayNoor Organic Farms{% endblock %}
+{% block body %}
+<section class="hero" aria-labelledby="store-title">
+  <div class="eyebrow">From RayNoor farms · Lahore delivery</div>
+  <h1 id="store-title">Farm-fresh eggs, delivered to your door.</h1>
+  <p class="lead">Order your preferred egg pack in minutes. Guest checkout is welcome—no account or SMS verification required.</p>
+  <div class="hero-actions"><a class="button" href="#shop-products">Shop eggs <span aria-hidden="true">→</span></a><a class="button outline" href="{% url 'raynoor_cart' %}">View cart{% if cart_count %} ({{ cart_count }}){% endif %}</a></div>
+  <div class="hero-chips"><span class="chip">✓ Lahore only</span><span class="chip">✓ Secure packing</span><span class="chip">✓ Cash on delivery</span></div>
+  <p class="small" style="margin:20px 0 0;color:#486859">Already placed an order? <a class="muted-link" href="{% url 'raynoor_order_lookup' %}">Track your delivery without signing in →</a></p>
+</section>
+{% if not zones_active %}<div class="notice" role="status">Lahore delivery zones are being configured. You can browse the store, but checkout will become available after delivery areas and charges are activated.</div>{% endif %}
+<section class="shop-section" id="shop-products" aria-labelledby="shop-heading">
+  <div class="section-heading"><h2 id="shop-heading">Shop fresh eggs</h2><span class="muted">Prices and availability update from our Egg POS.</span></div>
+  <div class="cards">
+  {% for row in products %}
+    <article class="card"><div class="egg-art" role="img" aria-label="Fresh chicken eggs">🥚</div>
+      <h3>{{ row.offer.title|default:row.offer.product.name }}</h3>
+      <p class="muted small">{{ row.offer.pack_size }} eggs per pack · {{ row.offer.product.name }}</p>
+      <div class="line" style="margin:18px 0"><span class="price num">Rs {{ row.offer.price_per_pack|floatformat:0|intcomma }}</span>{% if row.stock_packs %}<span class="tag">In stock</span>{% else %}<span class="disabled-note">Out of stock</span>{% endif %}</div>
+      <form method="post" action="{% url 'raynoor_cart_update' %}">{% csrf_token %}
+        <input type="hidden" name="offer_id" value="{{ row.offer.id }}">
+        <div class="field"><label for="pack-{{ row.offer.id }}">Packs</label><input id="pack-{{ row.offer.id }}" type="number" name="count" min="1" max="{{ row.stock_packs }}" value="1" {% if not row.stock_packs %}disabled{% endif %}></div>
+        <button class="button" style="width:100%" {% if not row.stock_packs %}disabled{% endif %}><span aria-hidden="true">🛒</span> Add to cart</button>
+      </form>
+    </article>
+  {% empty %}
+    <div class="card empty-state"><div class="egg-art" aria-hidden="true">🥚</div><h3>Fresh egg packs are being prepared</h3><p class="muted">We're confirming today's retail pack prices and Lahore delivery availability. Please return shortly.</p><div style="display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:18px"><a class="button outline" href="/">Back to Home</a><a class="button alt" href="{% url 'raynoor_cart' %}">View Cart</a></div></div>
+  {% endfor %}
+  </div>
+</section>
+{% endblock %}

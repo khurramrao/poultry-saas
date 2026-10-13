@@ -23,6 +23,7 @@ ACCOUNT_SPECS = {
     "2040": ("Owner Loan Payable", "liability", "credit"),
     "3000": ("Owner Capital / Equity", "equity", "credit"),
     "4000": ("Egg Sales", "revenue", "credit"),
+    "4010": ("Online Delivery Income", "revenue", "credit"),
     "5000": ("Egg Cost of Goods Sold", "cogs", "debit"),
     "6100": ("Fuel Expense", "expense", "debit"),
     "6110": ("Delivery / Rider Expense", "expense", "debit"),

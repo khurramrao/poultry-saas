@@ -93,6 +93,8 @@ def _allocate_extra(item, qty, sale_date):
 @transaction.atomic
 def edit_invoice(sale_id, actor, posted_rows, discount, reason):
     sale = EggPOSSale.objects.select_for_update().get(pk=sale_id)
+    if hasattr(sale, 'online_order'):
+        raise ValueError('Online orders must be corrected through Online Order Management to keep COD and delivery totals in sync.')
     if sale.is_reversed:
         raise ValueError("Restore this reversed invoice before editing it.")
     if not reason.strip():
@@ -213,6 +215,8 @@ def edit_invoice(sale_id, actor, posted_rows, discount, reason):
 @transaction.atomic
 def reverse_invoice(sale_id, actor, reason):
     sale = EggPOSSale.objects.select_for_update().get(pk=sale_id)
+    if hasattr(sale, 'online_order'):
+        raise ValueError('Online orders must be corrected through Online Order Management.')
     if sale.is_reversed:
         raise ValueError("This invoice is already reversed.")
     for item in sale.items.all():
@@ -236,6 +240,8 @@ def reverse_invoice(sale_id, actor, reason):
 def restore_invoice(sale_id, actor, reason):
     """Undo a mistaken reversal, using the ORIGINAL lot allocations and payments."""
     sale = EggPOSSale.objects.select_for_update().get(pk=sale_id)
+    if hasattr(sale, 'online_order'):
+        raise ValueError('Online orders must be corrected through Online Order Management to keep COD and delivery totals in sync.')
     if not sale.is_reversed:
         raise ValueError("Only a reversed invoice can be restored.")
     if not reason.strip():

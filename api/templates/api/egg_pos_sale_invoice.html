@@ -673,6 +673,11 @@
             <div class="invoice-number">
                 {{ sale.sale_number }}
             </div>
+            {% if sale.online_order %}
+            <div style="margin-top:9px;font-size:12px;color:#526e62;font-weight:700">
+                Online order reference: {{ sale.online_order.order_number }}
+            </div>
+            {% endif %}
 
         </div>
 
@@ -893,6 +898,10 @@
 
             </div>
 
+
+            {% if sale.online_order %}
+            <div class="summary-row"><span>Online delivery charge</span><strong>Rs {{ sale.online_order.delivery_fee|floatformat:2 }}</strong></div>
+            {% endif %}
 
             <div class="summary-row grand-total">
 

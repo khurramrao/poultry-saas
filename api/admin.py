@@ -497,3 +497,6 @@ class EggPOSOwnerCapitalTransactionAdmin(admin.ModelAdmin):
     list_filter = ("transaction_type", "cash_account", "transaction_date")
     search_fields = ("reference", "notes", "recorded_by__username")
     ordering = ("-transaction_date", "-id")
+
+# Management screens for retail price packs and Lahore delivery zones.
+from api import online_admin  # noqa: F401,E402

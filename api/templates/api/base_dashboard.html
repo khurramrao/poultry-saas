@@ -128,6 +128,39 @@
             font-size: 11px;
         }
 
+        /* Context-specific menus show links directly, without nested dropdowns. */
+        .sidebar-section-label {
+            margin: 15px 12px 3px;
+            color: #a6c8e7;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+        }
+        .sidebar-nav .sidebar-home-link {
+            background: rgba(255,255,255,.07);
+            border: 1px solid rgba(255,255,255,.12);
+        }
+        .sidebar-nav .sidebar-home-link:hover {
+            background: rgba(255,255,255,.15);
+        }
+        .sidebar-nav .sidebar-context-title {
+            color: #f3fbff;
+            font-size: 16px;
+            font-weight: 900;
+            padding: 9px 13px;
+        }
+        @media (max-width: 850px) {
+            .sidebar-section-label {
+                grid-column: 1 / -1;
+                margin: 9px 5px 0;
+            }
+            .sidebar-nav .sidebar-context-title {
+                grid-column: 1 / -1;
+                padding: 7px 5px;
+            }
+        }
+
         .sidebar-divider {
             height: 1px;
             margin: 10px 4px;
@@ -576,6 +609,13 @@
         </div>
 
         <nav class="sidebar-nav" id="sidebarNav">
+            {# Plain context navigation: no accordion and no duplicated POS/Egg Management tabs. #}
+            {% if '/egg-pos/' in request.path %}
+                {% include 'api/includes/egg_pos_sidebar_nav.html' %}
+            {% elif '/eggs/' in request.path %}
+                {% include 'api/includes/egg_management_sidebar_nav.html' %}
+            {% else %}
+
 
             {# ========================================================= #}
             {# ADMIN / POULTRY INVESTOR NAVIGATION                       #}
@@ -746,6 +786,7 @@
 
             {% endif %}
 
+            {% endif %}
         </nav>
 
     </aside>

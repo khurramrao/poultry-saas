@@ -1,0 +1,31 @@
+{# Egg POS context: show direct links only. Main farm menus stay on the main Dashboard. #}
+{% with page=request.resolver_match.url_name %}
+{% if request.user.is_superuser or request.user.is_staff %}
+<a class="sidebar-home-link" href="{% url 'dashboard' %}"><i class="fa-solid fa-arrow-left"></i><span>Main Dashboard</span></a>
+{% endif %}
+<div class="sidebar-context-title"><i class="fa-solid fa-cash-register"></i>&nbsp; Egg POS</div>
+<a href="{% url 'egg_pos_dashboard' %}" class="{% if page == 'egg_pos_dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge-high"></i><span>POS Dashboard</span></a>
+<a href="{% url 'egg_pos_new_sale' %}" class="{% if page == 'egg_pos_new_sale' %}active{% endif %}"><i class="fa-solid fa-cart-plus"></i><span>New Sale</span></a>
+<a href="{% url 'egg_pos_sales' %}" class="{% if page == 'egg_pos_sales' or page == 'egg_pos_sale_detail' or page == 'egg_pos_sale_invoice' or page == 'egg_pos_edit_sale' or page == 'egg_pos_restore_sale' %}active{% endif %}"><i class="fa-solid fa-receipt"></i><span>{% if request.user.is_superuser or request.user.is_staff or request.user.egg_pos_access.can_manage %}Sales & Invoices{% else %}My Sales{% endif %}</span></a>
+<a href="{% url 'egg_pos_customers' %}" class="{% if page == 'egg_pos_customers' or page == 'egg_pos_customer_detail' or page == 'egg_pos_add_customer' %}active{% endif %}"><i class="fa-solid fa-users"></i><span>Customers</span></a>
+<a href="{% url 'egg_pos_inventory' %}" class="{% if page == 'egg_pos_inventory' %}active{% endif %}"><i class="fa-solid fa-boxes-stacked"></i><span>Inventory</span></a>
+<a href="{% url 'egg_pos_expenses' %}" class="{% if page == 'egg_pos_expenses' %}active{% endif %}"><i class="fa-solid fa-gas-pump"></i><span>Fuel & Expenses</span></a>
+<a href="{% url 'egg_pos_commissions' %}" class="{% if page == 'egg_pos_commissions' %}active{% endif %}"><i class="fa-solid fa-percent"></i><span>Commission</span></a>
+<a href="{% url 'egg_pos_cash_settlements' %}" class="{% if page == 'egg_pos_cash_settlements' %}active{% endif %}"><i class="fa-solid fa-hand-holding-dollar"></i><span>{% if request.user.is_superuser or request.user.is_staff or request.user.egg_pos_access.can_manage %}Cash Handover{% else %}My Cash{% endif %}</span></a>
+{% if request.user.is_superuser or request.user.is_staff %}
+<div class="sidebar-section-label">Online Shop</div>
+<a href="{% url 'raynoor_admin_orders' %}" class="{% if page == 'raynoor_admin_orders' or page == 'raynoor_admin_order_detail' or page == 'raynoor_admin_order_action' %}active{% endif %}"><i class="fa-solid fa-globe"></i><span>Online Orders</span></a>
+{% if request.user.is_superuser %}<a href="{% url 'raynoor_shop_setup' %}" class="{% if page == 'raynoor_shop_setup' %}active{% endif %}"><i class="fa-solid fa-store"></i><span>Shop Setup</span></a>{% endif %}
+{% endif %}
+{% if request.user.is_superuser or request.user.is_staff or request.user.egg_pos_access.can_manage %}
+<div class="sidebar-section-label">Stock & Finance</div>
+<a href="{% url 'egg_pos_add_purchase' %}" class="{% if page == 'egg_pos_add_purchase' or page == 'egg_pos_purchase_list' or page == 'egg_pos_edit_purchase' %}active{% endif %}"><i class="fa-solid fa-truck-ramp-box"></i><span>Stock In / Purchases</span></a>
+<a href="{% url 'egg_pos_farm_transfer' %}" class="{% if page == 'egg_pos_farm_transfer' or page == 'egg_pos_farm_transfer_detail' or page == 'egg_pos_edit_farm_transfer' %}active{% endif %}"><i class="fa-solid fa-arrow-right-arrow-left"></i><span>Farm Transfers</span></a>
+<a href="{% url 'egg_pos_products' %}" class="{% if page == 'egg_pos_products' %}active{% endif %}"><i class="fa-solid fa-egg"></i><span>Products</span></a>
+<a href="{% url 'egg_pos_suppliers' %}" class="{% if page == 'egg_pos_suppliers' or page == 'egg_pos_supplier_detail' %}active{% endif %}"><i class="fa-solid fa-building"></i><span>Suppliers</span></a>
+<a href="{% url 'egg_pos_accounting' %}" class="{% if page == 'egg_pos_accounting' or page == 'egg_pos_general_ledger' or page == 'egg_pos_cashbook' or page == 'egg_pos_trial_balance' or page == 'egg_pos_income_statement' or page == 'egg_pos_party_ledger' or page == 'egg_pos_owner_capital' or page == 'egg_pos_transfer_funds' %}active{% endif %}"><i class="fa-solid fa-book"></i><span>Accounts & Transfers</span></a>
+{% endif %}
+{% if request.user.is_superuser or request.user.is_staff %}
+<a href="{% url 'egg_pos_staff_access' %}" class="{% if page == 'egg_pos_staff_access' %}active{% endif %}"><i class="fa-solid fa-user-shield"></i><span>Staff Access</span></a>
+{% endif %}
+{% endwith %}

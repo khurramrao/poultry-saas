@@ -1,0 +1,52 @@
+{% extends 'api/egg_pos_base.html' %}{% load humanize %}
+{% block egg_pos_css %}
+<style>
+.ft-page{max-width:1150px;margin:0 auto}.ft-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.ft-head h2{color:#123e62;font-size:22px;margin:0}.ft-muted{color:#63788b;font-size:12px;line-height:1.6}.ft-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:14px 0}
+.ft-card{padding:19px;border:1px solid #dce6ef;border-radius:15px;background:#fff}.ft-card .num{font-weight:900;color:#143b5f;font-size:26px;margin-top:6px}
+.ft-card span{font-size:11px;font-weight:800;color:#70859a;text-transform:uppercase}.ft-panel{background:#fff;border:1px solid #dee7ee;border-radius:16px;padding:20px;margin-bottom:15px}
+.ft-panel h3{font-size:16px;color:#183d5d;margin:0 0 6px}.ft-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:14px}
+.ft-field label{display:block;font-size:11px;font-weight:800;color:#38536b;margin-bottom:6px}.ft-field input,.ft-field select,.ft-field textarea{width:100%;box-sizing:border-box;border:1px solid #cfdae4;border-radius:9px;background:#fff;padding:12px;color:#193b56;font-size:14px}
+.ft-field input:focus,.ft-field select:focus{outline:2px solid #aeddd1}.ft-full{grid-column:1/-1}.ft-actions{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:16px}
+.ft-primary{border:0;background:#138659;color:#fff;padding:13px 20px;border-radius:10px;font-weight:800;cursor:pointer}.ft-outline{display:inline-block;text-decoration:none;color:#28516b;border:1px solid #ccdbe4;background:white;padding:12px 16px;border-radius:10px;font-weight:700}
+.ft-scroller{overflow-x:auto}.ft-table{width:100%;border-collapse:collapse;min-width:710px}.ft-table th,.ft-table td{font-size:12px;padding:12px;text-align:left;border-bottom:1px solid #e7edf1}.ft-table th{font-size:10px;color:#6c8091;text-transform:uppercase;background:#f6f9fb}.ft-table td strong{color:#193e60}
+.ft-void{border:1px solid #d69393;background:#fffafa;padding:10px;border-radius:9px}.ft-void input{max-width:150px;border:1px solid #d9c2c2;padding:8px;border-radius:6px;margin:3px}.ft-void button{border:0;border-radius:6px;background:#ad3540;color:#fff;font-weight:700;padding:9px;cursor:pointer}
+.ft-notice{padding:12px;border-radius:10px;background:#edf7f2;color:#27624e;font-size:12px;line-height:1.5;margin-top:13px}.ft-voided{color:#a34444;font-weight:800}.ft-active{color:#168257;font-weight:800}
+@media(max-width:620px){.ft-grid,.ft-form{grid-template-columns:1fr}.ft-page{padding:0 4px}.ft-card .num{font-size:23px}}
+</style>
+{% endblock %}
+{% block egg_pos_content %}
+<div class="ft-page">
+  <div class="ft-head"><div><h2><i class="fa-solid fa-money-bill-transfer"></i> Transfer Funds</h2><p class="ft-muted">Move existing Egg POS money between Main Cash and Bank / Digital without creating income or expenses.</p></div><a class="ft-outline" href="{% url 'egg_pos_accounting' %}">← Accounts Dashboard</a></div>
+  <div class="ft-grid">
+    <div class="ft-card"><span>Main Cash</span><div class="num">Rs {{ main_cash|floatformat:2|intcomma }}</div></div>
+    <div class="ft-card"><span>Bank / Digital</span><div class="num">Rs {{ bank|floatformat:2|intcomma }}</div></div>
+  </div>
+  <div class="ft-panel">
+    <h3>Record a confirmed transfer</h3>
+    <p class="ft-muted">Record this only when the deposit or withdrawal has actually happened. If the bank has not received it yet, wait until the amount clears.</p>
+    <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="create"><input type="hidden" name="request_token" value="{{ request_token }}">
+      <div class="ft-form">
+        <div class="ft-field"><label for="ft-direction">From → To</label><select name="direction" id="ft-direction" required><option value="cash_to_bank">Main Cash → Bank / Digital</option><option value="bank_to_cash">Bank / Digital → Main Cash</option></select></div>
+        <div class="ft-field"><label>Amount (Rs)</label><input name="amount" type="number" step="0.01" min="0.01" required placeholder="e.g. 3000.00"></div>
+        <div class="ft-field"><label>Transfer date</label><input type="date" value="{{ today|date:'Y-m-d' }}" disabled><small class="ft-muted">Today's date; actual recording time is saved automatically.</small></div>
+        <div class="ft-field"><label>Deposit slip / Bank reference (optional)</label><input name="reference" maxlength="120" placeholder="Deposit / withdrawal reference"></div>
+        <div class="ft-field ft-full"><label>Notes (optional)</label><input name="notes" maxlength="500" placeholder="Which bank, deposited by whom, purpose"></div>
+        <div class="ft-field ft-full"><label>Confirm your admin password</label><input type="password" name="admin_password" required autocomplete="current-password" placeholder="Required for every transfer"></div>
+      </div>
+      <div class="ft-actions"><button type="submit" class="ft-primary" onclick="return confirm('Confirm that this money has actually moved between your company cash and bank?')">Record Transfer</button></div>
+    </form>
+    <div class="ft-notice">No sales, profit, COGS, owner capital or purchase capacity changes. Moving staff cash directly to bank? Use <a href="{% url 'egg_pos_cash_settlements' %}">Cash Handover</a> (destination Bank) to prevent double entry.</div>
+  </div>
+  <div class="ft-panel"><h3>Transfer History</h3><p class="ft-muted">The original entries stay visible for audit. Incorrect transfers can be voided only when sufficient funds remain in the receiving account.</p>
+    <div class="ft-scroller"><table class="ft-table"><thead><tr><th>Date / Time</th><th>Reference</th><th>Direction</th><th>Amount</th><th>Recorded By</th><th>Status / Correction</th></tr></thead><tbody>
+    {% for t in transfers %}
+      <tr><td>{{ t.created_at|date:'d M Y · h:i A' }}</td><td><strong>FT-{{ t.pk|stringformat:'06d' }}</strong>{% if t.reference %}<div>{{ t.reference }}</div>{% endif %}{% if t.notes %}<div class="ft-muted">{{ t.notes }}</div>{% endif %}</td><td>{{ t.get_direction_display }}</td><td><strong>Rs {{ t.amount|floatformat:2|intcomma }}</strong></td><td>{{ t.created_by.get_username }}</td><td>
+        {% if t.is_voided %}<span class="ft-voided">Voided</span><div class="ft-muted">{{ t.void_reason }} · {{ t.voided_at|date:'d M Y, h:i A' }}</div>
+        {% else %}<span class="ft-active">Completed</span><details><summary style="cursor:pointer;color:#9a4646;margin-top:7px">Void this transfer</summary><form method="post" class="ft-void">{% csrf_token %}<input type="hidden" name="action" value="void"><input type="hidden" name="transfer_id" value="{{ t.id }}"><input name="void_reason" maxlength="500" minlength="5" placeholder="Reason (required)" required aria-label="Reason"><input name="admin_password" type="password" autocomplete="current-password" placeholder="Admin password" required aria-label="Admin password"><button type="submit" onclick="return confirm('Void this transfer and reverse the cash/bank ledger movement?')">Confirm Void</button></form></details>{% endif %}
+      </td></tr>
+    {% empty %}<tr><td colspan="6" class="ft-muted">No cash/bank transfers recorded yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+</div>
+{% endblock %}

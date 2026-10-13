@@ -1,0 +1,19 @@
+{% extends 'api/online_base.html' %}{% load humanize %}{% block page_title %}Checkout · RayNoor Organic Farms{% endblock %}{% block body %}<div class="breadcrumbs"><a href="{% url 'raynoor_cart' %}">Cart</a> / Checkout</div><h1>Checkout</h1><p class="lead">Guest checkout is welcome. We'll confirm your order before preparing it for delivery.</p><div class="cols"><div class="card"><form method="post">{% csrf_token %}<div class="field"><label for="name">Full name</label><input id="name" name="name" value="{% if account %}{{ account.name }}{% else %}{{ request.POST.name|default:'' }}{% endif %}" maxlength="120" autocomplete="name" required></div><div class="field"><label for="phone">Mobile phone</label><input id="phone" name="phone" value="{% if account %}{{ account.phone }}{% else %}{{ request.POST.phone|default:'' }}{% endif %}" autocomplete="tel" placeholder="03XX XXXXXXX" required></div><div class="field"><label for="zone">Delivery area (Lahore only)</label><select id="zone" name="zone_id" required><option value="">Choose your area</option>{% for zone in zones %}<option value="{{ zone.pk }}" data-fee="{{ zone.delivery_fee }}" data-min="{{ zone.minimum_order }}" {% if request.POST.zone_id == zone.pk|stringformat:'s' %}selected{% endif %}>{{ zone.name }} — Rs {{ zone.delivery_fee|floatformat:0 }} delivery</option>{% endfor %}</select></div><div class="field"><label for="addr">Complete Lahore address</label><textarea id="addr" name="address" rows="3" maxlength="500" placeholder="House, street, block, area and landmark" required>{{ request.POST.address|default:'' }}</textarea></div><div class="field"><label for="note">Order note (optional)</label><textarea id="note" name="note" maxlength="500" rows="2" placeholder="Delivery instructions">{{ request.POST.note|default:'' }}</textarea></div><div class="alert"><b>Payment method: Cash on delivery</b><br><span class="small">No online payment or SMS OTP needed for this launch.</span></div>{% if zones %}<button class="button" style="width:100%">Place order →</button>{% else %}<button class="button" disabled style="width:100%">Delivery setup pending</button>{% endif %}</form></div><div class="card"><h3>Your order</h3>{% for row in rows %}<div class="summary-row"><span>{{ row.count }} × {{ row.offer.title|default:row.offer.product.name }} ({{ row.offer.pack_size }} eggs)</span><b>Rs {{ row.amount|floatformat:0|intcomma }}</b></div>{% endfor %}<div class="summary-row"><b>Eggs subtotal</b><b>Rs {{ subtotal|floatformat:0|intcomma }}</b></div><div class="summary-row"><span>Delivery</span><span id="feePreview">Choose an area</span></div><div class="summary-row"><b>Total COD</b><b id="totalPreview">Choose an area</b></div><p id="minimumPreview" class="disabled-note" aria-live="polite"></p><p class="muted small">Final amount is checked again on the server. Stock is reserved for 20 minutes while we confirm.</p><p class="muted small">Only guests and retail customers can checkout here. Wholesale pricing stays in the protected Egg POS.</p></div></div><script>
+(function () {
+  const select=document.getElementById('zone');
+  if(!select) return;
+  const sub=Number('{{ subtotal }}');
+  function refresh(){
+    const option=select.selectedOptions[0];
+    const fee=Number(option?.dataset.fee);
+    const min=Number(option?.dataset.min);
+    const ready=Boolean(option?.value);
+    const fmt=x=>'Rs '+x.toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:2});
+    document.getElementById('feePreview').textContent=ready?fmt(fee):'Choose an area';
+    document.getElementById('totalPreview').textContent=ready?fmt(sub+fee):'Choose an area';
+    document.getElementById('minimumPreview').textContent=ready&&sub<min?'Minimum eggs order in this area: '+fmt(min):'';
+  }
+  select.addEventListener('change', refresh); refresh();
+}());
+</script>
+{% endblock %}

@@ -1393,8 +1393,18 @@
                 font-size: 8px;
             }
 
-            .nav-actions .btn-light {
+            .nav-actions .btn-light:not(.shop-entry) {
                 display: none;
+            }
+
+            .nav-actions {
+                gap: 6px;
+            }
+
+            .nav-actions .shop-entry {
+                white-space: nowrap;
+                padding-left: 10px;
+                padding-right: 10px;
             }
 
             .nav-actions .btn {
@@ -1571,6 +1581,10 @@
             </nav>
 
             <div class="nav-actions">
+
+                <a href="{% url 'raynoor_store' %}" class="btn btn-light shop-entry" aria-label="Shop fresh eggs online in Lahore">
+                    <i class="fa-solid fa-basket-shopping" aria-hidden="true"></i> Shop Eggs
+                </a>
 
                 {% if user.is_authenticated %}
 

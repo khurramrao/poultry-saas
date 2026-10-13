@@ -1,0 +1,22 @@
+{% extends 'api/online_base.html' %}{% load humanize %}
+{% block page_title %}Your Shopping Cart · RayNoor Organic Farms{% endblock %}
+{% block body %}
+<div class="breadcrumbs"><a href="{% url 'raynoor_store' %}">Shop eggs</a> / Your cart</div>
+<h1>Your shopping cart</h1>
+{% if rows %}
+<div class="cols">
+  <section class="card" aria-label="Cart items">
+    {% for row in rows %}<div class="row-item">
+      <div class="egg-art" aria-hidden="true">🥚</div>
+      <div class="grow"><h3>{{ row.offer.title|default:row.offer.product.name }}</h3><p class="muted small">{{ row.eggs }} eggs · {{ row.count }} pack(s) of {{ row.offer.pack_size }}</p>
+        <form method="post" action="{% url 'raynoor_cart_update' %}" class="line" style="justify-content:flex-start;flex-wrap:wrap">{% csrf_token %}<input type="hidden" name="offer_id" value="{{ row.offer.id }}"><label class="small" for="quantity-{{ row.offer.id }}">Packs</label><input id="quantity-{{ row.offer.id }}" type="number" name="count" min="0" max="24" value="{{ row.count }}" style="width:74px;border:1px solid #d1dfd4;border-radius:8px;padding:8px"><button class="button alt" type="submit">Update cart</button></form>
+      </div><b class="num">Rs {{ row.amount|floatformat:0|intcomma }}</b>
+    </div>{% endfor %}
+    <a class="muted-link" href="{% url 'raynoor_store' %}">← Continue shopping</a>
+  </section>
+  <aside class="card"><h3>Order summary</h3><div class="summary-row"><span>Eggs subtotal</span><b>Rs {{ subtotal|floatformat:0|intcomma }}</b></div><div class="summary-row"><span>Delivery</span><span>Calculated at checkout</span></div><p class="muted small">Delivery is available in configured Lahore areas only. Pay on delivery.</p><a class="button" style="width:100%" href="{% url 'raynoor_checkout' %}">Proceed to checkout <span aria-hidden="true">→</span></a></aside>
+</div>
+{% else %}
+<div class="card empty-state"><div class="egg-art" aria-hidden="true">🛒</div><h3>Your cart is empty</h3><p class="muted">Choose a pack of farm-fresh eggs to get started.</p><a class="button" href="{% url 'raynoor_store' %}">Shop fresh eggs <span aria-hidden="true">→</span></a></div>
+{% endif %}
+{% endblock %}

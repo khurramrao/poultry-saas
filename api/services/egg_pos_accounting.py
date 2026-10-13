@@ -180,6 +180,20 @@ def sync_farm_transfer_payment(payment):
 
 def sync_sale_invoice(sale):
     customer_party = _customer_party(sale)
+    # Egg portion and online delivery charge are separate revenue accounts.
+    online = getattr(sale, 'online_order', None)
+    delivery_fee = money(online.delivery_fee) if online is not None else ZERO
+    egg_revenue = money(sale.net_total - delivery_fee)
+    lines = [
+        line("1100", debit=sale.net_total, description="Customer invoice", **customer_party),
+        line("4000", credit=egg_revenue, description="Egg sales revenue"),
+    ]
+    if delivery_fee > ZERO:
+        lines.append(line("4010", credit=delivery_fee, description="Online delivery charge"))
+    lines.extend([
+        line("5000", debit=sale.cogs_total, description="FIFO egg cost of goods sold"),
+        line("1200", credit=sale.cogs_total, description="FIFO inventory consumed"),
+    ])
     return post_entry(
         source_key=f"egg_pos:sale:{sale.id}",
         entry_date=sale.sale_date,
@@ -188,12 +202,7 @@ def sync_sale_invoice(sale):
         source_type="egg_pos_sale",
         source_id=sale.id,
         created_by=sale.created_by,
-        lines=[
-            line("1100", debit=sale.net_total, description="Customer invoice", **customer_party),
-            line("4000", credit=sale.net_total, description="Egg sales revenue"),
-            line("5000", debit=sale.cogs_total, description="FIFO egg cost of goods sold"),
-            line("1200", credit=sale.cogs_total, description="FIFO inventory consumed"),
-        ],
+        lines=lines,
     )
 
 

@@ -1,0 +1,68 @@
+{% extends 'api/online_base.html' %}{% load humanize %}
+{% block page_title %}Track {{ order.order_number }} · RayNoor{% endblock %}
+{% block body %}
+<section class="hero" aria-labelledby="tracking-title">
+  <div class="eyebrow">Your RayNoor order</div>
+  <h1 id="tracking-title">{{ order.order_number }}</h1>
+  <p class="lead">Thank you, {{ order.customer_name }}. Track your delivery here even without a customer account.</p>
+  <div class="tracking-banner{% if is_stopped %} is-stopped{% endif %}" role="status" aria-live="polite">
+    <span class="tracking-banner-icon" aria-hidden="true">{% if is_stopped %}!{% else %}✓{% endif %}</span>
+    <div><strong>{{ status_label }}</strong><p>{{ status_note }}</p></div>
+  </div>
+  <p class="muted small" style="margin:12px 0 0">Last updated: {{ order.updated_at|date:'d M Y, g:i A' }} (Pakistan time) · <a class="muted-link" href="{% url 'raynoor_order_tracking' token=order.token %}">Refresh status ↻</a></p>
+</section>
+
+<section class="tracking-save" aria-labelledby="save-tracking-heading">
+  <h2 id="save-tracking-heading">Save your private tracking link</h2>
+  <p>No login or OTP is needed. Copy this link to WhatsApp, your notes, or bookmarks so you can return whenever you want.</p>
+  <div class="tracking-url">
+    <input id="raynoor-tracking-link" readonly value="{{ tracking_link }}" aria-label="Your private tracking URL" onclick="this.select()">
+    <button id="raynoor-copy-tracking" type="button" class="button">Copy Tracking Link</button>
+  </div>
+  <p id="raynoor-copy-feedback" class="small" role="status" aria-live="polite" style="margin:8px 0 0"></p>
+  <p class="small" style="margin:9px 0 0">Lost this link? You can still check the order stage using your <a class="muted-link" href="{% url 'raynoor_order_lookup' %}">order number and checkout phone</a>. The lookup only shows status, not your address or invoice.</p>
+</section>
+
+<div class="cols">
+  <section class="card" aria-labelledby="progress-heading">
+    <h2 id="progress-heading" style="font-size:21px;margin:0 0 8px">Delivery progress</h2>
+    {% include 'api/online_order_progress.html' %}
+    {% if is_stopped %}<div class="notice">This order is no longer progressing. Contact RayNoor before placing another order.</div>{% endif %}
+    <p class="muted small" style="margin:14px 0 7px">Delivery address: {{ order.address }} · {{ order.zone.name }}</p>
+    {% if order.tracking_reference %}<p class="small">Courier reference: {{ order.tracking_reference }}</p>{% endif %}
+    <p class="muted small">This private tracking URL can reveal your order details. Only share it with people you trust.</p>
+  </section>
+  <aside class="card" aria-label="Order charges and documents">
+    <h2 style="font-size:21px;margin:0 0 12px">Order summary</h2>
+    {% for item in order.items.all %}
+      <div class="summary-row"><span>{{ item.pack_count }} × {{ item.product_name }} · {{ item.pack_size }} eggs</span><b>Rs {{ item.line_total|floatformat:0|intcomma }}</b></div>
+    {% endfor %}
+    <div class="summary-row"><span>Delivery</span><b>Rs {{ order.delivery_fee|floatformat:0|intcomma }}</b></div>
+    <div class="summary-row"><b>Total order amount</b><b>Rs {{ order.total|floatformat:0|intcomma }}</b></div>
+    <a class="button" style="display:flex;margin-top:18px" href="{% url 'raynoor_order_document' token=order.token %}">{% if order.pos_sale_id %}View Final POS Invoice{% else %}View Order Confirmation / Payment Request{% endif %} ↗</a>
+    <a class="button outline" style="display:flex;margin-top:10px" href="{% url 'raynoor_store' %}">Back to Shop</a>
+  </aside>
+</div>
+<script>
+(function(){
+  const btn=document.getElementById('raynoor-copy-tracking');
+  const link=document.getElementById('raynoor-tracking-link');
+  const message=document.getElementById('raynoor-copy-feedback');
+  if(!btn||!link) return;
+  btn.addEventListener('click',async function(){
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText){
+        await navigator.clipboard.writeText(link.value);
+      } else {
+        link.focus();link.select();
+        if(!document.execCommand('copy')) throw new Error('Copy unavailable');
+      }
+      btn.textContent='Copied ✓';message.textContent='Link copied. Save it somewhere safe.';
+    }catch(e){
+      link.focus();link.select();
+      message.textContent='Select and copy the highlighted link manually.';
+    }
+  });
+})();
+</script>
+{% endblock %}

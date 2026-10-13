@@ -97,6 +97,7 @@ path(
     path("egg-pos/cash-settlements/", egg_pos.cash_settlements, name="egg_pos_cash_settlements"),
     path("egg-pos/commissions/", egg_pos.commissions, name="egg_pos_commissions"),
     path("egg-pos/accounts/", egg_pos.accounting_overview, name="egg_pos_accounting"),
+    path("egg-pos/accounts/transfer-funds/", egg_pos.transfer_funds, name="egg_pos_transfer_funds"),
     path("egg-pos/accounts/owner-capital/", egg_pos.owner_capital, name="egg_pos_owner_capital"),
     path("egg-pos/accounts/general-ledger/", egg_pos.general_ledger, name="egg_pos_general_ledger"),
     path("egg-pos/accounts/cashbook/", egg_pos.cashbook, name="egg_pos_cashbook"),
@@ -146,4 +147,23 @@ path(
 
 
 
+]
+# Public Lahore-only egg store; retail accounts are independent from staff login.
+from api.views import online_shop
+urlpatterns += [
+    path('shop/', online_shop.storefront, name='raynoor_store'),
+    path('shop/cart/', online_shop.cart, name='raynoor_cart'),
+    path('shop/cart/update/', online_shop.cart_change, name='raynoor_cart_update'),
+    path('shop/checkout/', online_shop.checkout, name='raynoor_checkout'),
+    path('shop/track/', online_shop.lookup_order_status, name='raynoor_order_lookup'),
+    path('shop/order/<str:token>/', online_shop.tracking, name='raynoor_order_tracking'),
+    path('shop/order/<str:token>/invoice/', online_shop.order_document, name='raynoor_order_document'),
+    path('shop/sign-in/', online_shop.retail_login, name='raynoor_retail_login'),
+    path('shop/register/', online_shop.retail_register, name='raynoor_retail_register'),
+    path('shop/sign-out/', online_shop.retail_logout, name='raynoor_retail_logout'),
+    path('shop/my-orders/', online_shop.account_orders, name='raynoor_account'),
+    path('egg-pos/online-orders/shop-setup/', online_shop.shop_setup, name='raynoor_shop_setup'),
+    path('egg-pos/online-orders/', online_shop.admin_orders, name='raynoor_admin_orders'),
+    path('egg-pos/online-orders/<int:order_id>/', online_shop.admin_order_detail, name='raynoor_admin_order_detail'),
+    path('egg-pos/online-orders/<int:order_id>/action/', online_shop.admin_order_action, name='raynoor_admin_order_action'),
 ]

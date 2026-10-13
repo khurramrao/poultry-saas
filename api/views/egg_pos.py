@@ -36,6 +36,7 @@ from api.models.egg_pos import (
     EggPOSOwnerCapitalTransaction,
 )
 from api.models.sensor import Batch
+from api.models.online_shop import OnlineOrder
 from api.models.accounting import ChartOfAccount, JournalEntry, JournalLine
 from api.services.egg_pos import (
     ZERO,
@@ -158,6 +159,9 @@ def _stock_rows(products):
             if lot.source_type == "farm"
         )
         value = sum((lot.stock_value for lot in sellable_lots), ZERO)
+        from api.services.online_shop import reserved_quantity
+        online_reserved = reserved_quantity(product.pk)
+        free_stock = max(0, current - online_reserved)
 
         # Dashboard stock bars must represent how much of the currently-open
         # inventory lots is still remaining.  Using the raw egg count as a CSS
@@ -174,6 +178,8 @@ def _stock_rows(products):
         rows.append({
             "product": product,
             "stock": current,
+            "online_reserved": online_reserved,
+            "free_stock": free_stock,
             "stock_reference": stock_reference,
             "stock_percent": stock_percent,
             "expired_stock": expired,
@@ -1190,10 +1196,11 @@ def new_sale(request):
                         )
                         .order_by("received_date", "id")
                     )
-                    locked_available = sum(
+                    from api.services.online_shop import reserved_quantity
+                    locked_available = max(0, sum(
                         int(lot.quantity_remaining or 0)
                         for lot in locked_lots
-                    )
+                    ) - reserved_quantity(product.id))
                     if locked_available <= 0:
                         raise ValueError(
                             f"{product.name} is out of stock. Sale was not created."
@@ -1428,10 +1435,44 @@ def customer_detail(request, customer_id):
 def sales(request):
     if not can_sell(request.user):
         return _deny(request)
-    qs=EggPOSSale.objects.select_related("created_by").prefetch_related("items__product","payments")
-    if not can_manage(request.user):
-        qs=qs.filter(created_by=request.user)
-    return render(request,"api/egg_pos_sales.html",{"sales":qs.order_by("-sale_date","-id")[:200],"can_manage_pos":can_manage(request.user)})
+
+    manage = can_manage(request.user)
+    source = request.GET.get("source", "all")
+    if source not in ("all", "online", "counter"):
+        source = "all"
+
+    # A POS invoice is linked to at most one online order. Prefetching its
+    # reverse OneToOne relation prevents a per-row lookup for the RNWEB number.
+    qs = EggPOSSale.objects.select_related("created_by", "online_order").prefetch_related(
+        "items__product", "payments"
+    )
+    if not manage:
+        qs = qs.filter(created_by=request.user)
+    if source == "online":
+        qs = qs.filter(online_order__isnull=False)
+    elif source == "counter":
+        qs = qs.filter(online_order__isnull=True)
+
+    context = {
+        "sales": qs.order_by("-sale_date", "-id")[:200],
+        "can_manage_pos": manage,
+        "can_access_online_orders": _invoice_admin(request),
+        "source": source,
+    }
+    if manage:
+        # Online orders exist before POS invoicing. Count orders separately
+        # from POS invoices so placed/cancelled/awaiting orders remain visible.
+        context.update({
+            "online_orders_placed": OnlineOrder.objects.count(),
+            "online_orders_active": OnlineOrder.objects.filter(status__in=(
+                OnlineOrder.RESERVED, OnlineOrder.CONFIRMED,
+                OnlineOrder.PACKED, OnlineOrder.DISPATCHED,
+            )).count(),
+            "online_orders_invoiced": OnlineOrder.objects.filter(
+                pos_sale__isnull=False
+            ).count(),
+        })
+    return render(request, "api/egg_pos_sales.html", context)
 
 def _invoice_admin(request):
     """Business POS managers are not Django administrators."""
@@ -1548,6 +1589,9 @@ def record_sale_payment(request, sale_id):
     if not can_sell(request.user):
         return _deny(request)
     sale=get_object_or_404(EggPOSSale.objects.select_for_update().prefetch_related("payments"),pk=sale_id)
+    if hasattr(sale, 'online_order'):
+        messages.error(request, 'Online COD must be settled through Online Order Management, not the ordinary invoice payment form.')
+        return redirect('raynoor_admin_order_detail', order_id=sale.online_order.id)
     if sale.is_reversed:
         messages.error(request, "A reversed invoice cannot receive payments.")
         return redirect("egg_pos_sale_detail", sale_id=sale.id)
@@ -2855,3 +2899,66 @@ def void_farm_transfer(request, transfer_id):
         transfer.save(update_fields=["is_voided","void_reason","voided_at","voided_by"])
     messages.success(request,f"{transfer.transfer_number} voided. Its POS stock, farm payable and accounting effect were removed.")
     return redirect("egg_pos_farm_transfer_detail",transfer_id=transfer.id)
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def transfer_funds(request):
+    """Admin-only reclassification between existing Egg POS cash/bank accounts."""
+    from uuid import uuid4
+    from django.core.cache import cache
+    from api.models.accounting import EggPOSFundsTransfer
+    from api.services.egg_pos_fund_transfers import create_fund_transfer, void_fund_transfer
+
+    if not _invoice_admin(request):
+        return _deny(request, 'Only a Django admin may transfer company cash or bank funds.')
+
+    if request.method == 'POST':
+        key = f'eggpos:fundtransfer:auth:{request.user.pk}'
+        failed = cache.get(key, 0)
+        if failed >= 5:
+            messages.error(request, 'Too many incorrect password attempts. Please wait 15 minutes.')
+            return redirect('egg_pos_transfer_funds')
+        if not request.user.check_password(request.POST.get('admin_password') or ''):
+            cache.set(key, failed + 1, 15 * 60)
+            messages.error(request, 'Incorrect admin password. No cash or bank balances were changed.')
+            return redirect('egg_pos_transfer_funds')
+        cache.delete(key)
+
+        try:
+            action = (request.POST.get('action') or 'create').strip().lower()
+            if action == 'create':
+                import uuid
+                token = uuid.UUID(request.POST.get('request_token') or '')
+                amount = _parse_money(request.POST.get('amount'), 'Transfer amount')
+                transfer, created = create_fund_transfer(
+                    user=request.user,
+                    direction=request.POST.get('direction'), amount=amount,
+                    reference=(request.POST.get('reference') or '').strip(),
+                    notes=(request.POST.get('notes') or '').strip(),
+                    request_token=token,
+                )
+                if created:
+                    messages.success(request, f'FT-{transfer.pk:06d} recorded: Rs {amount:,.2f}. Cash and bank updated together.')
+                else:
+                    messages.info(request, 'This transfer was already recorded. No duplicate was created.')
+            elif action == 'void':
+                transfer = void_fund_transfer(
+                    user=request.user, transfer_id=int(request.POST.get('transfer_id') or 0),
+                    reason=request.POST.get('void_reason') or '',
+                )
+                messages.success(request, f'FT-{transfer.pk:06d} voided. Its original cash/bank movement has been reversed.')
+            else:
+                raise ValueError('Unrecognized transfer action.')
+        except (ValueError, TypeError, OverflowError, EggPOSFundsTransfer.DoesNotExist) as error:
+            messages.error(request, str(error) or 'Transfer could not be processed.')
+        return redirect('egg_pos_transfer_funds')
+
+    ensure_default_accounts()
+    return render(request, 'api/egg_pos_transfer_funds.html', {
+        'main_cash': money(normal_account_balance('1000')),
+        'bank': money(normal_account_balance('1010')),
+        'today': timezone.localdate(),
+        'request_token': str(uuid4()),
+        'transfers': EggPOSFundsTransfer.objects.select_related('created_by', 'voided_by')[:100],
+    })

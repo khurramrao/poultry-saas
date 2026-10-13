@@ -50,7 +50,12 @@ def available_product_stock(product, as_of_date=None):
         quantity_remaining__gt=0,
         received_date__lte=as_of_date,
     ).filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=as_of_date))
-    return int(qs.aggregate(total=Sum("quantity_remaining"))["total"] or 0)
+    gross = int(qs.aggregate(total=Sum("quantity_remaining"))["total"] or 0)
+    # Active online reservations make eggs unavailable to counter sales too.
+    if as_of_date == timezone.localdate():
+        from api.services.online_shop import reserved_quantity
+        gross -= reserved_quantity(product.id)
+    return max(0, gross)
 
 
 def total_product_stock(product):

@@ -188,7 +188,7 @@
     <span class="ep-sale-status {{ sale.payment_status }}">
       {{ sale.payment_status_label }}
     </span>
-    {% if can_correct_invoice %}
+    {% if can_correct_invoice and not sale.online_order %}
       <div class="ep-admin-tools">
         {% if sale.is_reversed %}
         <button type="button" class="ep-action green" data-open-correction="restore"><i class="fa-solid fa-rotate-left"></i> Undo Reversal</button>
@@ -211,6 +211,9 @@
 </div>
 {% endif %}
 
+{% if sale.online_order %}
+<div class="ep-reversal-box" style="background:#f3f8ff;border-color:#cddff6;color:#28527a"><strong>Online order {{ sale.online_order.order_number }}</strong> · Includes Rs {{ sale.online_order.delivery_fee|floatformat:2 }} delivery charge.<br><span style="font-size:11px">COD settlement and changes are managed in <a href="{% url 'raynoor_admin_order_detail' order_id=sale.online_order.id %}">Online Order Management</a>. Do not receive this COD again here.</span></div>
+{% endif %}
 <section class="ep-kpis">
   <div class="ep-kpi color-1">
     <span>Net Sale</span>
@@ -313,7 +316,7 @@
   </section>
 </div>
 
-{% if sale.balance_due > 0 and not sale.is_reversed %}
+{% if sale.balance_due > 0 and not sale.is_reversed and not sale.online_order %}
 <section class="ep-panel ep-panel-soft" style="margin-top:12px">
   <div class="ep-panel-head">Receive Outstanding Payment</div>
   <form class="ep-panel-body" method="post" action="{% url 'egg_pos_record_sale_payment' sale.id %}">
@@ -348,7 +351,7 @@
 {% endif %}
 
 
-{% if can_correct_invoice %}
+{% if can_correct_invoice and not sale.online_order %}
 <div class="ep-guard"><i class="fa-solid fa-lock"></i> Administrator-only corrections · Password verified for every change</div>
 {% if correction_history %}
 <section class="ep-panel ep-panel-soft ep-history">
