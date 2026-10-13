@@ -1,0 +1,57 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="{% block meta_description %}Meet RayNoor's poultry, livestock and smart farm programmes.{% endblock %}">
+  <title>{% block page_title %}RayNoor Organic Farms{% endblock %} | RayNoor Organic Farms</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <style>
+  :root {--ink:#103029;--muted:#546961;--green:#218354;--green-dark:#176843;--gold:#9c711e;--line:#dbe9df;--mist:#f5faf6;--cream:#fbf8ee;--shadow:0 16px 45px rgba(20,54,36,.075)}
+  *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#fff;color:var(--ink);font:16px/1.62 Inter,Segoe UI,Arial,sans-serif}
+  a{color:inherit;text-decoration:none}a:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid #e5bd57;outline-offset:3px}img{max-width:100%}
+  .container{width:min(1180px,calc(100% - 42px));margin:auto}.skip{position:absolute;top:-60px;background:white;padding:12px;z-index:999}.skip:focus{top:0}
+  .site-head{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}
+  .head-row{min-height:78px;display:flex;align-items:center;gap:21px;justify-content:space-between}
+  .brand{display:flex;gap:11px;align-items:center;flex:0 0 auto}.brand img{width:52px;height:52px;object-fit:contain;border-radius:50%;background:#f7faf6}.brand strong{display:block;font:700 21px/1.05 Georgia,serif}.brand small{display:block;font-size:9px;letter-spacing:1.5px;font-weight:800;text-transform:uppercase;color:var(--gold);margin-top:4px}
+  .main-nav{display:flex;align-items:center;gap:18px}.main-nav a{font-size:13px;font-weight:750;color:#4d6057;white-space:nowrap}.main-nav a:hover,.main-nav a[aria-current=page]{color:var(--green)}.head-actions{display:flex;gap:8px;flex:0 0 auto}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:46px;padding:10px 18px;border-radius:11px;border:1px solid #d3e3d9;font-size:14px;font-weight:800;line-height:1.2;text-align:center;background:white;color:var(--ink);transition:.2s transform,.2s background}
+  .btn:hover{transform:translateY(-1px);background:#f3f8f4}.btn.primary{color:#fff;background:var(--green);border-color:var(--green)}.btn.primary:hover{background:var(--green-dark)}.btn.gold{background:var(--cream);color:#694b0f;border-color:#ebdfbd}
+  .mobile-menu{display:none}.mobile-menu summary{cursor:pointer;font-weight:800;padding:9px 13px;border:1px solid var(--line);border-radius:9px}.mobile-links{padding:12px 0;display:grid;gap:2px}.mobile-links a{display:block;padding:9px 11px;font-weight:700}
+  .hero{background:radial-gradient(circle at 84% 15%,#f6efd6,transparent 31%),radial-gradient(circle at 7% 90%,#dff3e9,transparent 29%),#f8fbf8;padding:72px 0 76px;border-bottom:1px solid #edf0e9}.hero-grid{display:grid;grid-template-columns:1.08fr .92fr;gap:46px;align-items:center}.eyebrow{display:inline-flex;align-items:center;gap:8px;color:#15794c;font-size:12px;letter-spacing:1.3px;text-transform:uppercase;font-weight:900;margin-bottom:16px}
+  h1,h2,h3,h4,p{margin-top:0}h1,h2{font-family:Georgia,'Times New Roman',serif;letter-spacing:-.03em;line-height:1.11}h1{font-size:clamp(37px,5vw,66px);margin-bottom:21px}h2{font-size:clamp(30px,3vw,45px);margin-bottom:16px}h3{font-size:20px;line-height:1.32;margin-bottom:9px}p{color:#53665b}p.lead{font-size:18px;line-height:1.75;max-width:660px}.hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-top:25px}.fine{font-size:13px;color:#60746a}.muted{color:var(--muted)}
+  .section{padding:75px 0}.section.tint{background:var(--mist)}.section.cream{background:var(--cream)}.intro{max-width:780px;margin-bottom:30px}.intro.center{margin:0 auto 36px;text-align:center}
+  .grid{display:grid;gap:20px}.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.cols-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .card{border:1px solid var(--line);border-radius:20px;padding:26px;background:#fff;box-shadow:var(--shadow)}.card p:last-child{margin-bottom:0}.icon{display:grid;place-items:center;width:48px;height:48px;border-radius:13px;background:#e8f7ee;color:var(--green);font-size:20px;margin-bottom:16px}.line{height:1px;background:var(--line);margin:22px 0}.chip{display:inline-flex;align-items:center;gap:6px;border-radius:40px;padding:5px 11px;color:#27734c;font-size:12px;font-weight:750;background:#e9f7ee}.chip.amber{background:#fff2d9;color:#845d17}
+  .hero-aside{min-width:0}.showcase{border-radius:25px;padding:27px;background:linear-gradient(145deg,#fff,#f2faf5);border:1px solid #e4ebe3;box-shadow:0 28px 70px rgba(15,65,43,.11)}.showcase i{color:#299266}.showcase-title{font-weight:900;font-size:16px}.showcase-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #e9ede9;padding:14px 0}.showcase-row:last-child{border-bottom:0}.stat-row{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:15px}.stat{border:1px solid #dfede3;background:white;border-radius:14px;padding:16px}.stat small{display:block;color:#6a776d;font-size:11px;font-weight:750}.stat strong{display:block;font-size:22px;margin-top:2px;color:var(--ink)}
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;counter-reset:step}.step{position:relative;padding:26px 20px;border-radius:17px;border:1px solid var(--line);background:#fff}.step:before{counter-increment:step;content:counter(step);display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#e7f5eb;color:#1b774b;font-weight:850;margin-bottom:15px}.step h3{font-size:17px}
+  .callout{background:#edf8f0;border:1px solid #cce8d5;border-radius:20px;padding:25px 29px}.callout.warn{background:#fffaf0;border-color:#efdfba}.callout p:last-child{margin-bottom:0}
+  .cta-band{background:#123c2d;color:#fff;border-radius:26px;padding:36px 40px;display:flex;justify-content:space-between;align-items:center;gap:25px}.cta-band h2{font-size:34px}.cta-band p{color:#dcefe2;margin-bottom:0}.cta-band .btn{flex:0 0 auto}
+  .demo{overflow:hidden;border-radius:19px;border:1px solid var(--line);box-shadow:var(--shadow);background:white}.demo img{display:block;width:100%;height:auto}.demo-caption{padding:12px 18px;font-size:12px;color:#52675c;background:#f3f8f4;border-top:1px solid #e3efe7}
+  .info-list{padding:0;margin:0;list-style:none}.info-list li{display:flex;gap:11px;margin:14px 0;color:#50665a}.info-list i{color:var(--green);margin-top:6px}
+  .small-title{font-size:12px;text-transform:uppercase;letter-spacing:1.25px;font-weight:900;color:#1c8050;margin-bottom:10px}
+  .footer{background:#122d24;color:white;padding:40px 0}.footer-row{display:flex;justify-content:space-between;align-items:start;gap:30px}.footer a{color:#e9f5ef}.footer .fine{color:#bcd1c3}.footer-links{display:flex;flex-wrap:wrap;gap:17px;font-size:13px;font-weight:650}
+  @media(max-width:1120px){.main-nav{gap:11px}.main-nav a{font-size:12px}.brand strong{font-size:17px}.brand small{font-size:8px}.head-actions .btn{padding:9px 12px;font-size:12px}}
+  @media(max-width:960px){.main-nav,.head-actions{display:none}.mobile-menu{display:block}.hero-grid{grid-template-columns:1fr}.hero{padding:54px 0}.cols-4,.cols-3{grid-template-columns:repeat(2,1fr)}.steps{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:620px){.container{width:min(100% - 28px,1180px)}.brand img{width:45px;height:45px}.brand strong{font-size:16px}.brand small{font-size:7px}.section{padding:53px 0}.cols-2,.cols-3,.cols-4,.steps{grid-template-columns:1fr}.hero-grid{gap:28px}.card{padding:21px}.cta-band{flex-direction:column;align-items:stretch;padding:27px}.cta-band .btn{width:100%}.footer-row{flex-direction:column}.hero-cta .btn{flex:1 1 180px}}
+  </style>
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">Skip to main content</a>
+<header class="site-head"><div class="container head-row">
+  <a href="{% url 'home' %}" class="brand" aria-label="RayNoor homepage"><img src="{% static 'images/RAYNOOR-2-LOGO.png' %}" alt=""><span><strong>RayNoor Organic Farms</strong><small>Committed to Organic Excellence</small></span></a>
+  <nav class="main-nav" aria-label="Public site">
+    <a href="{% url 'raynoor_poultry_public' %}" {% if request.resolver_match.url_name == 'raynoor_poultry_public' %}aria-current="page"{% endif %}>Poultry &amp; Eggs</a>
+    <a href="{% url 'raynoor_goats_public' %}" {% if request.resolver_match.url_name == 'raynoor_goats_public' %}aria-current="page"{% endif %}>Goats &amp; Qurbani</a>
+    <a href="{% url 'raynoor_technology_public' %}" {% if request.resolver_match.url_name == 'raynoor_technology_public' %}aria-current="page"{% endif %}>Smart Farming</a>
+    <a href="{% url 'raynoor_investors_public' %}" {% if request.resolver_match.url_name == 'raynoor_investors_public' %}aria-current="page"{% endif %}>Investors</a>
+    <a href="{% url 'raynoor_about_public' %}" {% if request.resolver_match.url_name == 'raynoor_about_public' %}aria-current="page"{% endif %}>About</a>
+  </nav>
+  <div class="head-actions"><a class="btn" href="{% url 'raynoor_store' %}"><i class="fa-solid fa-basket-shopping" aria-hidden="true"></i> Shop Eggs</a><a class="btn primary" href="{% if request.user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'login' %}{% endif %}">{% if request.user.is_authenticated %}Dashboard{% else %}Login{% endif %}</a></div>
+  <details class="mobile-menu"><summary>Menu</summary><nav class="mobile-links" aria-label="Mobile public site"><a href="{% url 'home' %}">Home</a><a href="{% url 'raynoor_poultry_public' %}">Poultry &amp; Eggs</a><a href="{% url 'raynoor_goats_public' %}">Goats &amp; Qurbani</a><a href="{% url 'raynoor_technology_public' %}">Smart Farming</a><a href="{% url 'raynoor_investors_public' %}">Investors</a><a href="{% url 'raynoor_about_public' %}">About Us</a><a href="{% url 'raynoor_store' %}">Shop Eggs</a><a href="{% if request.user.is_authenticated %}{% url 'dashboard' %}{% else %}{% url 'login' %}{% endif %}">{% if request.user.is_authenticated %}Farm Dashboard{% else %}Staff Login{% endif %}</a></nav></details>
+</div></header>
+<main id="main">{% block content %}{% endblock %}</main>
+<footer class="footer"><div class="container footer-row"><div><strong>RayNoor Organic Farms</strong><p class="fine">Responsible animal care, measurable records and practical technology.</p></div><nav class="footer-links" aria-label="Footer"><a href="{% url 'home' %}">Home</a><a href="{% url 'raynoor_goats_public' %}">Goats &amp; Qurbani</a><a href="{% url 'raynoor_poultry_public' %}">Poultry</a><a href="{% url 'raynoor_investors_public' %}">Investor information</a><a href="{% url 'raynoor_technology_public' %}">Technology</a><a href="{% url 'raynoor_about_public' %}">About</a></nav></div></footer>
+</body></html>

@@ -1,0 +1,106 @@
+{% extends 'api/online_base.html' %}{% load humanize %}
+{% block page_title %}{{ offer.title|default:offer.product.name }} · RayNoor Organic Farms{% endblock %}
+{% block body %}
+<style>
+  .pd-breadcrumb { display:flex; gap:8px; align-items:center; margin:24px 0; font-size:13px; color:#658274 }
+  .pd-breadcrumb a { color:#176c4b; text-decoration:none }
+  .pd-breadcrumb a:hover { text-decoration:underline }
+  .pd-layout { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr); gap:34px; align-items:start }
+  .pd-gallery, .pd-info, .pd-details, .pd-related { background:#fff; border:1px solid #e1ebe5; border-radius:18px; padding:20px }
+  .pd-main-art { height:380px; display:flex; justify-content:center; align-items:center; border-radius:14px; background:linear-gradient(135deg,#f0f5ed,#fffaf2); overflow:hidden; color:#8a9b70; font-size:90px }
+  .pd-main-art img { max-width:100%; max-height:100%; width:100%; height:100%; object-fit:contain; object-position:center; display:block }
+  .pd-thumb-list { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px }
+  .pd-thumb { border:2px solid #e2ebe5; padding:4px; width:88px; height:75px; background:#fff; border-radius:10px; cursor:pointer; display:grid; place-items:center; font-size:24px }
+  .pd-thumb img { width:100%; height:100%; border-radius:6px; object-fit:contain }
+  .pd-thumb[aria-pressed="true"], .pd-thumb:hover { border-color:#18804b; background:#f0f9f3 }
+  .pd-info h1 { font-family:Georgia,serif; font-weight:800; color:#123c2c; font-size:clamp(26px,3vw,39px); line-height:1.13; margin:8px 0 15px }
+  .pd-eyebrow { font-size:11px; font-weight:850; color:#946b20; letter-spacing:.12em; text-transform:uppercase }
+  .pd-price { color:#156b44; font-size:30px; font-weight:900; margin:17px 0 }
+  .pd-tags { display:flex; flex-wrap:wrap; gap:7px; margin:15px 0 }
+  .pd-tag { border-radius:24px; background:#ecf7ef; color:#236548; font-size:12px; font-weight:700; padding:6px 10px }
+  .pd-tag.missing { background:#fff3ea; color:#955b2d }
+  .pd-information { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:18px 0; border-top:1px solid #e8eee9; border-bottom:1px solid #e8eee9; padding:14px 0 }
+  .pd-information dt { font-size:11px; color:#789084; font-weight:800; text-transform:uppercase }
+  .pd-information dd { margin:5px 0 0; font-weight:750; color:#234c38 }
+  .pd-details { margin-top:20px }
+  .pd-details h2,.pd-related h2 { font-size:19px; margin:0 0 14px; color:#173f2c }
+  .pd-description { line-height:1.7; color:#4a6454 }
+  .pd-related { margin-top:22px }
+  .pd-related-list { display:flex; gap:10px; flex-wrap:wrap }
+  .pd-related-list a { padding:12px 14px; background:#f1f8f2; border:1px solid #d9ebdc; border-radius:11px; color:#205842; font-weight:750; text-decoration:none }
+  .pd-related-list a:hover { background:#e5f1e9 }
+  @media(max-width:760px) { .pd-layout{grid-template-columns:1fr;gap:16px}.pd-gallery,.pd-info,.pd-details,.pd-related{padding:15px}.pd-main-art{height:300px}.pd-thumb{width:76px;height:66px} }
+  @media(max-width:410px) { .pd-main-art{height:250px}.pd-information{grid-template-columns:1fr 1fr} }
+</style>
+<nav class="pd-breadcrumb" aria-label="Breadcrumb"><a href="{% url 'raynoor_store' %}">Shop</a><span aria-hidden="true">›</span><span>{{ offer.title|default:offer.product.name }}</span></nav>
+<div class="pd-layout">
+  <div class="pd-gallery">
+    <div class="pd-main-art" id="pd-main-art">
+      {% if offer.has_photo %}
+        <img id="pd-main-img" src="{% url 'raynoor_offer_photo' offer_id=offer.pk %}?v={{ offer.photo_updated_at|date:'U' }}" alt="{{ offer.photo_alt|default:offer.title|default:offer.product.name }}" style="object-fit:{{ offer.photo_fit }};object-position:{{ offer.photo_position }}" width="560" height="380">
+      {% elif gallery %}
+        <img id="pd-main-img" src="{% url 'raynoor_offer_gallery_photo' photo_id=gallery.0.pk %}" alt="{{ gallery.0.alt_text|default:offer.title|default:offer.product.name }}" width="560" height="380">
+      {% else %}<span role="img" aria-label="Farm fresh eggs">🥚</span>{% endif %}
+    </div>
+    {% if offer.has_photo or gallery %}
+    <div class="pd-thumb-list" role="group" aria-label="Choose a product photo">
+      {% if offer.has_photo %}
+        <button type="button" class="pd-thumb" aria-label="View main product photo" aria-pressed="true" data-image="{% url 'raynoor_offer_photo' offer_id=offer.pk %}?v={{ offer.photo_updated_at|date:'U' }}" data-alt="{{ offer.photo_alt|default:offer.title|default:offer.product.name }}" data-fit="{{ offer.photo_fit }}" data-position="{{ offer.photo_position }}">
+          <img src="{% url 'raynoor_offer_photo' offer_id=offer.pk %}?v={{ offer.photo_updated_at|date:'U' }}" alt="" loading="lazy">
+        </button>
+      {% endif %}
+      {% for photo in gallery %}
+        <button type="button" class="pd-thumb" aria-label="View product photo {{ forloop.counter|add:1 }}" aria-pressed="{% if not offer.has_photo and forloop.first %}true{% else %}false{% endif %}" data-image="{% url 'raynoor_offer_gallery_photo' photo_id=photo.pk %}" data-alt="{{ photo.alt_text|default:offer.title|default:offer.product.name }}" data-fit="contain" data-position="center">
+          <img src="{% url 'raynoor_offer_gallery_photo' photo_id=photo.pk %}" alt="" loading="lazy">
+        </button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <section class="pd-info" aria-labelledby="pd-title">
+    <div class="pd-eyebrow">RayNoor Organic Farms · Lahore</div>
+    <h1 id="pd-title">{{ offer.title|default:offer.product.name }}</h1>
+    <div class="pd-price">Rs {{ offer.price_per_pack|floatformat:0|intcomma }} <span class="muted small">/ pack</span></div>
+    <div class="pd-tags"><span class="pd-tag">{{ offer.pack_size }} eggs per pack</span>{% if stock_packs %}<span class="pd-tag">✓ In stock</span>{% else %}<span class="pd-tag missing">Out of stock</span>{% endif %}</div>
+    <dl class="pd-information">
+      <div><dt>Pack size</dt><dd>{{ offer.pack_size }} eggs</dd></div>
+      <div><dt>Egg product</dt><dd>{{ offer.product.name }}</dd></div>
+      {% if offer.egg_weight_label %}<div><dt>Weight per egg</dt><dd>{{ offer.egg_weight_label }}</dd></div>{% endif %}
+      <div><dt>Delivery</dt><dd>Lahore only</dd></div>
+    </dl>
+    {% if offer.description %}<p class="pd-description">{{ offer.description|truncatechars:210|linebreaksbr }}</p>{% endif %}
+    <form method="post" action="{% url 'raynoor_cart_update' %}">{% csrf_token %}
+      <input type="hidden" name="offer_id" value="{{ offer.pk }}">
+      <div class="field"><label for="pd-count">Number of packs</label><input type="number" min="1" max="{{ stock_packs }}" id="pd-count" name="count" value="{{ selected_packs|default:1 }}" required {% if not stock_packs %}disabled{% endif %}></div>
+      <button type="submit" class="button" style="width:100%;min-height:51px" {% if not stock_packs %}disabled{% endif %}>🛒 Add to Cart</button>
+    </form>
+    <p class="small muted" style="margin:13px 0 0">Delivery charge is calculated at checkout for your Lahore area. Cash on delivery available in supported areas.</p>
+    {% if not zones_active %}<div class="notice">Checkout is unavailable until Lahore delivery areas are activated.</div>{% endif %}
+  </section>
+</div>
+<section class="pd-details"><h2>Product information</h2>
+  {% if offer.description %}<p class="pd-description">{{ offer.description|linebreaksbr }}</p>{% else %}<p class="muted">{{ offer.pack_size }} farm egg pack. For further details, please contact RayNoor before ordering.</p>{% endif %}
+ <p class="small muted">Images are for illustration purposes. Actual packaging may vary.</p>
+</section>
+{% if related_offers %}
+<section class="pd-related"><h2>Other pack sizes</h2><div class="pd-related-list">
+  {% for related in related_offers %}<a href="{% url 'raynoor_product_detail' offer_id=related.pk %}">{{ related.pack_size }} eggs · Rs {{ related.price_per_pack|floatformat:0|intcomma }}</a>{% endfor %}
+</div></section>
+{% endif %}
+<script>
+(function(){
+  var main=document.getElementById('pd-main-img');
+  var buttons=document.querySelectorAll('.pd-thumb[data-image]');
+  if(!main || !buttons.length) return;
+  buttons.forEach(function(button){
+    button.addEventListener('click',function(){
+      main.src=button.dataset.image;
+      main.alt=button.dataset.alt || 'RayNoor egg product photo';
+      main.style.objectFit=button.dataset.fit || 'contain';
+      main.style.objectPosition=button.dataset.position || 'center';
+      buttons.forEach(function(b){ b.setAttribute('aria-pressed',b===button?'true':'false'); });
+    });
+  });
+})();
+</script>
+{% endblock %}

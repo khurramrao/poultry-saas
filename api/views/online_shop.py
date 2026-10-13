@@ -6,14 +6,16 @@ from django.contrib import messages
 from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
+from django.core.exceptions import ValidationError
 from django.http import Http404, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST, require_http_methods, require_GET
-from api.models.online_shop import OnlineRetailAccount, OnlineOffer, OnlineDeliveryZone, OnlineOrder
+from api.models.online_shop import OnlineRetailAccount, OnlineOffer, OnlineOfferGalleryPhoto, OnlineDeliveryZone, OnlineOrder
 from api.forms_online_shop import OnlineOfferSetupForm, OnlineDeliveryZoneSetupForm
+from api.services.online_offer_images import prepare_offer_photo
 from api.models.egg_pos import EggPOSProduct
 from api.services.online_shop import checkout_order, action_order, free_available, cash
 
@@ -65,6 +67,46 @@ def offer_photo(request, offer_id):
     response['Content-Disposition'] = 'inline; filename="raynoor-egg-pack.jpg"'
     response['Cache-Control'] = 'public, max-age=300' if public else 'private, no-store'
     return response
+
+
+@require_GET
+def offer_gallery_photo(request, photo_id):
+    photo = get_object_or_404(
+        OnlineOfferGalleryPhoto.objects.select_related('offer', 'offer__product'), pk=photo_id
+    )
+    public = photo.offer.is_active and photo.offer.product.is_active
+    if not public and not _can_manage_shop_settings(request.user):
+        raise Http404('Photo not found')
+    response = HttpResponse(bytes(photo.photo_data), content_type='image/jpeg')
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Content-Disposition'] = 'inline; filename="raynoor-gallery.jpg"'
+    response['Cache-Control'] = 'public, max-age=300' if public else 'private, no-store'
+    return response
+
+
+@require_GET
+def product_detail(request, offer_id):
+    """Public retail details; only published POS-backed packs are visible."""
+    offer = get_object_or_404(
+        OnlineOffer.objects.filter(is_active=True, product__is_active=True)
+        .select_related('product').defer('photo_data'),
+        pk=offer_id,
+    )
+    gallery = list(offer.gallery_photos.defer('photo_data'))
+    related_offers = list(
+        OnlineOffer.objects.filter(product_id=offer.product_id, is_active=True,
+                                   product__is_active=True)
+        .exclude(pk=offer.pk).select_related('product').defer('photo_data')
+        .order_by('pack_size', 'id')[:6]
+    )
+    stock_packs = min(24, free_available(offer.product_id) // offer.pack_size)
+    cart_count = request.session.get('raynoor_cart', {}).get(str(offer.pk), 1)
+    return render(request, 'api/online_product_detail.html', {
+        **_context(request), 'offer': offer, 'gallery': gallery,
+        'related_offers': related_offers, 'stock_packs': stock_packs,
+        'selected_packs': cart_count,
+        'zones_active': OnlineDeliveryZone.objects.filter(is_active=True).exists(),
+    })
 
 
 def storefront(request):
@@ -398,9 +440,42 @@ def shop_setup(request):
         if kind == 'offer':
             offer_form = OnlineOfferSetupForm(request.POST, request.FILES, instance=offer_instance)
             if offer_form.is_valid():
-                offer_form.save()
-                messages.success(request, 'Retail egg pack saved. Active packs appear in the shop automatically.')
-                return redirect('raynoor_shop_setup')
+                gallery_uploads = request.FILES.getlist('gallery_photos')
+                remove_values = request.POST.getlist('remove_gallery')
+                try:
+                    removal_ids = [int(value) for value in remove_values]
+                    if len(removal_ids) != len(set(removal_ids)) or any(value <= 0 for value in removal_ids):
+                        raise ValueError
+                except (ValueError, TypeError):
+                    offer_form.add_error(None, 'Invalid gallery photo selection.')
+                else:
+                    existing = offer_instance.gallery_photos.count() if offer_instance else 0
+                    valid_ids = list(offer_instance.gallery_photos.filter(pk__in=removal_ids).values_list('pk', flat=True)) if offer_instance else []
+                    if len(valid_ids) != len(removal_ids):
+                        offer_form.add_error(None, 'One or more photos do not belong to this egg pack.')
+                    elif existing - len(valid_ids) + len(gallery_uploads) > 4:
+                        offer_form.add_error(None, 'Keep at most four gallery photos in addition to the main photo.')
+                    else:
+                        prepared = []
+                        for upload in gallery_uploads:
+                            try:
+                                prepared.append(prepare_offer_photo(upload))
+                            except ValidationError as exc:
+                                offer_form.add_error(None, f'{upload.name}: {"; ".join(exc.messages)}')
+                        if not offer_form.errors:
+                            with transaction.atomic():
+                                offer = offer_form.save()
+                                if valid_ids:
+                                    offer.gallery_photos.filter(pk__in=valid_ids).delete()
+                                next_order = (offer.gallery_photos.order_by('-sort_order').values_list('sort_order', flat=True).first() or 0) + 1
+                                for index, data in enumerate(prepared):
+                                    OnlineOfferGalleryPhoto.objects.create(
+                                        offer=offer, photo_data=data,
+                                        alt_text=f'{offer.title or offer.product.name} – additional view {index + 1}',
+                                        sort_order=next_order + index,
+                                    )
+                            messages.success(request, 'Egg pack and product photos saved.')
+                            return redirect('raynoor_shop_setup')
         elif kind == 'zone':
             zone_form = OnlineDeliveryZoneSetupForm(request.POST, instance=zone_instance)
             if zone_form.is_valid():
@@ -432,6 +507,8 @@ def shop_setup(request):
         'photo_fit': field_value('offer', 'photo_fit', 'contain'),
         'photo_position': field_value('offer', 'photo_position', 'center'),
         'photo_alt': field_value('offer', 'photo_alt'),
+        'description': field_value('offer', 'description'),
+        'egg_weight_label': field_value('offer', 'egg_weight_label'),
         'sort_order': field_value('offer', 'sort_order', '0'),
         'is_active': checkbox_value('offer', 'is_active'),
     }
@@ -448,6 +525,7 @@ def shop_setup(request):
         'products': EggPOSProduct.objects.all().order_by('name'),
         'offers': offers, 'zones': zones, 'offer_form': offer_form, 'zone_form': zone_form,
         'edit_offer': offer_instance, 'edit_zone': zone_instance,
+        'edit_gallery': offer_instance.gallery_photos.defer('photo_data') if offer_instance else [],
         'product_count': EggPOSProduct.objects.filter(is_active=True).count(),
         'active_offer_count': offers.filter(is_active=True, product__is_active=True).count(),
         'active_zone_count': zones.filter(is_active=True).count(),

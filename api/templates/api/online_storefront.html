@@ -2,6 +2,9 @@
 {% block page_title %}Fresh Eggs in Lahore · RayNoor Organic Farms{% endblock %}
 {% block body %}
 <style>
+  .product-card-link { display:block; color:inherit; text-decoration:none; }
+  .product-card-link:hover h3,.product-card-link:focus-visible h3 { color:#18774c; text-decoration:underline; }
+  .product-card-link:focus-visible { outline:3px solid #178855; outline-offset:3px; border-radius:12px; }
   /* All product cards use the same image height, including the emoji placeholder. */
   .shop-section .card > .egg-art {
     height: 205px;
@@ -55,12 +58,14 @@
   <div class="cards">
   {% for row in products %}
     <article class="card">
+      <a class="product-card-link" href="{% url 'raynoor_product_detail' offer_id=row.offer.id %}" aria-label="View {{ row.offer.title|default:row.offer.product.name }} details">
       {% if row.offer.has_photo %}
         <div class="egg-art product-photo-frame photo-{{ row.offer.photo_fit }}"><img src="{% url 'raynoor_offer_photo' offer_id=row.offer.pk %}?v={{ row.offer.photo_updated_at|date:'U' }}" alt="{{ row.offer.photo_alt|default:row.offer.title|default:row.offer.product.name }}" loading="lazy" decoding="async" width="340" height="176" style="object-position:{{ row.offer.photo_position }}"></div>
       {% else %}
         <div class="egg-art" role="img" aria-label="Fresh chicken eggs">🥚</div>
       {% endif %}
       <h3>{{ row.offer.title|default:row.offer.product.name }}</h3>
+      </a>
       <p class="muted small">{{ row.offer.pack_size }} eggs per pack · {{ row.offer.product.name }}</p>
       <div class="line" style="margin:18px 0"><span class="price num">Rs {{ row.offer.price_per_pack|floatformat:0|intcomma }}</span>{% if row.stock_packs %}<span class="tag">In stock</span>{% else %}<span class="disabled-note">Out of stock</span>{% endif %}</div>
       <form method="post" action="{% url 'raynoor_cart_update' %}">{% csrf_token %}

@@ -20,6 +20,7 @@ from django.urls import path, include
 from django.contrib.auth import views as auth_views
 from api.views.auth import FarmLoginView
 from api.views.home import home
+from api.views import public_pages
 
 from django.conf import settings
 from django.conf.urls.static import static
@@ -28,6 +29,11 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
+    path('goats-qurbani/', public_pages.goats_qurbani, name='raynoor_goats_public'),
+    path('poultry-eggs/', public_pages.poultry_eggs, name='raynoor_poultry_public'),
+    path('smart-farming/', public_pages.smart_farming, name='raynoor_technology_public'),
+    path('investor-participation/', public_pages.investor_participation, name='raynoor_investors_public'),
+    path('about-raynoor/', public_pages.about_raynoor, name='raynoor_about_public'),
     path('api/', include('api.urls')),
     path('login/', FarmLoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),

@@ -6,9 +6,10 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Q, Sum
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.urls import reverse
 from django.views.decorators.http import require_POST, require_http_methods
 
 from api.models.goats import (
@@ -102,6 +103,73 @@ def _goat_category_totals(goat):
             totals[category] = _money(row["total"])
 
     return totals
+
+
+
+
+GOAT_PHOTO_MAX_BYTES = 2 * 1024 * 1024
+
+
+def _detect_goat_photo_mime(data):
+    """Use file signatures rather than a client-supplied Content-Type."""
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def _goat_weight_chart(records):
+    """Create server-side SVG coordinates from recorded measurements only."""
+    if len(records) < 2:
+        return None
+    weights = [float(r.weight_kg) for r in records]
+    bottom, top = min(weights), max(weights)
+    spread = top - bottom
+    if spread < 0.1:
+        spread = 1.0
+        bottom -= 0.5
+        top += 0.5
+    else:
+        margin = spread * 0.15
+        bottom -= margin
+        top += margin
+        spread = top - bottom
+    chart_points = []
+    for i, rec in enumerate(records):
+        x = 8 + 84 * i / (len(records) - 1)
+        y = 80 - 60 * (weights[i] - bottom) / spread
+        chart_points.append({
+            'x': f'{x:.2f}', 'y': f'{y:.2f}',
+            'weight': rec.weight_kg,
+            'date': rec.record_date,
+        })
+    line = ' '.join(f"{pt['x']},{pt['y']}" for pt in chart_points)
+    return {
+        'points': chart_points,
+        'line': line,
+        'area': f"M 8 80 L {line.replace(' ', ' L ')} L 92 80 Z",
+        'min_kg': f'{min(weights):.2f}',
+        'max_kg': f'{max(weights):.2f}',
+        'first_date': records[0].record_date,
+        'last_date': records[-1].record_date,
+    }
+
+
+def _goat_cost_chart(finance):
+    total = finance['total_cost']
+    return [
+        {'name': name, 'amount': finance[key], 'percent': round(float(finance[key] * 100 / total), 1) if total else 0,
+         'css': css}
+        for name, key, css in (
+            ('Purchase', 'purchase_cost', 'purchase'),
+            ('Feed', 'feed_cost', 'feed'),
+            ('Medicine', 'medicine_cost', 'medicine'),
+            ('Other expenses', 'expense_cost', 'other'),
+        )
+    ]
 
 
 def goat_finance_snapshot(goat):
@@ -438,6 +506,10 @@ def goat_dashboard(request):
     # Show each goat's live calendar age directly on the inventory card so
     # large herds can be reviewed without opening every Goat Detail page.
     for row in rows:
+        recent_weights = list(row["goat"].weight_records.all())
+        recent_weights.sort(key=lambda r: (r.record_date, r.id))
+        row["last_weight_date"] = recent_weights[-1].record_date if recent_weights else None
+        row["weight_reading_count"] = len(recent_weights)
         age = goat_age_context(row["goat"])
         row["age_label"] = age["goat_age_label"]
         row["age_days"] = age["goat_age_days"]
@@ -446,6 +518,17 @@ def goat_dashboard(request):
     active_rows = [row for row in rows if row["goat"].status == "active"]
     active_males = [row for row in active_rows if row["goat"].sex == "male"]
     active_females = [row for row in active_rows if row["goat"].sex == "female"]
+
+    category_breakdown = {
+        "feed": _money(sum((row["feed_cost"] for row in rows), ZERO)),
+        "medicine": _money(sum((row["medicine_cost"] for row in rows), ZERO)),
+        "other": _money(sum((row["expense_cost"] for row in rows), ZERO)),
+    }
+    total_active_weight_readings = sum(1 for row in active_rows if row["last_weight_date"] is not None)
+    average_live_weight = _money(
+        sum((row["current_weight"] for row in active_rows if row["last_weight_date"]), ZERO)
+        / total_active_weight_readings
+    ) if total_active_weight_readings else None
 
     total_purchase_cost = _money(sum((row["purchase_cost"] for row in rows), ZERO))
     total_operating_cost = _money(sum((row["operating_cost"] for row in rows), ZERO))
@@ -474,6 +557,9 @@ def goat_dashboard(request):
         "total_goat_count": len(rows),
         "total_purchase_cost": total_purchase_cost,
         "total_operating_cost": total_operating_cost,
+        "category_breakdown": category_breakdown,
+        "average_live_weight": average_live_weight,
+        "total_active_weight_readings": total_active_weight_readings,
         "total_goat_cost": total_goat_cost,
         "total_live_weight": total_live_weight,
         "aggregate_cost_per_kg": aggregate_cost_per_kg,
@@ -618,8 +704,10 @@ def goat_detail(request, goat_id):
         pk=goat_id,
     )
 
-    if not _is_admin(request.user) and goat.owner_id != request.user.id:
-        messages.error(request, "You can only view goats that belong to your account.")
+    if not _can_view_goats(request.user) or (
+        not _is_admin(request.user) and goat.owner_id != request.user.id
+    ):
+        messages.error(request, "You can only view goats assigned to your authorized account.")
         return redirect("goat_dashboard")
 
     # Build weight history in chronological order first so each reading can
@@ -687,6 +775,10 @@ def goat_detail(request, goat_id):
             ).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
 
     finance = goat_finance_snapshot(goat)
+    weight_chart = _goat_weight_chart(chronological_weights)
+    cost_chart = _goat_cost_chart(finance)
+    last_weight_date = chronological_weights[-1].record_date if chronological_weights else None
+    last_weigh_days = (timezone.localdate() - last_weight_date).days if last_weight_date else None
     cost_allocations = (
         goat.cost_allocations
         .select_related("cost_entry", "owner_snapshot")
@@ -719,6 +811,13 @@ def goat_detail(request, goat_id):
         Q(sire_id=goat.id) | Q(dam_id=goat.id)
     ).order_by("goat_code")
 
+    # Investors may see records about their own animals, not details of
+    # relatives assigned to another owner.
+    if not _is_admin(request.user):
+        full_siblings = full_siblings.filter(owner=request.user)
+        half_siblings = half_siblings.filter(owner=request.user)
+        offspring = offspring.filter(owner=request.user)
+
     if goat.sex == "female":
         breeding_records = goat.breeding_records_as_doe.select_related("buck").all()
     else:
@@ -738,6 +837,10 @@ def goat_detail(request, goat_id):
         **goat_age_context(goat),
         "weight_records": weight_records,
         "weight_summary": weight_summary,
+        "weight_chart": weight_chart,
+        "cost_chart": cost_chart,
+        "last_weigh_days": last_weigh_days,
+        "last_weight_date": last_weight_date,
         "current_weight": current_weight,
         "weight_gain": weight_gain,
         "finance": finance,
@@ -749,6 +852,53 @@ def goat_detail(request, goat_id):
         "breeding_records": breeding_records,
         "is_admin": _is_admin(request.user),
     })
+
+
+@login_required
+def goat_photo(request, goat_id):
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    goat = get_object_or_404(Goat.objects.only("owner_id", "photo_data", "photo_mime"), pk=goat_id)
+    if not _is_admin(request.user) and (not hasattr(request.user, "investor_profile") or goat.owner_id != request.user.id):
+        return HttpResponseForbidden("You do not have access to this goat photo.")
+    if not goat.photo_data or not goat.photo_mime:
+        from django.http import Http404
+        raise Http404("No photo has been uploaded for this goat.")
+    response = HttpResponse(bytes(goat.photo_data), content_type=goat.photo_mime)
+    response["Cache-Control"] = "private, no-store"
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@login_required
+@require_POST
+def update_goat_photo(request, goat_id):
+    if not _is_admin(request.user):
+        return HttpResponseForbidden("Only administrators can change goat photos.")
+    goat = get_object_or_404(Goat, pk=goat_id)
+    action = (request.POST.get("photo_action") or "upload").strip()
+    if action == "remove":
+        goat.photo_data = None
+        goat.photo_mime = ""
+        goat.save(update_fields=["photo_data", "photo_mime", "updated_at"])
+        messages.success(request, "Goat photo removed.")
+    elif action == "upload":
+        photo = request.FILES.get("goat_photo")
+        if photo is None or photo.size == 0 or photo.size > GOAT_PHOTO_MAX_BYTES:
+            messages.error(request, "Choose a JPEG, PNG or WebP photo up to 2 MB.")
+            return redirect("goat_detail", goat_id=goat.pk)
+        raw = photo.read(GOAT_PHOTO_MAX_BYTES + 1)
+        mime = _detect_goat_photo_mime(raw)
+        if len(raw) > GOAT_PHOTO_MAX_BYTES or not mime:
+            messages.error(request, "Photo must be a valid JPEG, PNG or WebP up to 2 MB.")
+            return redirect("goat_detail", goat_id=goat.pk)
+        goat.photo_data = raw
+        goat.photo_mime = mime
+        goat.save(update_fields=["photo_data", "photo_mime", "updated_at"])
+        messages.success(request, "Goat photo saved.")
+    else:
+        messages.error(request, "Unknown photo action.")
+    return redirect("goat_detail", goat_id=goat.pk)
 
 
 @login_required

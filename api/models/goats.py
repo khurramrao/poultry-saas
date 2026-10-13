@@ -133,6 +133,11 @@ class Goat(models.Model):
 
     notes = models.TextField(blank=True)
 
+    # Access-controlled image stored with the goat. Unlike ephemeral Railway
+    # container uploads, the image survives deploys and is never public.
+    photo_data = models.BinaryField(null=True, blank=True, editable=False)
+    photo_mime = models.CharField(max_length=24, blank=True, default="")
+
     created_by = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

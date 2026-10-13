@@ -294,7 +294,7 @@
         .nav-links {
             display: flex;
             align-items: center;
-            gap: 28px;
+            gap: 19px;
         }
 
         .nav-links a {
@@ -1260,6 +1260,194 @@
             font-size: 15px;
         }
 
+
+        /* =====================================================
+           RAYNOOR FARM PROGRAMMES — CONTENT EXPANSION ONLY
+           Original hero, monitoring graphic and navigation stay intact.
+        ===================================================== */
+        .farm-programmes {
+            background: linear-gradient(155deg, #fbfcf9 0%, #f4f8f3 100%);
+        }
+
+        .farm-programmes .section-heading-center {
+            margin-bottom: 36px;
+        }
+
+        .farm-programme-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 22px;
+        }
+
+        .farm-programme-card {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            padding: 32px;
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            background: #ffffff;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .farm-programme-card:nth-child(2) {
+            background: linear-gradient(155deg, #ffffff 0%, #fcfaf2 100%);
+        }
+
+        .farm-programme-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 23px;
+        }
+
+        .farm-programme-icon {
+            display: inline-flex;
+            width: 54px;
+            height: 54px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 16px;
+            background: #eaf5ed;
+            color: var(--green-700);
+            font-size: 22px;
+        }
+
+        .farm-programme-card:nth-child(2) .farm-programme-icon {
+            background: #f7efdb;
+            color: #92651e;
+        }
+
+        .farm-programme-status {
+            display: inline-block;
+            padding: 6px 11px;
+            border-radius: 100px;
+            background: #eaf6ed;
+            color: var(--green-700);
+            font-size: 11px;
+            font-weight: 800;
+            white-space: nowrap;
+        }
+
+        .farm-programme-card h3 {
+            margin-bottom: 12px;
+            color: var(--green-950);
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: clamp(25px, 2.8vw, 32px);
+            line-height: 1.2;
+        }
+
+        .farm-programme-card > p {
+            color: var(--text-medium);
+            font-size: 15px;
+            line-height: 1.8;
+        }
+
+        .farm-programme-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 22px;
+        }
+
+        .farm-programme-tags span {
+            padding: 7px 11px;
+            border: 1px solid #e1e9e0;
+            border-radius: 100px;
+            color: #385a48;
+            background: #f8faf7;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .farm-programme-disclosure {
+            margin-top: 15px;
+            padding: 12px 14px;
+            border-left: 3px solid var(--gold-500);
+            border-radius: 0 9px 9px 0;
+            background: #fcfaf2;
+            color: #6a6044;
+            font-size: 12px;
+            line-height: 1.65;
+        }
+
+        .farm-programme-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            margin-top: auto;
+            padding-top: 22px;
+            color: var(--green-700);
+            font-size: 14px;
+            font-weight: 800;
+        }
+
+        .farm-programme-link:hover,
+        .farm-programme-link:focus-visible {
+            color: var(--green-950);
+            text-decoration: underline;
+        }
+
+        .farm-tech-band {
+            display: grid;
+            grid-template-columns: 1.05fr 1.95fr;
+            align-items: center;
+            gap: 24px;
+            margin-top: 22px;
+            padding: 29px 31px;
+            border-radius: 22px;
+            background: var(--green-950);
+            color: #ffffff;
+        }
+
+        .farm-tech-band h3 {
+            font-family: Georgia, 'Times New Roman', serif;
+            font-size: 25px;
+            line-height: 1.2;
+        }
+
+        .farm-tech-band p {
+            margin-top: 7px;
+            color: rgba(255,255,255,.72);
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .farm-tech-points {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .farm-tech-point {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            min-width: 0;
+            padding: 13px;
+            border: 1px solid rgba(255,255,255,.15);
+            border-radius: 13px;
+            background: rgba(255,255,255,.05);
+        }
+
+        .farm-tech-point i { color: #d5b568; font-size: 20px; }
+        .farm-tech-point strong { font-size: 12px; line-height: 1.4; }
+        .farm-tech-point span { color: rgba(255,255,255,.65); font-size: 11px; line-height: 1.5; }
+
+        @media (max-width: 900px) {
+            .farm-tech-band { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 760px) {
+            .farm-programme-grid { grid-template-columns: 1fr; }
+            .farm-programme-card { padding: 24px; }
+            .farm-tech-band { padding: 24px; }
+            .farm-tech-points { grid-template-columns: 1fr; }
+            .farm-tech-point { flex-direction: row; flex-wrap: wrap; align-items: center; }
+            .farm-tech-point span { flex-basis: 100%; }
+        }
+
         /* =====================================================
            FOOTER
         ===================================================== */
@@ -1574,10 +1762,10 @@
             </a>
 
             <nav class="nav-links">
-                <a href="#technology">Technology</a>
-                <a href="#platform">Farm Management</a>
-                <a href="#ai">AI Intelligence</a>
-                <a href="#about">About Us</a>
+                <a href="{% url 'raynoor_poultry_public' %}">Poultry &amp; Eggs</a>
+                <a href="{% url 'raynoor_goats_public' %}">Goats &amp; Qurbani</a>
+                <a href="{% url 'raynoor_technology_public' %}">Smart Farming</a>
+                <a href="{% url 'raynoor_investors_public' %}">Investors</a>
             </nav>
 
             <div class="nav-actions">
@@ -1599,7 +1787,7 @@
                 {% else %}
 
                     <a
-                        href="#about"
+                        href="{% url 'raynoor_about_public' %}"
                         class="btn btn-light"
                     >
                         About RayNoor
@@ -1642,11 +1830,11 @@
                     </h1>
 
                     <p class="hero-description">
-                        RayNoor Organic Farms combines responsible animal
-                        care with digital record management, remote sensor
-                        monitoring and AI-assisted insights. Our goal is to
-                        make every farm decision more informed, transparent
-                        and efficient.
+                        RayNoor Organic Farms brings together responsible
+                        poultry and goat care, fresh egg production and smart
+                        farm technology. With digital records, connected
+                        monitoring and AI-assisted insights, we work to make
+                        animal care and farm decisions more informed.
                     </p>
 
                     <div class="hero-actions">
@@ -1917,6 +2105,126 @@
             </div>
 
         </div>
+
+        <!-- =====================================================
+             WHAT WE RAISE — RAYNOOR FARM PROGRAMMES
+             Informational content; no new admin pages or data claims.
+        ====================================================== -->
+
+        <section class="section farm-programmes" id="our-farm" aria-labelledby="farm-programmes-title">
+            <div class="container">
+
+                <div class="section-heading-center">
+                    <div class="eyebrow">
+                        <i class="fa-solid fa-seedling" aria-hidden="true"></i>
+                        Life at RayNoor
+                    </div>
+                    <h2 class="section-title" id="farm-programmes-title">
+                        Smart farming, grounded in animal care.
+                    </h2>
+                    <p class="section-description">
+                        Beyond the digital dashboard, our work includes egg production,
+                        goat breeding and thoughtful animal management. Here's what
+                        we're raising today and what we're developing next.
+                    </p>
+                </div>
+
+                <div class="farm-programme-grid">
+                    <article class="farm-programme-card">
+                        <div class="farm-programme-top">
+                            <span class="farm-programme-icon">
+                                <i class="fa-solid fa-egg" aria-hidden="true"></i>
+                            </span>
+                            <span class="farm-programme-status">Current focus</span>
+                        </div>
+                        <h3>Premium poultry &amp; fresh eggs</h3>
+                        <p>
+                            We're raising white-layer birds and caring for our
+                            desi egg-producing flocks with attention to feeding,
+                            housing and daily flock health. Our goal is to offer
+                            dependable, carefully handled farm-fresh eggs.
+                        </p>
+                        <div class="farm-programme-tags" aria-label="Egg programmes">
+                            <span>White-layer rearing</span>
+                            <span>Desi eggs</span>
+                            <span>Fresh egg packs</span>
+                        </div>
+                        <div class="farm-programme-disclosure">
+                            <strong>In development:</strong> We're exploring
+                            Omega-3-enriched eggs through improved layer nutrition.
+                            Omega-3 product claims will follow appropriate validation.
+                        </div>
+                        <a class="farm-programme-link" href="{% url 'raynoor_poultry_public' %}">
+                            Explore poultry &amp; eggs <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                        </a>
+                    </article>
+
+                    <article class="farm-programme-card">
+                        <div class="farm-programme-top">
+                            <span class="farm-programme-icon">
+                                <i class="fa-solid fa-paw" aria-hidden="true"></i>
+                            </span>
+                            <span class="farm-programme-status">Growing our herd</span>
+                        </div>
+                        <h3>Goat breeding &amp; Qurbani preparation</h3>
+                        <p>
+                            Our goat programme focuses on Makhi Cheeni and
+                            Beetal animals, with careful attention to balanced
+                            nutrition, healthy growth and selective breeding.
+                            We are also developing our approach to raising
+                            well-prepared premium Qurbani animals.
+                        </p>
+                        <div class="farm-programme-tags" aria-label="Goat programmes">
+                            <span>Makhi Cheeni</span>
+                            <span>Beetal</span>
+                            <span>Qurbani preparation</span>
+                        </div>
+                        <div class="farm-programme-disclosure">
+                            <strong>Future plans:</strong> American Boer goats
+                            are part of our planned breeding expansion;
+                            this programme has not yet launched.
+                        </div>
+                        <a class="farm-programme-link" href="{% url 'raynoor_goats_public' %}">
+                            Explore goats &amp; Qurbani <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                        </a>
+                    </article>
+                </div>
+
+                <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:20px 0 30px;">
+                    <a class="btn btn-light" href="{% url 'raynoor_technology_public' %}">Discover smart farming</a>
+                    <a class="btn btn-light" href="{% url 'raynoor_investors_public' %}">Investor participation explained</a>
+                </div>
+
+                <div class="farm-tech-band" aria-label="How technology supports the farm">
+                    <div>
+                        <h3>Technology that supports good farming.</h3>
+                        <p>
+                            Connected monitoring and practical controls help our
+                            team make better day-to-day decisions, with people
+                            responsible for animal care.
+                        </p>
+                    </div>
+                    <div class="farm-tech-points">
+                        <div class="farm-tech-point">
+                            <i class="fa-solid fa-temperature-half" aria-hidden="true"></i>
+                            <strong>Shed monitoring</strong>
+                            <span>Temperature and humidity visibility</span>
+                        </div>
+                        <div class="farm-tech-point">
+                            <i class="fa-solid fa-fan" aria-hidden="true"></i>
+                            <strong>Lighting &amp; fans</strong>
+                            <span>Remote oversight and environmental controls</span>
+                        </div>
+                        <div class="farm-tech-point">
+                            <i class="fa-solid fa-brain" aria-hidden="true"></i>
+                            <strong>AI-assisted insights</strong>
+                            <span>Data analysis to support human decisions</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
 
         <!-- =====================================================
              CORE FEATURES
@@ -2711,9 +3019,11 @@
                     </h4>
 
                     <div class="footer-links">
-                        <a href="#technology">Technology</a>
-                        <a href="#platform">Farm Management</a>
-                        <a href="#ai">AI Intelligence</a>
+                        <a href="{% url 'raynoor_poultry_public' %}">Poultry &amp; Eggs</a>
+                        <a href="{% url 'raynoor_goats_public' %}">Goats &amp; Qurbani</a>
+                        <a href="{% url 'raynoor_technology_public' %}">Technology &amp; AI</a>
+                        <a href="{% url 'raynoor_investors_public' %}">Investor Participation</a>
+                        <a href="{% url 'raynoor_about_public' %}">About Us</a>
                         <a href="{% url 'login' %}">System Login</a>
                     </div>
 

@@ -37,6 +37,8 @@ class OnlineOffer(models.Model):
     photo_fit = models.CharField(max_length=8, choices=[('contain', 'Show full photo'), ('cover', 'Fill frame (crop edges)')], default='contain')
     photo_position = models.CharField(max_length=6, choices=[('center', 'Center'), ('top', 'Top'), ('bottom', 'Bottom'), ('left', 'Left'), ('right', 'Right')], default='center')
     photo_alt = models.CharField(max_length=180, blank=True, default='', help_text='Descriptive image alt text for accessibility and search engines; plain text only.')
+    description = models.TextField(blank=True, default='', help_text='Customer-facing pack details. Plain text; line breaks are supported.')
+    egg_weight_label = models.CharField(max_length=80, blank=True, default='', help_text='Optional actual egg weight, e.g. 55–60 g per egg.')
 
     @property
     def has_photo(self):
@@ -49,6 +51,22 @@ class OnlineOffer(models.Model):
 
     def __str__(self):
         return self.title or f'{self.product.name} · {self.pack_size} eggs'
+
+
+class OnlineOfferGalleryPhoto(models.Model):
+    """Up to four supplementary pack images, compressed and stored in PostgreSQL."""
+    offer = models.ForeignKey(OnlineOffer, on_delete=models.CASCADE, related_name='gallery_photos')
+    photo_data = models.BinaryField(editable=False)
+    photo_mime = models.CharField(max_length=30, default='image/jpeg', editable=False)
+    alt_text = models.CharField(max_length=180, blank=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ('sort_order', 'id')
+
+    def __str__(self):
+        return f'{self.offer} – gallery image {self.pk}'
 
 
 class OnlineDeliveryZone(models.Model):
