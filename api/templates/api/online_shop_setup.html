@@ -8,7 +8,7 @@
 .setup-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0 18px}.setup-metric{background:white;border:1px solid #dfeae3;border-radius:12px;padding:15px}.setup-metric strong{display:block;font-size:25px;color:#155b43}.setup-metric span{font-size:11px;color:#5d7069;font-weight:750}
 .setup-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}.setup-card{background:#fff;border:1px solid #dce6df;border-radius:15px;padding:19px;min-width:0}.setup-card h3{font-size:18px;margin:0 0 6px;color:#174532}.setup-card p{font-size:12px;color:#677c70;line-height:1.6}
 .setup-field{margin:0 0 14px}.setup-errors{padding:12px 25px;color:#a12f2f;background:#fff3f2;border-radius:10px;font-size:12px}.setup-form label{font-size:12px;font-weight:800;display:block;margin-bottom:5px;color:#2c5b46}.setup-form input:not([type=checkbox]),.setup-form select{display:block;box-sizing:border-box;width:100%;min-height:42px;padding:9px 11px;border:1px solid #c9d9ce;border-radius:8px;background:white;font-size:14px}.setup-form input[type=checkbox]{margin-right:8px;transform:scale(1.1)}.setup-form .setup-check{display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px}.setup-form .setup-check input{margin:0}.setup-form .helptext{display:block;font-size:11px;color:#6e8076}.setup-form .errorlist{padding:0;list-style:none;color:#ae3d3d;font-size:12px}
-.setup-actions{display:flex;gap:9px;flex-wrap:wrap}.setup-primary{padding:12px 18px;border:0;background:#22805a;border-radius:10px;color:white;font-weight:850;cursor:pointer}.setup-secondary{padding:10px 14px;border:1px solid #cdded1;border-radius:10px;color:#275a42;text-decoration:none;font-size:13px}.setup-grid{overflow-x:auto}.setup-grid table{width:100%;border-collapse:collapse;font-size:12px;min-width:400px}.setup-grid td,.setup-grid th{padding:10px;border-bottom:1px solid #edf1ed;text-align:left}.setup-grid th{color:#678073;font-size:10px;text-transform:uppercase}.setup-grid a{color:#176b47;font-weight:800}.setup-tag{display:inline-block;border-radius:25px;background:#e3f4e8;color:#136d40;font-size:10px;font-weight:800;padding:4px 8px}.setup-tag.off{background:#f3efeb;color:#8a6757}
+.setup-help{font-size:11px;color:#627968;margin-top:6px;line-height:1.6}.setup-photo-preview{display:flex;align-items:center;gap:12px;margin:8px 0 12px;border:1px solid #e3ebe4;background:#f7faf8;border-radius:12px;padding:9px}.setup-photo-preview img{width:160px;height:100px;object-fit:contain;object-position:center;border-radius:8px;background:#edf3e6}.setup-photo-preview span{font-size:12px;color:#526f5c}.setup-thumb{width:52px;height:46px;object-fit:cover;border-radius:8px}.setup-actions{display:flex;gap:9px;flex-wrap:wrap}.setup-primary{padding:12px 18px;border:0;background:#22805a;border-radius:10px;color:white;font-weight:850;cursor:pointer}.setup-secondary{padding:10px 14px;border:1px solid #cdded1;border-radius:10px;color:#275a42;text-decoration:none;font-size:13px}.setup-grid{overflow-x:auto}.setup-grid table{width:100%;border-collapse:collapse;font-size:12px;min-width:400px}.setup-grid td,.setup-grid th{padding:10px;border-bottom:1px solid #edf1ed;text-align:left}.setup-grid th{color:#678073;font-size:10px;text-transform:uppercase}.setup-grid a{color:#176b47;font-weight:800}.setup-tag{display:inline-block;border-radius:25px;background:#e3f4e8;color:#136d40;font-size:10px;font-weight:800;padding:4px 8px}.setup-tag.off{background:#f3efeb;color:#8a6757}
 @media(max-width:860px){.setup-columns{grid-template-columns:1fr}.setup-metrics{grid-template-columns:repeat(3,1fr)}}@media(max-width:500px){.setup-metrics{grid-template-columns:1fr}.shop-setup-hero{padding:20px}}
 </style>
 <section class="shop-setup-hero">
@@ -25,18 +25,56 @@
   <section class="setup-card" id="packs">
     <h3>{% if edit_offer %}Edit egg pack{% else %}Create an egg pack{% endif %}</h3>
     <p>Select a real Egg POS product, pack size and retail selling price. Only active packs appear on the customer store. Pack stock comes directly from Egg POS FIFO inventory.</p>
-    <form method="post" class="setup-form">{% csrf_token %}<input type="hidden" name="kind" value="offer"><input type="hidden" name="object_id" value="{{ edit_offer.pk|default:'' }}">
+    <form method="post" enctype="multipart/form-data" class="setup-form">{% csrf_token %}<input type="hidden" name="kind" value="offer"><input type="hidden" name="object_id" value="{{ edit_offer.pk|default:'' }}">
       {% if offer_form.errors %}<ul class="setup-errors">{% for field, errors in offer_form.errors.items %}{% for error in errors %}<li>{{ field }}: {{ error }}</li>{% endfor %}{% endfor %}</ul>{% endif %}
       <div class="setup-field"><label for="setup-product">Egg POS product</label><select id="setup-product" name="product" required><option value="">Select a product</option>{% for product in products %}<option value="{{ product.pk }}" {% if product.pk|stringformat:'s' == offer_values.product %}selected{% endif %}>{{ product.name }} ({{ product.sku }}){% if not product.is_active %} — inactive{% endif %}</option>{% endfor %}</select></div>
       <div class="setup-field"><label for="setup-pack">Retail pack size</label><select id="setup-pack" name="pack_size" required><option value="6" {% if offer_values.pack_size == '6' %}selected{% endif %}>6 eggs</option><option value="12" {% if offer_values.pack_size == '12' %}selected{% endif %}>12 eggs</option><option value="30" {% if offer_values.pack_size == '30' %}selected{% endif %}>30 eggs</option></select></div>
       <div class="setup-field"><label for="setup-title">Pack title (optional)</label><input id="setup-title" name="title" maxlength="160" value="{{ offer_values.title }}" placeholder="Fresh white eggs · Dozen"></div>
       <div class="setup-field"><label for="setup-price">Retail price per pack (Rs)</label><input id="setup-price" type="number" name="price_per_pack" min="0.01" step="0.01" value="{{ offer_values.price_per_pack }}" required></div>
+      <div class="setup-field">
+        <label for="setup-photo">Product photo (optional)</label>
+        {% if edit_offer.has_photo %}
+          <div class="setup-photo-preview">
+            <img src="{% url 'raynoor_offer_photo' offer_id=edit_offer.pk %}?v={{ edit_offer.photo_updated_at|date:'U' }}" alt="Current photo for {{ edit_offer.title|default:edit_offer.product.name }}" loading="lazy">
+            <span>Current product photo</span>
+          </div>
+        {% endif %}
+        <input id="setup-photo" type="file" name="photo_upload" accept="image/jpeg,image/png,image/webp" aria-describedby="photo-guidance">
+        <div id="new-photo-preview" class="setup-photo-preview" style="display:none" aria-live="polite">
+          <img id="new-photo-preview-img" alt="Selected egg pack photo preview"><span>New photo selected · Save pack changes to publish</span>
+        </div>
+        <div id="photo-guidance" class="setup-help">JPG, PNG or WebP · Max 4 MB · Automatically resized for fast loading. Stored safely with your Railway database.</div>
+        {% if edit_offer.has_photo %}<label class="setup-check" style="margin-top:9px"><input type="checkbox" name="remove_photo"> Remove current photo (if no replacement selected)</label>{% endif %}
+      </div>
+      <div class="setup-field">
+        <label for="setup-photo-fit">How should the picture fit?</label>
+        <select id="setup-photo-fit" name="photo_fit">
+          <option value="contain" {% if offer_values.photo_fit == 'contain' %}selected{% endif %}>Show full photo (no crop) — recommended</option>
+          <option value="cover" {% if offer_values.photo_fit == 'cover' %}selected{% endif %}>Fill image area (may crop edges)</option>
+        </select>
+        <div class="setup-help">For an entire 30-egg tray, choose Show full photo. For close-up egg shots, Fill image area can work better.</div>
+      </div>
+      <div class="setup-field">
+        <label for="setup-photo-position">Photo alignment</label>
+        <select id="setup-photo-position" name="photo_position">
+          <option value="center" {% if offer_values.photo_position == 'center' %}selected{% endif %}>Center</option>
+          <option value="top" {% if offer_values.photo_position == 'top' %}selected{% endif %}>Top</option>
+          <option value="bottom" {% if offer_values.photo_position == 'bottom' %}selected{% endif %}>Bottom</option>
+          <option value="left" {% if offer_values.photo_position == 'left' %}selected{% endif %}>Left</option>
+          <option value="right" {% if offer_values.photo_position == 'right' %}selected{% endif %}>Right</option>
+        </select>
+      </div>
+      <div class="setup-field">
+        <label for="setup-photo-alt">Image description — HTML alt text</label>
+        <input id="setup-photo-alt" name="photo_alt" maxlength="180" value="{{ offer_values.photo_alt }}" placeholder="e.g. RayNoor farm-fresh brown eggs in a 30-egg tray">
+        <div class="setup-help">Describe what is in the photo. This populates the HTML &lt;img&gt; alt attribute for accessibility and SEO. Enter plain text, not HTML code.</div>
+      </div>
       <div class="setup-field"><label for="setup-order">Display order</label><input id="setup-order" type="number" name="sort_order" min="0" value="{{ offer_values.sort_order }}"></div>
       <div class="setup-field"><label class="setup-check"><input name="is_active" type="checkbox" {% if offer_values.is_active %}checked{% endif %}> Publish this pack on online store</label></div>
       <div class="setup-actions"><button class="setup-primary" type="submit">{% if edit_offer %}Save pack changes{% else %}Save egg pack{% endif %}</button>{% if edit_offer %}<a class="setup-secondary" href="{% url 'raynoor_shop_setup' %}#packs">Cancel edit</a>{% endif %}</div>
     </form>
     <div class="setup-grid" style="margin-top:18px"><table><thead><tr><th>Retail pack</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
-    {% for offer in offers %}<tr><td><strong>{{ offer.title|default:offer.product.name }}</strong><br><small>{{ offer.pack_size }} eggs · {{ offer.product.name }}</small></td><td>Rs {{ offer.price_per_pack|floatformat:0|intcomma }}</td><td><span class="setup-tag {% if not offer.is_active %}off{% endif %}">{% if offer.is_active %}Active{% else %}Draft{% endif %}</span></td><td><a href="?offer={{ offer.pk }}#packs">Edit</a></td></tr>
+    {% for offer in offers %}<tr><td><div style="display:flex;align-items:center;gap:10px">{% if offer.has_photo %}<img class="setup-thumb" src="{% url 'raynoor_offer_photo' offer_id=offer.pk %}?v={{ offer.photo_updated_at|date:'U' }}" loading="lazy" alt="">{% else %}<span style="font-size:22px">🥚</span>{% endif %}<div><strong>{{ offer.title|default:offer.product.name }}</strong><br><small>{{ offer.pack_size }} eggs · {{ offer.product.name }}</small></div></div></td><td>Rs {{ offer.price_per_pack|floatformat:0|intcomma }}</td><td><span class="setup-tag {% if not offer.is_active %}off{% endif %}">{% if offer.is_active %}Active{% else %}Draft{% endif %}</span></td><td><a href="?offer={{ offer.pk }}#packs">Edit</a></td></tr>
     {% empty %}<tr><td colspan="4">No egg packs configured. Create your first pack above.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
@@ -60,4 +98,28 @@
   </section>
 </div>
 <div class="ep-panel" style="padding:17px;margin-bottom:20px"><strong>Before opening the online shop:</strong> Add at least one active egg pack and delivery zone, confirm POS stock, then test guest checkout and cancellation locally. Prices and delivery fees entered here are applied to new orders; previous orders keep their recorded values.</div>
+<script>
+(function(){
+  const input=document.getElementById('setup-photo');
+  const wrapper=document.getElementById('new-photo-preview');
+  const image=document.getElementById('new-photo-preview-img');
+  const current=document.querySelector('.setup-photo-preview img:not(#new-photo-preview-img)');
+  const fit=document.getElementById('setup-photo-fit');
+  const position=document.getElementById('setup-photo-position');
+  function updatePreview(){for(const node of [image,current]){if(node){node.style.objectFit=fit?.value||'contain';node.style.objectPosition=position?.value||'center';}}}
+  fit?.addEventListener('change',updatePreview);position?.addEventListener('change',updatePreview);updatePreview();
+  if (!input || !wrapper || !image) return;
+  let tempUrl=null;
+  input.addEventListener('change',function(){
+    if(tempUrl){URL.revokeObjectURL(tempUrl);tempUrl=null;}
+    const file=input.files && input.files[0];
+    if(!file){wrapper.style.display='none';image.removeAttribute('src');return;}
+    tempUrl=URL.createObjectURL(file);
+    image.src=tempUrl;
+    wrapper.style.display='flex';
+    updatePreview();
+  });
+  window.addEventListener('pagehide',function(){if(tempUrl) URL.revokeObjectURL(tempUrl);});
+})();
+</script>
 {% endblock %}

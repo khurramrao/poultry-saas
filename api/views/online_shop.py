@@ -7,11 +7,11 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.db import IntegrityError
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST, require_http_methods
+from django.views.decorators.http import require_POST, require_http_methods, require_GET
 from api.models.online_shop import OnlineRetailAccount, OnlineOffer, OnlineDeliveryZone, OnlineOrder
 from api.forms_online_shop import OnlineOfferSetupForm, OnlineDeliveryZoneSetupForm
 from api.models.egg_pos import EggPOSProduct
@@ -51,9 +51,25 @@ def _limit(request, category, limit, window=3600):
     cache.set(key, count+1, window)
 
 
+@require_GET
+def offer_photo(request, offer_id):
+    """Serve sanitized photo bytes from DB; unpublished offers visible only to shop admins."""
+    offer = get_object_or_404(OnlineOffer.objects.select_related('product'), pk=offer_id)
+    public = offer.is_active and offer.product.is_active
+    if not public and not _can_manage_shop_settings(request.user):
+        raise Http404('Photo not found')
+    if not offer.photo_mime or not offer.photo_data:
+        raise Http404('Photo not found')
+    response = HttpResponse(bytes(offer.photo_data), content_type='image/jpeg')
+    response['X-Content-Type-Options'] = 'nosniff'
+    response['Content-Disposition'] = 'inline; filename="raynoor-egg-pack.jpg"'
+    response['Cache-Control'] = 'public, max-age=300' if public else 'private, no-store'
+    return response
+
+
 def storefront(request):
     offers = list(OnlineOffer.objects.filter(is_active=True, product__is_active=True)
-                  .select_related('product').order_by('sort_order', 'id'))
+                  .select_related('product').defer('photo_data').order_by('sort_order', 'id'))
     products = []
     for offer in offers:
         available = free_available(offer.product_id)
@@ -88,7 +104,7 @@ def cart_change(request):
 
 def _cart_rows(request):
     cart = request.session.get('raynoor_cart', {})
-    offered = {str(o.pk): o for o in OnlineOffer.objects.filter(pk__in=cart, is_active=True, product__is_active=True).select_related('product')}
+    offered = {str(o.pk): o for o in OnlineOffer.objects.filter(pk__in=cart, is_active=True, product__is_active=True).select_related('product').defer('photo_data')}
     rows = []
     total = Decimal('0')
     for offer_id, count in cart.items():
@@ -365,7 +381,7 @@ def shop_setup(request):
     if not _can_manage_shop_settings(request.user):
         raise Http404('Not found')
 
-    offers = OnlineOffer.objects.select_related('product').order_by('sort_order', 'id')
+    offers = OnlineOffer.objects.select_related('product').defer('photo_data').order_by('sort_order', 'id')
     zones = OnlineDeliveryZone.objects.all().order_by('name')
     try:
         offer_id = int(request.POST.get('object_id') or 0) if request.method == 'POST' and request.POST.get('kind') == 'offer' else int(request.GET.get('offer') or 0)
@@ -380,7 +396,7 @@ def shop_setup(request):
     if request.method == 'POST':
         kind = request.POST.get('kind')
         if kind == 'offer':
-            offer_form = OnlineOfferSetupForm(request.POST, instance=offer_instance)
+            offer_form = OnlineOfferSetupForm(request.POST, request.FILES, instance=offer_instance)
             if offer_form.is_valid():
                 offer_form.save()
                 messages.success(request, 'Retail egg pack saved. Active packs appear in the shop automatically.')
@@ -413,6 +429,9 @@ def shop_setup(request):
         'pack_size': field_value('offer', 'pack_size', '12'),
         'title': field_value('offer', 'title'),
         'price_per_pack': field_value('offer', 'price_per_pack'),
+        'photo_fit': field_value('offer', 'photo_fit', 'contain'),
+        'photo_position': field_value('offer', 'photo_position', 'center'),
+        'photo_alt': field_value('offer', 'photo_alt'),
         'sort_order': field_value('offer', 'sort_order', '0'),
         'is_active': checkbox_value('offer', 'is_active'),
     }

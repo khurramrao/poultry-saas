@@ -7,7 +7,7 @@
 <div class="cols">
   <section class="card" aria-label="Cart items">
     {% for row in rows %}<div class="row-item">
-      <div class="egg-art" aria-hidden="true">🥚</div>
+      {% if row.offer.has_photo %}<div class="egg-art" style="overflow:hidden;padding:{% if row.offer.photo_fit == 'contain' %}4px{% else %}0{% endif %}"><img src="{% url 'raynoor_offer_photo' offer_id=row.offer.pk %}?v={{ row.offer.photo_updated_at|date:'U' }}" width="74" height="74" alt="" style="width:100%;height:100%;object-fit:{{ row.offer.photo_fit }};object-position:{{ row.offer.photo_position }}"></div>{% else %}<div class="egg-art" aria-hidden="true">🥚</div>{% endif %}
       <div class="grow"><h3>{{ row.offer.title|default:row.offer.product.name }}</h3><p class="muted small">{{ row.eggs }} eggs · {{ row.count }} pack(s) of {{ row.offer.pack_size }}</p>
         <form method="post" action="{% url 'raynoor_cart_update' %}" class="line" style="justify-content:flex-start;flex-wrap:wrap">{% csrf_token %}<input type="hidden" name="offer_id" value="{{ row.offer.id }}"><label class="small" for="quantity-{{ row.offer.id }}">Packs</label><input id="quantity-{{ row.offer.id }}" type="number" name="count" min="0" max="24" value="{{ row.count }}" style="width:74px;border:1px solid #d1dfd4;border-radius:8px;padding:8px"><button class="button alt" type="submit">Update cart</button></form>
       </div><b class="num">Rs {{ row.amount|floatformat:0|intcomma }}</b>

@@ -1,16 +1,23 @@
 """Owner-only forms for public egg pack and Lahore delivery setup."""
 from django import forms
+from django.utils import timezone
+from api.services.online_offer_images import prepare_offer_photo
 from api.models.online_shop import OnlineOffer, OnlineDeliveryZone
 from api.models.egg_pos import EggPOSProduct
 
 
 class OnlineOfferSetupForm(forms.ModelForm):
+    photo_upload = forms.FileField(required=False, label='Upload egg pack photo (JPG / PNG / WebP)')
+    remove_photo = forms.BooleanField(required=False, label='Remove current photo')
+
     class Meta:
         model = OnlineOffer
-        fields = ('product', 'pack_size', 'title', 'price_per_pack', 'sort_order', 'is_active')
+        fields = ('product', 'pack_size', 'title', 'price_per_pack', 'photo_fit', 'photo_position', 'photo_alt', 'sort_order', 'is_active')
         labels = {
             'product': 'Existing Egg POS product', 'pack_size': 'Eggs per pack',
             'title': 'Retail pack title (optional)', 'price_per_pack': 'Retail price per pack (Rs)',
+            'photo_fit': 'Photo display', 'photo_position': 'Photo alignment',
+            'photo_alt': 'Image description (HTML alt text / SEO)',
             'sort_order': 'Display order', 'is_active': 'Show pack in online shop',
         }
         widgets = {
@@ -21,9 +28,42 @@ class OnlineOfferSetupForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['product'].queryset = EggPOSProduct.objects.all().order_by('name')
+        # Accept older admin/API forms that do not post the new optional image controls.
+        self.fields['photo_fit'].required = False
+        self.fields['photo_position'].required = False
+
+    def clean_photo_fit(self):
+        return self.cleaned_data.get('photo_fit') or 'contain'
+
+    def clean_photo_position(self):
+        return self.cleaned_data.get('photo_position') or 'center'
+
+    def clean_photo_upload(self):
+        file = self.cleaned_data.get('photo_upload')
+        if file is None:
+            return None
+        return prepare_offer_photo(file)
+
+    def save(self, commit=True):
+        offer = super().save(commit=False)
+        photo = self.cleaned_data.get('photo_upload')
+        if photo:
+            offer.photo_data = photo
+            offer.photo_mime = 'image/jpeg'
+            offer.photo_updated_at = timezone.now()
+        elif self.cleaned_data.get('remove_photo'):
+            offer.photo_data = None
+            offer.photo_mime = ''
+            offer.photo_updated_at = timezone.now()
+        if commit:
+            offer.save()
+            self.save_m2m()
+        return offer
 
     def clean(self):
         cleaned = super().clean()
+        if cleaned.get('photo_upload') and cleaned.get('remove_photo'):
+            self.add_error('remove_photo', 'Choose either a replacement photo or removal, not both.')
         product = cleaned.get('product')
         if cleaned.get('is_active') and product is not None and not product.is_active:
             self.add_error('product', 'Activate this product in Egg POS before publishing the pack.')

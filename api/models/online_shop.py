@@ -29,6 +29,19 @@ class OnlineOffer(models.Model):
     title = models.CharField(max_length=160, blank=True)
     is_active = models.BooleanField(default=False)
     sort_order = models.PositiveSmallIntegerField(default=0)
+    # Small optimized JPEG stored in PostgreSQL: persists across Railway deployments.
+    # Do not store product photos in the ephemeral container filesystem.
+    photo_data = models.BinaryField(null=True, blank=True, editable=False)
+    photo_mime = models.CharField(max_length=30, blank=True, default='', editable=False)
+    photo_updated_at = models.DateTimeField(null=True, blank=True, editable=False)
+    photo_fit = models.CharField(max_length=8, choices=[('contain', 'Show full photo'), ('cover', 'Fill frame (crop edges)')], default='contain')
+    photo_position = models.CharField(max_length=6, choices=[('center', 'Center'), ('top', 'Top'), ('bottom', 'Bottom'), ('left', 'Left'), ('right', 'Right')], default='center')
+    photo_alt = models.CharField(max_length=180, blank=True, default='', help_text='Descriptive image alt text for accessibility and search engines; plain text only.')
+
+    @property
+    def has_photo(self):
+        return bool(self.photo_mime)
+
 
     class Meta:
         ordering = ('sort_order', 'id')

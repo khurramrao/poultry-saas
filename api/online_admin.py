@@ -1,11 +1,14 @@
 from django.contrib import admin
+from api.forms_online_shop import OnlineOfferSetupForm
 from api.models.online_shop import OnlineOffer, OnlineDeliveryZone, OnlineOrder, OnlineOrderItem, OnlineRetailAccount
 
 @admin.register(OnlineOffer)
 class OnlineOfferAdmin(admin.ModelAdmin):
+    form = OnlineOfferSetupForm
     list_display = ('product', 'pack_size', 'price_per_pack', 'is_active')
     list_editable = ('price_per_pack', 'is_active')
     list_filter = ('is_active',)
+    list_display = ('product', 'pack_size', 'price_per_pack', 'has_photo', 'is_active')
 
 @admin.register(OnlineDeliveryZone)
 class OnlineDeliveryZoneAdmin(admin.ModelAdmin):
