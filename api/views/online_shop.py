@@ -508,6 +508,8 @@ def shop_setup(request):
         'photo_position': field_value('offer', 'photo_position', 'center'),
         'photo_alt': field_value('offer', 'photo_alt'),
         'description': field_value('offer', 'description'),
+        'seo_title': field_value('offer', 'seo_title'),
+        'seo_description': field_value('offer', 'seo_description'),
         'egg_weight_label': field_value('offer', 'egg_weight_label'),
         'sort_order': field_value('offer', 'sort_order', '0'),
         'is_active': checkbox_value('offer', 'is_active'),

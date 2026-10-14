@@ -1,5 +1,7 @@
-{% extends 'api/online_base.html' %}{% load humanize %}
-{% block page_title %}{{ offer.title|default:offer.product.name }} · RayNoor Organic Farms{% endblock %}
+{% extends 'api/online_base.html' %}{% load humanize product_rich_text %}
+{% block page_title %}{% if offer.seo_title %}{{ offer.seo_title }}{% else %}{{ offer.title|default:offer.product.name }} | RayNoor Farms Lahore{% endif %}{% endblock %}
+{% block meta_description %}{% if offer.seo_description %}{{ offer.seo_description }}{% elif offer.description %}{{ offer.description|plain_product_description|truncatechars:155 }}{% else %}Buy {{ offer.pack_size }} fresh chicken eggs online from RayNoor Farms. Lahore delivery available.{% endif %}{% endblock %}
+{% block head_extras %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'raynoor_product_detail' offer_id=offer.pk %}">{% endblock %}
 {% block body %}
 <style>
   .pd-breadcrumb { display:flex; gap:8px; align-items:center; margin:24px 0; font-size:13px; color:#658274 }
@@ -25,6 +27,11 @@
   .pd-details { margin-top:20px }
   .pd-details h2,.pd-related h2 { font-size:19px; margin:0 0 14px; color:#173f2c }
   .pd-description { line-height:1.7; color:#4a6454 }
+  .pd-description p { margin:.55em 0 }
+  .pd-description h2,.pd-description h3 { color:#173f2c; line-height:1.35; margin:1.2em 0 .4em }
+  .pd-description h2 { font-size:19px }.pd-description h3 { font-size:16px }
+  .pd-description ul,.pd-description ol { margin:.6em 0 .9em; padding-left:25px }
+  .pd-description li { margin:4px 0 }
   .pd-related { margin-top:22px }
   .pd-related-list { display:flex; gap:10px; flex-wrap:wrap }
   .pd-related-list a { padding:12px 14px; background:#f1f8f2; border:1px solid #d9ebdc; border-radius:11px; color:#205842; font-weight:750; text-decoration:none }
@@ -68,7 +75,7 @@
       {% if offer.egg_weight_label %}<div><dt>Weight per egg</dt><dd>{{ offer.egg_weight_label }}</dd></div>{% endif %}
       <div><dt>Delivery</dt><dd>Lahore only</dd></div>
     </dl>
-    {% if offer.description %}<p class="pd-description">{{ offer.description|truncatechars:210|linebreaksbr }}</p>{% endif %}
+    {% if offer.description %}<p class="pd-description">{{ offer.description|plain_product_description|truncatechars:210 }}</p>{% endif %}
     <form method="post" action="{% url 'raynoor_cart_update' %}">{% csrf_token %}
       <input type="hidden" name="offer_id" value="{{ offer.pk }}">
       <div class="field"><label for="pd-count">Number of packs</label><input type="number" min="1" max="{{ stock_packs }}" id="pd-count" name="count" value="{{ selected_packs|default:1 }}" required {% if not stock_packs %}disabled{% endif %}></div>
@@ -79,8 +86,8 @@
   </section>
 </div>
 <section class="pd-details"><h2>Product information</h2>
-  {% if offer.description %}<p class="pd-description">{{ offer.description|linebreaksbr }}</p>{% else %}<p class="muted">{{ offer.pack_size }} farm egg pack. For further details, please contact RayNoor before ordering.</p>{% endif %}
- <p class="small muted">Images are for illustration purposes. Actual packaging may vary.</p>
+  {% if offer.description %}<div class="pd-description">{{ offer.description|rich_product_description }}</div>{% else %}<p class="muted">{{ offer.pack_size }} farm egg pack. For further details, please contact RayNoor before ordering.</p>{% endif %}
+  <p class="small muted">Images are for illustration purposes. Actual packaging may vary.</p>
 </section>
 {% if related_offers %}
 <section class="pd-related"><h2>Other pack sizes</h2><div class="pd-related-list">

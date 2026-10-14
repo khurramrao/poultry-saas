@@ -12,10 +12,11 @@ class OnlineOfferSetupForm(forms.ModelForm):
 
     class Meta:
         model = OnlineOffer
-        fields = ('product', 'pack_size', 'title', 'description', 'egg_weight_label', 'price_per_pack', 'photo_fit', 'photo_position', 'photo_alt', 'sort_order', 'is_active')
+        fields = ('product', 'pack_size', 'title', 'description', 'seo_title', 'seo_description', 'egg_weight_label', 'price_per_pack', 'photo_fit', 'photo_position', 'photo_alt', 'sort_order', 'is_active')
         labels = {
             'product': 'Existing Egg POS product', 'pack_size': 'Eggs per pack',
-            'title': 'Retail pack title (optional)', 'description': 'Product description (plain text)',
+            'title': 'Retail pack title (optional)', 'description': 'Product description (formatted)',
+            'seo_title': 'SEO title (optional)', 'seo_description': 'Meta description (optional)',
             'egg_weight_label': 'Egg weight per piece (optional)',
             'price_per_pack': 'Retail price per pack (Rs)',
             'photo_fit': 'Photo display', 'photo_position': 'Photo alignment',

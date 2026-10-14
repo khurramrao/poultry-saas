@@ -38,6 +38,8 @@ class OnlineOffer(models.Model):
     photo_position = models.CharField(max_length=6, choices=[('center', 'Center'), ('top', 'Top'), ('bottom', 'Bottom'), ('left', 'Left'), ('right', 'Right')], default='center')
     photo_alt = models.CharField(max_length=180, blank=True, default='', help_text='Descriptive image alt text for accessibility and search engines; plain text only.')
     description = models.TextField(blank=True, default='', help_text='Customer-facing pack details. Plain text; line breaks are supported.')
+    seo_title = models.CharField(max_length=70, blank=True, default='', help_text='Optional browser/search result title, max 70 characters.')
+    seo_description = models.CharField(max_length=160, blank=True, default='', help_text='Optional search result summary, max 160 characters.')
     egg_weight_label = models.CharField(max_length=80, blank=True, default='', help_text='Optional actual egg weight, e.g. 55–60 g per egg.')
 
     @property

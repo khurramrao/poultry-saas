@@ -8,7 +8,7 @@
 .setup-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0 18px}.setup-metric{background:white;border:1px solid #dfeae3;border-radius:12px;padding:15px}.setup-metric strong{display:block;font-size:25px;color:#155b43}.setup-metric span{font-size:11px;color:#5d7069;font-weight:750}
 .setup-columns{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}.setup-card{background:#fff;border:1px solid #dce6df;border-radius:15px;padding:19px;min-width:0}.setup-card h3{font-size:18px;margin:0 0 6px;color:#174532}.setup-card p{font-size:12px;color:#677c70;line-height:1.6}
 .setup-field{margin:0 0 14px}.setup-errors{padding:12px 25px;color:#a12f2f;background:#fff3f2;border-radius:10px;font-size:12px}.setup-form label{font-size:12px;font-weight:800;display:block;margin-bottom:5px;color:#2c5b46}.setup-form input:not([type=checkbox]),.setup-form select,.setup-form textarea{display:block;box-sizing:border-box;width:100%;min-height:42px;padding:9px 11px;border:1px solid #c9d9ce;border-radius:8px;background:white;font-size:14px}.setup-form input[type=checkbox]{margin-right:8px;transform:scale(1.1)}.setup-form .setup-check{display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px}.setup-form .setup-check input{margin:0}.setup-form .helptext{display:block;font-size:11px;color:#6e8076}.setup-form .errorlist{padding:0;list-style:none;color:#ae3d3d;font-size:12px}
-.setup-help{font-size:11px;color:#627968;margin-top:6px;line-height:1.6}.setup-photo-preview{display:flex;align-items:center;gap:12px;margin:8px 0 12px;border:1px solid #e3ebe4;background:#f7faf8;border-radius:12px;padding:9px}.setup-photo-preview img{width:160px;height:100px;object-fit:contain;object-position:center;border-radius:8px;background:#edf3e6}.setup-photo-preview span{font-size:12px;color:#526f5c}.setup-thumb{width:52px;height:46px;object-fit:cover;border-radius:8px}.setup-actions{display:flex;gap:9px;flex-wrap:wrap}.setup-primary{padding:12px 18px;border:0;background:#22805a;border-radius:10px;color:white;font-weight:850;cursor:pointer}.setup-secondary{padding:10px 14px;border:1px solid #cdded1;border-radius:10px;color:#275a42;text-decoration:none;font-size:13px}.setup-grid{overflow-x:auto}.setup-grid table{width:100%;border-collapse:collapse;font-size:12px;min-width:400px}.setup-grid td,.setup-grid th{padding:10px;border-bottom:1px solid #edf1ed;text-align:left}.setup-grid th{color:#678073;font-size:10px;text-transform:uppercase}.setup-grid a{color:#176b47;font-weight:800}.setup-tag{display:inline-block;border-radius:25px;background:#e3f4e8;color:#136d40;font-size:10px;font-weight:800;padding:4px 8px}.setup-tag.off{background:#f3efeb;color:#8a6757}
+.seo-format-toolbar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}.seo-format-toolbar button{border:1px solid #c8dccc;color:#184c36;background:#eff8f1;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:750;cursor:pointer}.seo-format-toolbar button:hover{background:#dff0e4}.seo-description-preview{padding:12px 14px;border:1px solid #dae8de;background:#fbfdfa;border-radius:10px;color:#395846;line-height:1.65;min-height:55px;overflow-wrap:anywhere}.seo-description-preview p{margin:.4em 0}.seo-description-preview h2{font-size:17px;color:#173f2c}.seo-description-preview h3{font-size:15px;color:#173f2c}.seo-description-preview li{margin:3px 0}.seo-char-count{font-size:11px;color:#617b6c;text-align:right}.setup-help{font-size:11px;color:#627968;margin-top:6px;line-height:1.6}.setup-photo-preview{display:flex;align-items:center;gap:12px;margin:8px 0 12px;border:1px solid #e3ebe4;background:#f7faf8;border-radius:12px;padding:9px}.setup-photo-preview img{width:160px;height:100px;object-fit:contain;object-position:center;border-radius:8px;background:#edf3e6}.setup-photo-preview span{font-size:12px;color:#526f5c}.setup-thumb{width:52px;height:46px;object-fit:cover;border-radius:8px}.setup-actions{display:flex;gap:9px;flex-wrap:wrap}.setup-primary{padding:12px 18px;border:0;background:#22805a;border-radius:10px;color:white;font-weight:850;cursor:pointer}.setup-secondary{padding:10px 14px;border:1px solid #cdded1;border-radius:10px;color:#275a42;text-decoration:none;font-size:13px}.setup-grid{overflow-x:auto}.setup-grid table{width:100%;border-collapse:collapse;font-size:12px;min-width:400px}.setup-grid td,.setup-grid th{padding:10px;border-bottom:1px solid #edf1ed;text-align:left}.setup-grid th{color:#678073;font-size:10px;text-transform:uppercase}.setup-grid a{color:#176b47;font-weight:800}.setup-tag{display:inline-block;border-radius:25px;background:#e3f4e8;color:#136d40;font-size:10px;font-weight:800;padding:4px 8px}.setup-tag.off{background:#f3efeb;color:#8a6757}
 @media(max-width:860px){.setup-columns{grid-template-columns:1fr}.setup-metrics{grid-template-columns:repeat(3,1fr)}}@media(max-width:500px){.setup-metrics{grid-template-columns:1fr}.shop-setup-hero{padding:20px}}
 </style>
 <section class="shop-setup-hero">
@@ -30,7 +30,21 @@
       <div class="setup-field"><label for="setup-product">Egg POS product</label><select id="setup-product" name="product" required><option value="">Select a product</option>{% for product in products %}<option value="{{ product.pk }}" {% if product.pk|stringformat:'s' == offer_values.product %}selected{% endif %}>{{ product.name }} ({{ product.sku }}){% if not product.is_active %} — inactive{% endif %}</option>{% endfor %}</select></div>
       <div class="setup-field"><label for="setup-pack">Retail pack size</label><select id="setup-pack" name="pack_size" required><option value="6" {% if offer_values.pack_size == '6' %}selected{% endif %}>6 eggs</option><option value="12" {% if offer_values.pack_size == '12' %}selected{% endif %}>12 eggs</option><option value="30" {% if offer_values.pack_size == '30' %}selected{% endif %}>30 eggs</option></select></div>
       <div class="setup-field"><label for="setup-title">Pack title (optional)</label><input id="setup-title" name="title" maxlength="160" value="{{ offer_values.title }}" placeholder="Fresh white eggs · Dozen"></div>
-      <div class="setup-field"><label for="setup-description">Product description (plain text)</label><textarea id="setup-description" name="description" rows="4" maxlength="3000" placeholder="Describe your pack, grading, freshness, packaging and handling—only what you can verify.">{{ offer_values.description }}</textarea><div class="setup-help">Shown on the product detail page. Plain text; line breaks supported. HTML code is not needed.</div></div>
+      <div class="setup-field"><label for="setup-description">Product description</label>
+        <div class="seo-format-toolbar" aria-label="Description formatting toolbar">
+          <button type="button" data-format="bold" aria-label="Bold selected text"><strong>B</strong> Bold</button>
+          <button type="button" data-format="italic" aria-label="Italic selected text"><em>I</em> Italic</button>
+          <button type="button" data-format="heading">H2 Heading</button>
+          <button type="button" data-format="bullet">• List</button>
+          <button type="button" data-format="number">1. Numbered</button>
+        </div>
+        <textarea id="setup-description" name="description" rows="7" maxlength="3000" placeholder="Describe your pack. Select text and click Bold, Italic or Heading, or insert a list.">{{ offer_values.description }}</textarea>
+        <div class="setup-help">Use the buttons to format your description; no HTML needed. A live preview appears below. Enter only verifiable claims.</div>
+        <label style="margin-top:12px" for="seo-description-preview">Preview of product description</label>
+        <div id="seo-description-preview" class="seo-description-preview" aria-live="polite">Start typing to preview your product description.</div>
+      </div>
+      <div class="setup-field"><label for="setup-seo-title">SEO title (optional)</label><input id="setup-seo-title" name="seo_title" maxlength="70" placeholder="Fresh Eggs 6 Pack in Lahore | RayNoor Farms" value="{{ offer_values.seo_title }}"><div class="seo-char-count" data-for="setup-seo-title"></div><div class="setup-help">Title Google may display. Leave blank to use your pack title automatically.</div></div>
+      <div class="setup-field"><label for="setup-seo-description">Meta description (optional)</label><textarea id="setup-seo-description" name="seo_description" rows="3" maxlength="160" placeholder="Buy farm fresh eggs in packs of 6, 12 or 30. Convenient egg delivery in Lahore.">{{ offer_values.seo_description }}</textarea><div class="seo-char-count" data-for="setup-seo-description"></div><div class="setup-help">Short Google search preview text, up to 160 characters. Leave blank for an automatic summary.</div></div>
       <div class="setup-field"><label for="setup-weight">Egg weight (optional)</label><input id="setup-weight" name="egg_weight_label" maxlength="80" placeholder="e.g. 55–60 g per egg" value="{{ offer_values.egg_weight_label }}"><div class="setup-help">Enter actual product information, not an estimate.</div></div>
       <div class="setup-field"><label for="setup-price">Retail price per pack (Rs)</label><input id="setup-price" type="number" name="price_per_pack" min="0.01" step="0.01" value="{{ offer_values.price_per_pack }}" required></div>
       <div class="setup-field">
@@ -137,6 +151,51 @@
     updatePreview();
   });
   window.addEventListener('pagehide',function(){if(tempUrl) URL.revokeObjectURL(tempUrl);});
+})();
+</script>
+<script>
+(function(){
+  const input=document.getElementById('setup-description');
+  const preview=document.getElementById('seo-description-preview');
+  if(!input||!preview)return;
+  const escapeHTML=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const inline=s=>escapeHTML(s).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/(^|[^*])\*([^*\n]+?)\*(?!\*)/g,'$1<em>$2</em>');
+  function showPreview(){
+    const lines=input.value.replace(/\r/g,'').split('\n');
+    const output=[];let paragraph=[],list=[],kind='';
+    function flushP(){if(paragraph.length){output.push('<p>'+paragraph.map(inline).join('<br>')+'</p>');paragraph=[];}}
+    function flushList(){if(list.length){output.push('<'+kind+'>'+list.map(v=>'<li>'+inline(v)+'</li>').join('')+'</'+kind+'>');list=[];kind='';}}
+    for(const raw of lines){
+      const line=raw.trim();if(!line){flushP();flushList();continue;}
+      const head=line.match(/^(#{2,3})\s+(.+)$/),bul=line.match(/^[-]\s+(.+)$/),num=line.match(/^\d{1,3}[.]\s+(.+)$/);
+      if(head){flushP();flushList();const tag=head[1].length===3?'h3':'h2';output.push('<'+tag+'>'+inline(head[2])+'</'+tag+'>');}
+      else if(bul||num){flushP();const k=bul?'ul':'ol';if(kind&&kind!==k)flushList();kind=k;list.push((bul||num)[1]);}
+      else{flushList();paragraph.push(line);}
+    }
+    flushP();flushList();preview.innerHTML=output.join('')||'Start typing to preview your product description.';
+  }
+  function insert(mark){
+    const a=input.selectionStart,b=input.selectionEnd;
+    const selected=input.value.substring(a,b);
+    let insertText,selectionStart,selectionEnd;
+    if(mark==='bold'||mark==='italic'){
+      const m=mark==='bold'?'**':'*'; insertText=m+(selected||'your text')+m;
+      selectionStart=a+m.length;selectionEnd=selectionStart+(selected||'your text').length;
+    }else{
+      const prefix=mark==='heading'?'## ':mark==='bullet'?'- ':'1. ';
+      insertText=(a>0&&input.value[a-1]!=='\n'?'\n':'')+prefix+(selected||'Your text');
+      selectionStart=a+insertText.length-(selected||'Your text').length;
+      selectionEnd=a+insertText.length;
+    }
+    input.setRangeText(insertText,a,b,'end');input.focus();input.setSelectionRange(selectionStart,selectionEnd);showPreview();
+  }
+  document.querySelectorAll('.seo-format-toolbar [data-format]').forEach(btn=>btn.addEventListener('click',()=>insert(btn.dataset.format)));
+  input.addEventListener('input',showPreview);showPreview();
+  document.querySelectorAll('.seo-char-count[data-for]').forEach(counter=>{
+    const field=document.getElementById(counter.dataset.for);if(!field)return;
+    function show(){counter.textContent=field.value.length+' / '+field.maxLength+' characters';}
+    field.addEventListener('input',show);show();
+  });
 })();
 </script>
 {% endblock %}

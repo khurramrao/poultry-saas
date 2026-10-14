@@ -5,7 +5,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#173f32">
-  <meta name="description" content="Fresh farm eggs in Lahore. Order directly from RayNoor Organic Farms with cash on delivery.">
+  <meta name="description" content="{% block meta_description %}Fresh farm eggs in Lahore. Order directly from RayNoor Organic Farms with cash on delivery.{% endblock %}">
+  {% block head_extras %}{% endblock %}
   <title>{% block page_title %}RayNoor Fresh Eggs{% endblock %}</title>
   <link rel="icon" type="image/png" href="{% static 'images/RAYNOOR-2-LOGO.png' %}">
   <style>
