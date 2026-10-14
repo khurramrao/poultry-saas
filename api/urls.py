@@ -154,6 +154,9 @@ path(
 from api.views import online_shop
 urlpatterns += [
     path('shop/', online_shop.storefront, name='raynoor_store'),
+    path('shop/pack-photo/<int:offer_id>/', online_shop.offer_photo, name='raynoor_offer_photo'),
+    path('shop/gallery-photo/<int:photo_id>/', online_shop.offer_gallery_photo, name='raynoor_offer_gallery_photo'),
+    path('shop/product/<int:offer_id>/', online_shop.product_detail, name='raynoor_product_detail'),
     path('shop/cart/', online_shop.cart, name='raynoor_cart'),
     path('shop/cart/update/', online_shop.cart_change, name='raynoor_cart_update'),
     path('shop/checkout/', online_shop.checkout, name='raynoor_checkout'),
