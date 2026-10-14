@@ -61,3 +61,35 @@ def plain_product_description(value):
     source = str(value or '')
     source = re.sub(r'(?m)^\s*(?:#{2,3}\s+|-\s+|\d{1,3}\.\s+)', '', source)
     return re.sub(r'\*\*|\*', '', source).replace('\n', ' ').strip()
+
+
+@register.filter(name='product_intro')
+def product_intro(value):
+    """One complete introductory sentence, without cut-off or markup artifacts.
+
+    The full description remains visible further down the product page.
+    """
+    source = str(value or '').replace('\r\n', '\n').replace('\r', '\n')[:12000]
+    paragraph = []
+    for raw in source.split('\n'):
+        line = raw.strip()
+        if not line:
+            if paragraph:
+                break
+            continue
+        if re.match(r'^(#{1,6}\s+|[-*]\s+|\d{1,3}\.\s+)', line):
+            if paragraph:
+                break
+            continue
+        # Skip standalone bold headings such as **Product Highlights**.
+        if not paragraph and re.fullmatch(r'\*\*[^*]+\*\*', line):
+            continue
+        paragraph.append(line)
+    clean = re.sub(r'\*\*|\*', '', ' '.join(paragraph)).strip()
+    if not clean:
+        return ''
+    # Prefer the first complete sentence; never truncate the user's prose mid-word.
+    match = re.search(r'[.!?](?=\s|$)', clean)
+    if match:
+        return clean[:match.end()].strip()
+    return clean

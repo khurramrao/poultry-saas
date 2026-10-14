@@ -15,7 +15,7 @@
   .pd-thumb { border:2px solid #e2ebe5; padding:4px; width:88px; height:75px; background:#fff; border-radius:10px; cursor:pointer; display:grid; place-items:center; font-size:24px }
   .pd-thumb img { width:100%; height:100%; border-radius:6px; object-fit:contain }
   .pd-thumb[aria-pressed="true"], .pd-thumb:hover { border-color:#18804b; background:#f0f9f3 }
-  .pd-info h1 { font-family:Georgia,serif; font-weight:800; color:#123c2c; font-size:clamp(26px,3vw,39px); line-height:1.13; margin:8px 0 15px }
+  .pd-info h1 { font-family:Georgia,serif; font-weight:800; color:#123c2c; font-size:clamp(25px,2.5vw,33px); line-height:1.13; margin:8px 0 15px }
   .pd-eyebrow { font-size:11px; font-weight:850; color:#946b20; letter-spacing:.12em; text-transform:uppercase }
   .pd-price { color:#156b44; font-size:30px; font-weight:900; margin:17px 0 }
   .pd-tags { display:flex; flex-wrap:wrap; gap:7px; margin:15px 0 }
@@ -24,7 +24,17 @@
   .pd-information { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:18px 0; border-top:1px solid #e8eee9; border-bottom:1px solid #e8eee9; padding:14px 0 }
   .pd-information dt { font-size:11px; color:#789084; font-weight:800; text-transform:uppercase }
   .pd-information dd { margin:5px 0 0; font-weight:750; color:#234c38 }
-  .pd-details { margin-top:20px }
+  .pd-summary {margin:10px 0 18px;line-height:1.65;color:#4a6454}
+  .pd-summary p {margin:0 0 6px}
+  .pd-summary a {color:#147449;font-size:13px;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+  .pd-qty-controls {display:flex;align-items:center;gap:10px;max-width:100%}
+  .pd-qty-controls input[type="number"] {width:92px;text-align:center;flex:0 0 92px;font-size:16px;font-weight:750}
+  .pd-qty-button {width:46px;height:46px;flex:0 0 46px;display:grid;place-items:center;border:1px solid #c9dcd2;background:#f5faf6;color:#176c4b;border-radius:10px;font-size:23px;font-weight:700;line-height:1}
+  .pd-qty-button:hover:not(:disabled) {background:#e4f4e9;border-color:#219267}
+  .pd-qty-button:disabled {opacity:.45;cursor:not-allowed}
+  .pd-subtotal {display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:12px 0 5px;color:#365846;font-size:13px}
+  .pd-subtotal strong {font-size:18px;color:#176c4b}
+  .pd-details { margin-top:20px;scroll-margin-top:110px }
   .pd-details h2,.pd-related h2 { font-size:19px; margin:0 0 14px; color:#173f2c }
   .pd-description { line-height:1.7; color:#4a6454 }
   .pd-description p { margin:.55em 0 }
@@ -71,21 +81,29 @@
     <div class="pd-tags"><span class="pd-tag">{{ offer.pack_size }} eggs per pack</span>{% if stock_packs %}<span class="pd-tag">✓ In stock</span>{% else %}<span class="pd-tag missing">Out of stock</span>{% endif %}</div>
     <dl class="pd-information">
       <div><dt>Pack size</dt><dd>{{ offer.pack_size }} eggs</dd></div>
-      <div><dt>Egg product</dt><dd>{{ offer.product.name }}</dd></div>
+      <div><dt>Egg type</dt><dd>Chicken eggs</dd></div>
       {% if offer.egg_weight_label %}<div><dt>Weight per egg</dt><dd>{{ offer.egg_weight_label }}</dd></div>{% endif %}
       <div><dt>Delivery</dt><dd>Lahore only</dd></div>
     </dl>
-    {% if offer.description %}<p class="pd-description">{{ offer.description|plain_product_description|truncatechars:210 }}</p>{% endif %}
+    {% if offer.description %}<div class="pd-summary"><p>{{ offer.description|product_intro }}</p><a href="#pd-full-details">Read full product information ↓</a></div>{% endif %}
     <form method="post" action="{% url 'raynoor_cart_update' %}">{% csrf_token %}
       <input type="hidden" name="offer_id" value="{{ offer.pk }}">
-      <div class="field"><label for="pd-count">Number of packs</label><input type="number" min="1" max="{{ stock_packs }}" id="pd-count" name="count" value="{{ selected_packs|default:1 }}" required {% if not stock_packs %}disabled{% endif %}></div>
+      <div class="field">
+        <label for="pd-count">{% if offer.pack_size == 30 %}Number of trays{% else %}Number of packs{% endif %}</label>
+        <div class="pd-qty-controls">
+          <button type="button" class="pd-qty-button" id="pd-qty-minus" aria-label="Decrease quantity" {% if not stock_packs %}disabled{% endif %}>−</button>
+          <input type="number" min="1" max="{{ stock_packs }}" step="1" inputmode="numeric" id="pd-count" name="count" value="{{ selected_packs|default:1 }}" required {% if not stock_packs %}disabled{% endif %}>
+          <button type="button" class="pd-qty-button" id="pd-qty-plus" aria-label="Increase quantity" {% if not stock_packs %}disabled{% endif %}>+</button>
+        </div>
+      </div>
+      <div class="pd-subtotal" aria-live="polite"><span>Eggs subtotal (delivery extra)</span><strong id="pd-line-total" data-unit-price="{{ offer.price_per_pack|stringformat:'f' }}">Rs {{ offer.price_per_pack|floatformat:0|intcomma }}</strong></div>
       <button type="submit" class="button" style="width:100%;min-height:51px" {% if not stock_packs %}disabled{% endif %}>🛒 Add to Cart</button>
     </form>
     <p class="small muted" style="margin:13px 0 0">Delivery charge is calculated at checkout for your Lahore area. Cash on delivery available in supported areas.</p>
     {% if not zones_active %}<div class="notice">Checkout is unavailable until Lahore delivery areas are activated.</div>{% endif %}
   </section>
 </div>
-<section class="pd-details"><h2>Product information</h2>
+<section class="pd-details" id="pd-full-details"><h2>Product information</h2>
   {% if offer.description %}<div class="pd-description">{{ offer.description|rich_product_description }}</div>{% else %}<p class="muted">{{ offer.pack_size }} farm egg pack. For further details, please contact RayNoor before ordering.</p>{% endif %}
   <p class="small muted">Images are for illustration purposes. Actual packaging may vary.</p>
 </section>
@@ -96,18 +114,39 @@
 {% endif %}
 <script>
 (function(){
+  // Product gallery remains independent of pack quantity controls.
   var main=document.getElementById('pd-main-img');
-  var buttons=document.querySelectorAll('.pd-thumb[data-image]');
-  if(!main || !buttons.length) return;
-  buttons.forEach(function(button){
+  var thumbs=document.querySelectorAll('.pd-thumb[data-image]');
+  if (main) thumbs.forEach(function(button){
     button.addEventListener('click',function(){
       main.src=button.dataset.image;
       main.alt=button.dataset.alt || 'RayNoor egg product photo';
       main.style.objectFit=button.dataset.fit || 'contain';
       main.style.objectPosition=button.dataset.position || 'center';
-      buttons.forEach(function(b){ b.setAttribute('aria-pressed',b===button?'true':'false'); });
+      thumbs.forEach(function(b){b.setAttribute('aria-pressed',b===button?'true':'false');});
     });
   });
+  var count=document.getElementById('pd-count');
+  var minus=document.getElementById('pd-qty-minus');
+  var plus=document.getElementById('pd-qty-plus');
+  var subtotal=document.getElementById('pd-line-total');
+  if (!count || !subtotal || count.disabled) return;
+  var max=Math.max(1,parseInt(count.max,10)||1);
+  var price=Number(subtotal.dataset.unitPrice)||0;
+  var format=new Intl.NumberFormat('en-PK',{maximumFractionDigits:2});
+  function normalize(n){return Math.max(1,Math.min(max,Number.isFinite(n)?Math.trunc(n):1));}
+  function redraw(){
+    var n=normalize(Number(count.value));
+    count.value=String(n);
+    minus.disabled=n<=1;
+    plus.disabled=n>=max;
+    subtotal.textContent='Rs '+format.format(price*n);
+  }
+  minus.addEventListener('click',function(){count.value=normalize(Number(count.value)-1);redraw();});
+  plus.addEventListener('click',function(){count.value=normalize(Number(count.value)+1);redraw();});
+  count.addEventListener('input',function(){if(count.value!=='')redraw();});
+  count.addEventListener('change',redraw);
+  redraw();
 })();
 </script>
 {% endblock %}
