@@ -86,6 +86,7 @@
       <div><dt>Delivery</dt><dd>Lahore only</dd></div>
     </dl>
     {% if offer.description %}<div class="pd-summary"><p>{{ offer.description|product_intro }}</p><a href="#pd-full-details">Read full product information ↓</a></div>{% endif %}
+    <div class="shop-minimum-note"><strong>Minimum order: Rs 1,000 in eggs.</strong> Combine this pack with any other egg packs in your cart. Delivery charges don't count toward the minimum.</div>
     <form method="post" action="{% url 'raynoor_cart_update' %}">{% csrf_token %}
       <input type="hidden" name="offer_id" value="{{ offer.pk }}">
       <div class="field">

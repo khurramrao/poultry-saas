@@ -550,14 +550,15 @@ def admin_order_detail(request, order_id):
 def admin_order_action(request, order_id):
     _require_admin(request)
     try:
-        if request.POST.get('action') == 'settle' and not request.user.check_password(request.POST.get('admin_password') or ''):
-            raise ValueError('Enter your correct admin password before recording COD cash received.')
+        if request.POST.get('action') in ('settle', 'change_fee') and not request.user.check_password(request.POST.get('admin_password') or ''):
+            raise ValueError('Enter your correct admin password to confirm this financial action.')
         action_order(order_id, request.user, request.POST.get('action') or '',
             delivery_method=request.POST.get('delivery_method') or '',
             rider_name=request.POST.get('rider_name') or '',
             reference=request.POST.get('tracking_reference') or '',
             actual_cost=request.POST.get('delivery_cost') or '0',
-            reason=request.POST.get('reason') or '')
+            reason=request.POST.get('reason') or '',
+            customer_delivery_fee=request.POST.get('customer_delivery_fee'))
         messages.success(request, 'Order updated successfully.')
     except (ValueError, ArithmeticError) as error:
         messages.error(request, str(error))

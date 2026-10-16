@@ -14,9 +14,20 @@
     </div>{% endfor %}
     <a class="muted-link" href="{% url 'raynoor_store' %}">← Continue shopping</a>
   </section>
-  <aside class="card"><h3>Order summary</h3><div class="summary-row"><span>Eggs subtotal</span><b>Rs {{ subtotal|floatformat:0|intcomma }}</b></div><div class="summary-row"><span>Delivery</span><span>Calculated at checkout</span></div><p class="muted small">Delivery is available in configured Lahore areas only. Pay on delivery.</p><a class="button" style="width:100%" href="{% url 'raynoor_checkout' %}">Proceed to checkout <span aria-hidden="true">→</span></a></aside>
+  <aside class="card"><h3>Order summary</h3><div class="summary-row"><span>Eggs subtotal</span><b>Rs {{ subtotal|floatformat:0|intcomma }}</b></div><div class="summary-row"><span>Delivery</span><span>Calculated at checkout</span></div><div class="shop-minimum-note" role="status"><strong>Minimum egg order: Rs 1,000.</strong><br>Delivery fee is extra and does not count toward this amount.
+    {% if subtotal < 1000 %}<span id="cart-minimum-gap" data-subtotal="{{ subtotal }}">Add more egg packs to checkout.</span>{% else %}<span>✓ Your egg subtotal meets the minimum.</span>{% endif %}</div>
+    <p class="muted small">Delivery is available in configured Lahore areas only. Pay on delivery.</p>
+    {% if subtotal < 1000 %}<a class="button" style="width:100%;text-align:center" href="{% url 'raynoor_store' %}#shop-products">Add more eggs to cart →</a>{% else %}<a class="button" style="width:100%" href="{% url 'raynoor_checkout' %}">Proceed to checkout <span aria-hidden="true">→</span></a>{% endif %}</aside>
 </div>
 {% else %}
 <div class="card empty-state"><div class="egg-art" aria-hidden="true">🛒</div><h3>Your cart is empty</h3><p class="muted">Choose a pack of farm-fresh eggs to get started.</p><a class="button" href="{% url 'raynoor_store' %}">Shop fresh eggs <span aria-hidden="true">→</span></a></div>
-{% endif %}
+{% endif %}<script>
+(function () {
+  const gap=document.getElementById('cart-minimum-gap');
+  if (!gap) return;
+  const subtotal=Number(gap.dataset.subtotal)||0;
+  const missing=Math.max(0,1000-subtotal);
+  gap.textContent=' Add Rs '+missing.toLocaleString('en-PK',{maximumFractionDigits:2})+' more in egg packs to checkout.';
+})();
+</script>
 {% endblock %}

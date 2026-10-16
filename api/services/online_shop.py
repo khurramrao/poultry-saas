@@ -20,6 +20,8 @@ from api.services.egg_pos import allocate_fifo_to_sale_item
 from api.services.egg_pos_accounting import sync_sale_invoice, sync_sale_payment
 
 CENT = Decimal('0.01')
+# Egg merchandise subtotal, before customer delivery fees or courier costs.
+MIN_EGGS_SUBTOTAL = Decimal('1000.00')
 
 
 def cash(value):
@@ -91,8 +93,15 @@ def checkout_order(cart, *, account, name, phone, address, zone, note):
         subtotal += line_total
         clean.append((offer, count, eggs, line_total))
     subtotal = cash(subtotal)
-    if subtotal < zone.minimum_order:
-        raise ValueError(f'Minimum order for {zone.name} is Rs {zone.minimum_order}.')
+    # Apply both the RayNoor-wide floor and any higher area-specific minimum.
+    # Do not count the delivery fee toward the egg merchandise minimum.
+    minimum = max(MIN_EGGS_SUBTOTAL, cash(zone.minimum_order))
+    if subtotal < minimum:
+        missing = cash(minimum - subtotal)
+        raise ValueError(
+            f'Minimum egg order for {zone.name} is Rs {minimum:,.0f} before delivery. '
+            f'Add Rs {missing:,.0f} more in egg packs to checkout.'
+        )
     # Lock in a deterministic product order, matching POS stock locks.
     for product_id, needed in sorted(by_product.items()):
         free = free_available(product_id, lock=True)
@@ -120,7 +129,7 @@ def checkout_order(cart, *, account, name, phone, address, zone, note):
 
 
 @transaction.atomic
-def action_order(order_id, actor, action, *, delivery_method='', rider_name='', reference='', actual_cost='0', reason=''):
+def action_order(order_id, actor, action, *, delivery_method='', rider_name='', reference='', actual_cost='0', reason='', customer_delivery_fee=None):
     order = OnlineOrder.objects.select_for_update().select_related('zone').get(pk=order_id)
     # Idempotent delivery: a repeated click/request must NEVER allocate FIFO eggs or
     # post another POS invoice/journal. The OneToOneField is a DB-level safeguard;
@@ -134,10 +143,34 @@ def action_order(order_id, actor, action, *, delivery_method='', rider_name='', 
         'deliver': [OnlineOrder.DISPATCHED],
         'cancel': [OnlineOrder.RESERVED, OnlineOrder.CONFIRMED, OnlineOrder.PACKED],
         'settle': [OnlineOrder.DELIVERED],
+        'change_fee': [OnlineOrder.RESERVED, OnlineOrder.CONFIRMED, OnlineOrder.PACKED, OnlineOrder.DISPATCHED],
     }
     if action not in allowed or order.status not in allowed[action]:
         raise ValueError('This action is not permitted for the current order status.')
     previous_status = order.status
+    if action == 'change_fee':
+        # Pre-invoice adjustment only. Never change a finalized POS invoice here.
+        if order.pos_sale_id:
+            raise ValueError('A final POS invoice already exists. Do not change the fee here.')
+        if len(reason.strip()) < 3:
+            raise ValueError('Provide a reason, for example Customer pickup or Free delivery.')
+        try:
+            fee = Decimal(str(customer_delivery_fee))
+            if not fee.is_finite() or fee < 0 or fee > Decimal('100000.00'):
+                raise ValueError('Customer delivery charge must be between Rs 0 and Rs 100,000.')
+            fee = cash(fee)
+        except (ArithmeticError, ValueError, TypeError):
+            raise ValueError('Enter a valid customer delivery charge, such as 0 or 250.')
+        old_fee = cash(order.delivery_fee)
+        if fee == old_fee:
+            raise ValueError('The new delivery fee matches the existing fee.')
+        order.delivery_fee = fee
+        order.total = cash(order.subtotal + fee)
+        order.save(update_fields=['delivery_fee', 'total', 'updated_at'])
+        OnlineOrderEvent.objects.create(order=order, actor=actor, event='change_fee',
+            previous_status=previous_status, new_status=order.status,
+            details=f'Customer delivery fee Rs {old_fee:.2f} → Rs {fee:.2f}; reason: {reason.strip()[:240]}')
+        return order
     if action == 'confirm':
         by_product = defaultdict(int)
         for item in order.items.all():
