@@ -15,6 +15,7 @@ ACCOUNT_SPECS = {
     "1010": ("Bank / Digital Wallet", "asset", "debit"),
     "1040": ("Cash Held by Sales Staff", "asset", "debit"),
     "1100": ("Accounts Receivable - Customers", "asset", "debit"),
+    "1150": ("Staff Commission Advances", "asset", "debit"),
     "1200": ("Egg Inventory", "asset", "debit"),
     "2000": ("Accounts Payable - Suppliers", "liability", "credit"),
     "2010": ("Due to RayNoor Egg Production", "liability", "credit"),

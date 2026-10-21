@@ -159,7 +159,9 @@ class EggPOSPurchase(models.Model):
     def amount_paid(self):
         if not self.pk:
             return MONEY_ZERO
-        return sum((Decimal(payment.amount or 0) for payment in self.payments.all()), MONEY_ZERO)
+        paid_direct = sum((Decimal(payment.amount or 0) for payment in self.payments.all()), MONEY_ZERO)
+        paid_from_advances = sum((Decimal(row.amount or 0) for row in self.advance_allocations.all()), MONEY_ZERO)
+        return paid_direct + paid_from_advances
 
     @property
     def balance_due(self):
@@ -935,6 +937,81 @@ class EggPOSCommissionPayment(models.Model):
 
     def __str__(self):
         return f"{self.commission.salesperson.username} commission payment - Rs {self.amount}"
+
+class EggPOSCommissionAdvancePayment(models.Model):
+    """Cash actually paid to a salesperson, allocated to commission separately.
+
+    The entire payment is initially an advance asset, even if some is immediately
+    applied to earned commission, so the bank/cash journal is always made once.
+    """
+    salesperson = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="egg_pos_commission_advance_payments",
+    )
+    payment_date = models.DateField(default=timezone.localdate)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    payment_method = models.CharField(
+        max_length=30, choices=EggPOSCommissionPayment.PAYMENT_METHOD_CHOICES,
+        default="bank_transfer",
+    )
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
+    request_token = models.CharField(max_length=36, unique=True)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+        related_name="egg_pos_commission_advances_recorded",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["payment_date", "id"]
+
+    @property
+    def allocated_amount(self):
+        if not self.pk:
+            return MONEY_ZERO
+        return sum((Decimal(row.amount or 0) for row in self.allocations.all()), MONEY_ZERO)
+
+    @property
+    def advance_remaining(self):
+        return max(Decimal(self.amount or 0) - self.allocated_amount, MONEY_ZERO)
+
+    def clean(self):
+        super().clean()
+        if self.amount is None or self.amount <= MONEY_ZERO:
+            raise ValidationError({"amount": "Payment must be greater than zero."})
+
+
+class EggPOSCommissionAdvanceAllocation(models.Model):
+    """An auditable advance credit applied to one earned commission period."""
+    payment = models.ForeignKey(
+        EggPOSCommissionAdvancePayment, on_delete=models.PROTECT,
+        related_name="allocations",
+    )
+    commission = models.ForeignKey(
+        EggPOSCommissionPeriod, on_delete=models.PROTECT,
+        related_name="advance_allocations",
+    )
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    applied_date = models.DateField(default=timezone.localdate)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["applied_date", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["payment", "commission"],
+                name="uniq_egg_pos_advance_alloc_per_period",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.amount is None or self.amount <= MONEY_ZERO:
+            raise ValidationError({"amount": "Allocation amount must be positive."})
+        if self.payment_id and self.commission_id and self.payment.salesperson_id != self.commission.salesperson_id:
+            raise ValidationError("Advance and posted commission must belong to the same salesperson.")
+
 
 class EggPOSOwnerCapitalTransaction(models.Model):
     TRANSACTION_TYPE_CHOICES = [

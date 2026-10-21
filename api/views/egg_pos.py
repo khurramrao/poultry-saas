@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from uuid import uuid4
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -33,6 +34,7 @@ from api.models.egg_pos import (
     EggPOSCashHandoverRequest,
     EggPOSCommissionPeriod,
     EggPOSCommissionPayment,
+    EggPOSCommissionAdvancePayment,
     EggPOSOwnerCapitalTransaction,
 )
 from api.models.sensor import Batch
@@ -64,6 +66,9 @@ from api.services.accounting import (
     trial_balance as build_trial_balance,
 )
 from api.services.egg_pos_corrections import edit_invoice, reverse_invoice, restore_invoice
+from api.services.egg_pos_commission_advances import (
+    record_commission_cash_payment, apply_commission_advances, commission_account_summary,
+)
 from api.services.egg_pos_accounting import (
     commission_preview,
     sync_cash_settlement,
@@ -1701,18 +1706,14 @@ def _commission_summary(user, today=None):
             period_end__lte=today,
         ).aggregate(total=Sum("commission_amount"))["total"] or ZERO
     )
-    received = money(
-        EggPOSCommissionPayment.objects.filter(
-            commission__salesperson=user,
-            payment_date__gte=month_start,
-            payment_date__lte=today,
-        ).aggregate(total=Sum("amount"))["total"] or ZERO
-    )
-    balance = money(staff_commission_balance(user))
+    account = commission_account_summary(user, today=today)
     return {
         "month_earned": earned,
-        "month_received": received,
-        "balance_due": balance,
+        "month_received": account["month_received"],
+        "balance_due": account["posted_due"],
+        "advance_balance": account["advance_balance"],
+        "total_earned": account["total_earned"],
+        "total_paid": account["total_paid"],
     }
 
 
@@ -2350,8 +2351,33 @@ def commissions(request):
                         posted_by=request.user,
                     )
                     sync_commission_period(commission)
-                messages.success(request, f"Commission Rs {commission.commission_amount:,.2f} posted for {salesperson.username}.")
+                    adjusted = apply_commission_advances(salesperson.id)
+                messages.success(request, f"Commission Rs {commission.commission_amount:,.2f} posted for {salesperson.username}. Previous advance applied: Rs {adjusted:,.2f}.")
                 return redirect(f"{request.path}?salesperson={salesperson.id}&period=this_week")
+            elif action == "record_payment":
+                salesperson = get_object_or_404(User, pk=request.POST.get("salesperson"), is_active=True)
+                if not can_sell(salesperson):
+                    raise ValueError("Choose a salesperson with active Egg POS sales access.")
+                password = request.POST.get("admin_password") or ""
+                if not request.user.has_usable_password() or not request.user.check_password(password):
+                    raise ValueError("Your admin password is required to record a commission payment or advance.")
+                paid_on = _parse_date(request.POST.get("payment_date"), "Payment date", default=today)
+                if paid_on > today:
+                    raise ValueError("Payment date cannot be in the future.")
+                payment, applied, repeated = record_commission_cash_payment(
+                    salesperson_id=salesperson.pk,
+                    amount=_parse_money(request.POST.get("amount"), "Commission payment"),
+                    payment_date=paid_on,
+                    payment_method=(request.POST.get("payment_method") or "bank_transfer").strip(),
+                    reference=request.POST.get("reference", ""), notes=request.POST.get("notes", ""),
+                    recorded_by=request.user, request_token=request.POST.get("request_token"),
+                )
+                remaining = money(payment.advance_remaining)
+                if repeated:
+                    messages.info(request, "This payment request was already saved; no second cash movement was recorded.")
+                else:
+                    messages.success(request, f"Recorded Rs {payment.amount:,.2f}. Applied to posted commissions: Rs {applied:,.2f}; advance remaining: Rs {remaining:,.2f}.")
+                return redirect(f"{request.path}?salesperson={salesperson.id}&period=this_month")
             elif action == "recalculate":
                 commission = get_object_or_404(
                     EggPOSCommissionPeriod.objects.select_related("salesperson").prefetch_related("payments"),
@@ -2425,7 +2451,24 @@ def commissions(request):
         periods = periods.filter(salesperson=request.user)
     periods = periods.order_by("-period_end", "-id")[:100]
 
+    commission_account = commission_account_summary(selected, today=today) if selected else None
+    advance_payments = (
+        EggPOSCommissionAdvancePayment.objects.filter(salesperson=selected)
+        .select_related("recorded_by").prefetch_related("allocations__commission")
+        .order_by("-payment_date", "-pk")[:30]
+        if selected else []
+    )
+    overlap_earned = money(sum((p.commission_amount for p in overlap_periods), ZERO))
+    overlap_paid = money(sum((p.amount_paid for p in overlap_periods), ZERO))
+    estimated_unposted = money(max((preview["commission_amount"] - overlap_earned), ZERO)) if preview else ZERO
+    estimated_total_due = money((commission_account["posted_due"] if commission_account else ZERO) + estimated_unposted)
     return render(request, "api/egg_pos_commissions.html", {
+        "commission_account": commission_account,
+        "advance_payments": advance_payments,
+        "payment_token": str(uuid4()),
+        "overlap_paid": overlap_paid,
+        "estimated_unposted": estimated_unposted,
+        "estimated_total_due": estimated_total_due,
         "salespeople": salespeople,
         "selected": selected,
         "start_date": start_date,

@@ -363,6 +363,40 @@ def sync_commission_payment(payment):
 
 
 
+def sync_commission_advance_payment(payment):
+    """Cash leaves once; never posts a second commission expense."""
+    party = _user_party(payment.salesperson)
+    return post_entry(
+        source_key=f"egg_pos:commission_advance_payment:{payment.id}",
+        entry_date=payment.payment_date,
+        reference=payment.reference or f"COMADV-{payment.id:05d}",
+        memo=f"Commission paid/advanced to {_user_name(payment.salesperson)}",
+        source_type="egg_pos_commission_advance_payment",
+        source_id=payment.id, created_by=payment.recorded_by,
+        lines=[
+            line("1150", debit=payment.amount, description="Commission advance available for allocation", **party),
+            line(_company_payment_account(payment.payment_method), credit=payment.amount, description="Cash/bank paid to salesperson"),
+        ],
+    )
+
+
+def sync_commission_advance_allocation(allocation):
+    """Apply an existing credit to a liability; no bank/cash entries."""
+    party = _user_party(allocation.payment.salesperson)
+    return post_entry(
+        source_key=f"egg_pos:commission_advance_allocation:{allocation.id}",
+        entry_date=allocation.applied_date,
+        reference=f"COMAP-{allocation.id:05d}",
+        memo=f"Advance offset against commission period {allocation.commission.period_start}–{allocation.commission.period_end}",
+        source_type="egg_pos_commission_advance_allocation",
+        source_id=allocation.id, created_by=allocation.payment.recorded_by,
+        lines=[
+            line("2030", debit=allocation.amount, description="Commission payable cleared using previous advance", **party),
+            line("1150", credit=allocation.amount, description="Commission advance used", **party),
+        ],
+    )
+
+
 def sync_owner_capital(transaction):
     """Post owner funding without mixing permanent capital with temporary loans."""
     cash_code = "1010" if transaction.cash_account == "bank" else "1000"
@@ -436,3 +470,8 @@ def sync_all_egg_pos_books():
         sync_commission_period(commission)
     for payment in EggPOSCommissionPayment.objects.select_related("commission__salesperson", "recorded_by").order_by("id"):
         sync_commission_payment(payment)
+    from api.models.egg_pos import EggPOSCommissionAdvancePayment, EggPOSCommissionAdvanceAllocation
+    for payment in EggPOSCommissionAdvancePayment.objects.select_related("salesperson", "recorded_by").order_by("id"):
+        sync_commission_advance_payment(payment)
+    for allocation in EggPOSCommissionAdvanceAllocation.objects.select_related("payment__salesperson", "commission").order_by("id"):
+        sync_commission_advance_allocation(allocation)
