@@ -69,6 +69,7 @@ from api.services.egg_pos_corrections import edit_invoice, reverse_invoice, rest
 from api.services.egg_pos_commission_advances import (
     record_commission_cash_payment, apply_commission_advances, commission_account_summary,
 )
+from api.services.egg_pos_commission_reporting import unposted_date_ranges
 from api.services.egg_pos_accounting import (
     commission_preview,
     sync_cash_settlement,
@@ -2458,10 +2459,56 @@ def commissions(request):
         .order_by("-payment_date", "-pk")[:30]
         if selected else []
     )
+    # Management performance (the full selection) is not a new commission bill.
+    # Keep posted commission snapshots unchanged and calculate prospective earnings
+    # only for calendar dates not covered by an existing posted period.
+    open_dates = unposted_date_ranges(start_date, end_date, overlap_periods) if selected else []
+    unposted_rows = []
+    unposted_earned = ZERO
+    unposted_sales = ZERO
+    unposted_cogs = ZERO
+    unposted_expenses = ZERO
+    unposted_net = ZERO
+    for from_date, to_date in open_dates:
+        estimate = commission_preview(selected, from_date, to_date)
+        pending = EggPOSExpense.objects.filter(
+            used_by=selected, status="pending", affects_commission=True,
+            expense_date__gte=from_date, expense_date__lte=to_date,
+        ).count()
+        unposted_rows.append({
+            "start": from_date, "end": to_date,
+            "estimate": estimate, "pending_expenses": pending,
+        })
+        unposted_earned += estimate["commission_amount"]
+        unposted_sales += estimate["sales_revenue"]
+        unposted_cogs += estimate["cogs"]
+        unposted_expenses += estimate["selling_expenses"]
+        unposted_net += estimate["net_after_expenses"]
+
     overlap_earned = money(sum((p.commission_amount for p in overlap_periods), ZERO))
     overlap_paid = money(sum((p.amount_paid for p in overlap_periods), ZERO))
-    estimated_unposted = money(max((preview["commission_amount"] - overlap_earned), ZERO)) if preview else ZERO
+    overlap_due = money(sum((p.balance_due for p in overlap_periods), ZERO))
+    estimated_unposted = money(unposted_earned)
+    boundary_periods = any(
+        p.period_start < start_date or p.period_end > end_date
+        for p in overlap_periods
+    )
+    # This value is informational only. It is NOT a payable liability until
+    # commission for those unposted dates has been finalized and posted.
     estimated_total_due = money((commission_account["posted_due"] if commission_account else ZERO) + estimated_unposted)
+    report = {
+        "posted_earned": overlap_earned,
+        "posted_paid": overlap_paid,
+        "posted_due": overlap_due,
+        "unposted_estimate": estimated_unposted,
+        "unposted_sales": money(unposted_sales),
+        "unposted_cogs": money(unposted_cogs),
+        "unposted_expenses": money(unposted_expenses),
+        "unposted_net": money(unposted_net),
+        "has_boundary_periods": boundary_periods,
+        "unposted_rows": unposted_rows,
+        "can_post_selected": bool(selected and not overlap_periods and len(unposted_rows) == 1),
+    }
     return render(request, "api/egg_pos_commissions.html", {
         "commission_account": commission_account,
         "advance_payments": advance_payments,
@@ -2469,6 +2516,7 @@ def commissions(request):
         "overlap_paid": overlap_paid,
         "estimated_unposted": estimated_unposted,
         "estimated_total_due": estimated_total_due,
+        "commission_period_report": report,
         "salespeople": salespeople,
         "selected": selected,
         "start_date": start_date,

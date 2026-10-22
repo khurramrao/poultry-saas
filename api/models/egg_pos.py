@@ -883,7 +883,12 @@ class EggPOSCommissionPeriod(models.Model):
     def amount_paid(self):
         if not self.pk:
             return MONEY_ZERO
-        return sum((Decimal(payment.amount or 0) for payment in self.payments.all()), MONEY_ZERO)
+        # Both historical period-linked cash payments and the new commission
+        # advance allocations settle earned commission. Never count an advance
+        # payment itself until an allocation has been posted to this period.
+        legacy_paid = sum((Decimal(p.amount or 0) for p in self.payments.all()), MONEY_ZERO)
+        allocated = sum((Decimal(a.amount or 0) for a in self.advance_allocations.all()), MONEY_ZERO)
+        return legacy_paid + allocated
 
     @property
     def balance_due(self):

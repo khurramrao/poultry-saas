@@ -2,7 +2,7 @@
 {% block egg_pos_css %}
 <style>
 .ep-period-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}.ep-period-tabs a{min-height:34px;padding:0 11px;border:1px solid #d8e3ee;border-radius:999px;display:inline-flex;align-items:center;text-decoration:none;color:#49647c;background:#fff;font-size:9px;font-weight:900}.ep-period-tabs a.active{background:#1767c6;border-color:#1767c6;color:#fff}
-.ep-com-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}.ep-com-summary-card{border:1px solid #dfe7ef;border-radius:14px;padding:14px;background:#fff}.ep-com-summary-card span{display:block;font-size:8px;text-transform:uppercase;font-weight:900;color:#718095}.ep-com-summary-card strong{display:block;margin-top:7px;font-size:23px;color:#123f6c}.ep-com-summary-card small{display:block;margin-top:4px;font-size:8px;color:#8291a0}.ep-com-summary-card.green strong{color:#0c8b45}.ep-com-summary-card.orange strong{color:#c27100}
+.ep-brief{font-size:11px;color:#536a7f;line-height:1.55;margin:4px 0 12px}.ep-com-summary-period{margin-top:10px}.ep-com-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}.ep-com-summary-card{border:1px solid #dfe7ef;border-radius:14px;padding:14px;background:#fff}.ep-com-summary-card span{display:block;font-size:8px;text-transform:uppercase;font-weight:900;color:#718095}.ep-com-summary-card strong{display:block;margin-top:7px;font-size:23px;color:#123f6c}.ep-com-summary-card small{display:block;margin-top:4px;font-size:8px;color:#8291a0}.ep-com-summary-card.green strong{color:#0c8b45}.ep-com-summary-card.orange strong{color:#c27100}
 .ep-calc-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin-top:12px}.ep-calc-card{border:1px solid #e0e8f0;border-radius:13px;padding:13px;background:#fff}.ep-calc-card span{display:block;font-size:8px;color:#718095;text-transform:uppercase;font-weight:900}.ep-calc-card strong{display:block;margin-top:7px;font-size:20px;color:#123f6c}.ep-calc-card.neg strong{color:#bb3e35}.ep-calc-card.green strong{color:#0b8a43}.ep-calc-card.primary{background:linear-gradient(135deg,#146fa6,#20a8ba);border:0}.ep-calc-card.primary span,.ep-calc-card.primary strong{color:#fff}
 .ep-commission-result{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.ep-commission-result strong{font-size:30px;color:#123f6c}.ep-commission-result small{display:block;margin-top:4px;color:#76889a;font-size:9px}.ep-com-mobile{display:none}.ep-com-card{padding:13px 14px;border-bottom:1px solid #edf2f6}.ep-com-card:last-child{border-bottom:0}.ep-com-top{display:flex;justify-content:space-between;gap:10px}.ep-com-title{font-weight:950;color:#173b61}.ep-com-meta{font-size:8px;color:#718095;margin-top:4px}.ep-com-amount{font-size:16px;font-weight:950;color:#0d3155;text-align:right}.ep-com-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:10px}.ep-com-mini{padding:8px;background:#f7fafe;border-radius:9px}.ep-com-mini span{display:block;font-size:7px;color:#7b8999;text-transform:uppercase;font-weight:900}.ep-com-mini strong{display:block;margin-top:3px;font-size:10px;color:#244660}.ep-com-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.ep-com-actions form{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.ep-com-actions .ep-input,.ep-com-actions .ep-select{height:36px}.ep-note-box{padding:11px 13px;border-radius:11px;font-size:9px;line-height:1.5;margin-top:10px}.ep-note-box.info{background:#eef7ff;border:1px solid #d5e7f8;color:#2c5a80}.ep-note-box.warn{background:#fff7e9;border:1px solid #f0ddb5;color:#855900}
 @media(max-width:900px){.ep-calc-strip{grid-template-columns:repeat(2,1fr)}.ep-calc-card:last-child{grid-column:1/-1}.ep-com-summary{grid-template-columns:1fr 1fr}.ep-com-summary-card:last-child{grid-column:auto}}
@@ -37,22 +37,51 @@
 {% endif %}
 
 {% if preview %}
-<section class="ep-calc-strip">
-  <div class="ep-calc-card primary"><span>Sales Revenue</span><strong>Rs {{ preview.sales_revenue|floatformat:0|intcomma }}</strong></div>
-  <div class="ep-calc-card"><span>FIFO COGS</span><strong>Rs {{ preview.cogs|floatformat:0|intcomma }}</strong></div>
-  <div class="ep-calc-card"><span>Gross Profit</span><strong>Rs {{ preview.gross_profit|floatformat:0|intcomma }}</strong></div>
-  <div class="ep-calc-card"><span>Approved Commission Expenses</span><strong>Rs {{ preview.selling_expenses|floatformat:0|intcomma }}</strong></div>
-  <div class="ep-calc-card {% if preview.net_after_expenses < 0 %}neg{% else %}green{% endif %}"><span>Net Profit After Those Expenses</span><strong>Rs {{ preview.net_after_expenses|floatformat:0|intcomma }}</strong></div>
+<section class="ep-panel" style="margin-top:12px" id="commission-performance">
+  <div class="ep-panel-head">Sales &amp; Profit Performance — {{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}</div>
+  <div class="ep-panel-body"><p class="ep-brief">This shows the full period's business performance, including dates already paid. It is <strong>not a new commission payment request</strong>.</p>
+    <div class="ep-calc-strip">
+      <div class="ep-calc-card primary"><span>Sales Revenue</span><strong>Rs {{ preview.sales_revenue|floatformat:0|intcomma }}</strong></div>
+      <div class="ep-calc-card"><span>FIFO COGS</span><strong>Rs {{ preview.cogs|floatformat:0|intcomma }}</strong></div>
+      <div class="ep-calc-card"><span>Gross Profit</span><strong>Rs {{ preview.gross_profit|floatformat:0|intcomma }}</strong></div>
+      <div class="ep-calc-card"><span>Approved Commission Expenses</span><strong>Rs {{ preview.selling_expenses|floatformat:0|intcomma }}</strong></div>
+      <div class="ep-calc-card {% if preview.net_after_expenses < 0 %}neg{% else %}green{% endif %}"><span>Net Profit After Expenses</span><strong>Rs {{ preview.net_after_expenses|floatformat:0|intcomma }}</strong></div>
+    </div>
+  </div>
 </section>
-
-<section class="ep-panel" style="margin-top:12px"><div class="ep-panel-head">Calculated Commission</div><div class="ep-panel-body">
-  <div class="ep-commission-result"><div><strong>{{ preview.commission_percent|floatformat:2 }}% = Rs {{ preview.commission_amount|floatformat:0|intcomma }}</strong><small>{{ selected.get_full_name|default:selected.username }} · {{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}</small></div><div><span class="ep-pill {% if preview.commissionable_profit > 0 %}green{% else %}orange{% endif %}">Commissionable base Rs {{ preview.commissionable_profit|floatformat:0|intcomma }}</span></div></div>
-  <div class="ep-note-box info"><strong>Payments vs. earnings:</strong> already applied to posted periods overlapping this selection: Rs {{ overlap_paid|floatformat:0|intcomma }}. New commission not yet posted (estimate): Rs {{ estimated_unposted|floatformat:0|intcomma }}. <strong>Estimated total outstanding across all posted and selected unposted periods: Rs {{ estimated_total_due|floatformat:0|intcomma }}</strong>. This estimate is not payable until earnings are posted; it may change after expenses are approved.</div>
-  {% if preview.net_after_expenses < 0 %}<div class="ep-note-box warn"><strong>Why commission is zero:</strong> gross profit is Rs {{ preview.gross_profit|floatformat:0|intcomma }}, but approved expenses that affect commission are Rs {{ preview.selling_expenses|floatformat:0|intcomma }}. That leaves Rs {{ preview.net_after_expenses|floatformat:0|intcomma }}. We never calculate a negative commission, so the commission base is floored at Rs 0.</div>{% endif %}
-  {% if pending_expenses_count %}<div class="ep-note-box warn"><strong>{{ pending_expenses_count }} expense(s) are still pending approval.</strong> Management must approve or reject them before this period can be posted.</div>{% endif %}
-  {% if overlap_periods %}<div class="ep-note-box info"><strong>This date range overlaps an already posted commission period.</strong> Posted amounts are shown below. Unpaid posted periods can be recalculated if later approved expenses changed the result.</div>{% endif %}
-  {% if can_manage_pos and not overlap_periods %}<form method="post" style="margin-top:12px">{% csrf_token %}<input type="hidden" name="action" value="post"><input type="hidden" name="salesperson" value="{{ selected.id }}"><input type="hidden" name="period_start" value="{{ start_date|date:'Y-m-d' }}"><input type="hidden" name="period_end" value="{{ end_date|date:'Y-m-d' }}"><button class="ep-btn primary" {% if preview.commission_amount <= 0 or pending_expenses_count %}disabled{% endif %}><i class="fa-solid fa-file-circle-check"></i> Post Commission to Ledger</button></form>{% endif %}
-</div></section>
+<section class="ep-panel" style="margin-top:12px" id="commission-ledger-summary">
+  <div class="ep-panel-head">Commission Status — Posted vs New Earnings</div>
+  <div class="ep-panel-body">
+    <p class="ep-brief"><strong>{{ selected.get_full_name|default:selected.username }}</strong> · {{ start_date|date:"d M Y" }} to {{ end_date|date:"d M Y" }}. Already posted commission is shown as a historical earning, not charged again.</p>
+    <div class="ep-com-summary ep-com-summary-period">
+      <div class="ep-com-summary-card"><span>Already Posted — Earned</span><strong>Rs {{ commission_period_report.posted_earned|floatformat:0|intcomma }}</strong><small>Finalized posted periods overlapping these dates</small></div>
+      <div class="ep-com-summary-card green"><span>Applied Payments</span><strong>Rs {{ commission_period_report.posted_paid|floatformat:0|intcomma }}</strong><small>Historical payments and advances applied to those periods</small></div>
+      <div class="ep-com-summary-card orange"><span>Unpaid from Posted Periods</span><strong>Rs {{ commission_period_report.posted_due|floatformat:0|intcomma }}</strong><small>Only this amount remains unpaid on the selected posted periods</small></div>
+      <div class="ep-com-summary-card"><span>New Unposted Commission (Estimate)</span><strong>Rs {{ commission_period_report.unposted_estimate|floatformat:0|intcomma }}</strong><small>Only dates not previously posted · not yet payable</small></div>
+    </div>
+    {% if commission_period_report.has_boundary_periods %}<div class="ep-note-box warn">One or more posted periods cross the selected date boundaries. Their posted totals are shown in full, not split across dates. Select the full posted period for an exact period-level reconciliation.</div>{% endif %}
+    {% if overlap_periods %}<div class="ep-note-box info"><strong>Already finalized:</strong> {% for c in overlap_periods %}{{ c.period_start|date:'d M' }}–{{ c.period_end|date:'d M Y' }}{% if not forloop.last %}, {% endif %}{% endfor %}. These commissions remain posted; choosing a month or a custom range will not post or pay them again.</div>{% endif %}
+    <div class="ep-note-box info"><strong>Current ledger position (all dates):</strong> Posted commission still due Rs {{ commission_account.posted_due|floatformat:0|intcomma }}; available advance Rs {{ commission_account.advance_balance|floatformat:0|intcomma }}. The new unposted estimate is separate from payable until posted.</div>
+    {% if commission_period_report.unposted_rows %}
+      <h4 style="font-size:13px;margin:17px 0 7px;color:#173b61">Dates not yet posted</h4>
+      <div class="ep-table-wrap"><table class="ep-table"><thead><tr><th>New period</th><th>Sales</th><th>Approved expenses</th><th>Profit after expenses</th><th>Est. commission</th><th>Status</th></tr></thead><tbody>
+      {% for row in commission_period_report.unposted_rows %}
+        <tr><td><strong>{{ row.start|date:'d M Y' }} – {{ row.end|date:'d M Y' }}</strong></td><td>Rs {{ row.estimate.sales_revenue|floatformat:0|intcomma }}</td><td>Rs {{ row.estimate.selling_expenses|floatformat:0|intcomma }}</td><td>Rs {{ row.estimate.net_after_expenses|floatformat:0|intcomma }}</td><td><strong>Rs {{ row.estimate.commission_amount|floatformat:0|intcomma }}</strong></td><td>{% if row.pending_expenses %}{{ row.pending_expenses }} expense(s) pending{% elif row.estimate.commission_amount > 0 %}Unposted estimate{% else %}No positive commission{% endif %}</td></tr>
+      {% endfor %}
+      </tbody></table></div>
+      <p class="ep-brief" style="margin-top:10px">Unposted segments are calculated separately and do not include previously posted dates. Negative commissionable profit is floored at zero for each segment; any loss-carryforward policy requires a separate decision.</p>
+      {% if can_manage_pos %}
+      {% for row in commission_period_report.unposted_rows %}
+      {% if row.estimate.commission_amount > 0 and not row.pending_expenses %}
+      <form method="post" style="margin-top:10px">{% csrf_token %}<input type="hidden" name="action" value="post"><input type="hidden" name="salesperson" value="{{ selected.id }}"><input type="hidden" name="period_start" value="{{ row.start|date:'Y-m-d' }}"><input type="hidden" name="period_end" value="{{ row.end|date:'Y-m-d' }}"><button class="ep-btn primary"><i class="fa-solid fa-file-circle-check"></i> Post Only {{ row.start|date:'d M' }}–{{ row.end|date:'d M Y' }} (Rs {{ row.estimate.commission_amount|floatformat:0|intcomma }})</button></form>
+      {% endif %}
+      {% endfor %}
+      {% endif %}
+    {% else %}
+      <div class="ep-note-box info">All dates in the selected range are already posted. No additional commission is due simply because you viewed this month.</div>
+    {% endif %}
+  </div>
+</section>
 {% endif %}
 
 {% if can_manage_pos and selected %}
