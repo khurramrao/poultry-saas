@@ -69,7 +69,9 @@ from api.services.egg_pos_corrections import edit_invoice, reverse_invoice, rest
 from api.services.egg_pos_commission_advances import (
     record_commission_cash_payment, apply_commission_advances, commission_account_summary,
 )
-from api.services.egg_pos_commission_reporting import unposted_date_ranges
+from api.services.egg_pos_commission_reporting import (
+    unposted_date_ranges, next_commission_start, commission_with_loss,
+)
 from api.services.egg_pos_accounting import (
     commission_preview,
     sync_cash_settlement,
@@ -2313,48 +2315,67 @@ def commissions(request):
                 period_end = _parse_date(request.POST.get("period_end"), "Period end")
                 if period_end < period_start:
                     raise ValueError("Period end cannot be before period start.")
-                overlap = EggPOSCommissionPeriod.objects.filter(
-                    salesperson=salesperson,
-                    period_start__lte=period_end,
-                    period_end__gte=period_start,
-                ).exists()
-                if overlap:
-                    raise ValueError("This salesperson already has a posted commission period overlapping these dates.")
-                pending_expenses = EggPOSExpense.objects.filter(
-                    used_by=salesperson,
-                    status="pending",
-                    affects_commission=True,
-                    expense_date__gte=period_start,
-                    expense_date__lte=period_end,
-                ).count()
-                if pending_expenses:
-                    raise ValueError(
-                        f"There are {pending_expenses} pending commission-affecting expense(s) in this period. "
-                        "Approve or reject them before posting commission."
-                    )
-                snapshot = commission_preview(salesperson, period_start, period_end)
-                if snapshot["commission_percent"] <= ZERO:
-                    raise ValueError("Set this salesperson's Commission % in Staff Access first.")
-                if snapshot["commission_amount"] <= ZERO:
-                    raise ValueError("There is no positive commission to post for this period.")
+                if period_end > today:
+                    raise ValueError("Cannot finalize commission for future dates.")
+                # Serialize postings for a salesperson so two requests cannot
+                # skip or overlap dates under concurrent administrators.
                 with transaction.atomic():
+                    User.objects.select_for_update().get(pk=salesperson.pk)
+                    latest = (EggPOSCommissionPeriod.objects.filter(salesperson=salesperson)
+                              .order_by("-period_end", "-pk").first())
+                    required_start = next_commission_start(latest)
+                    if required_start and period_start != required_start:
+                        raise ValueError(
+                            f"Commission must start on {required_start:%d %b %Y}, the day after "
+                            "the last finalized period. Include every unposted day, even a loss-making day."
+                        )
+                    overlap = EggPOSCommissionPeriod.objects.filter(
+                        salesperson=salesperson,
+                        period_start__lte=period_end,
+                        period_end__gte=period_start,
+                    ).exists()
+                    if overlap:
+                        raise ValueError("This salesperson already has a posted period overlapping these dates.")
+                    pending_expenses = EggPOSExpense.objects.filter(
+                        used_by=salesperson, status="pending", affects_commission=True,
+                        expense_date__gte=period_start, expense_date__lte=period_end,
+                    ).count()
+                    if pending_expenses:
+                        raise ValueError(
+                            f"There are {pending_expenses} pending commission-affecting expense(s). "
+                            "Approve or reject them before posting."
+                        )
+                    snapshot = commission_preview(salesperson, period_start, period_end)
+                    if snapshot["commission_percent"] <= ZERO:
+                        raise ValueError("Set this salesperson's Commission % in Staff Access first.")
+                    carried_in = latest.loss_carry_out if latest else ZERO
+                    result = commission_with_loss(snapshot, carried_in)
+                    # Closing a no-commission/negative period is essential:
+                    # it records the loss and makes the next day postable.
                     commission = EggPOSCommissionPeriod.objects.create(
                         salesperson=salesperson,
-                        period_start=period_start,
-                        period_end=period_end,
+                        period_start=period_start, period_end=period_end,
                         sales_revenue=snapshot["sales_revenue"],
                         cogs=snapshot["cogs"],
                         selling_expenses=snapshot["selling_expenses"],
-                        commissionable_profit=snapshot["commissionable_profit"],
+                        commissionable_profit=result["net_profit"],
                         commission_percent=snapshot["commission_percent"],
-                        commission_amount=snapshot["commission_amount"],
+                        commission_amount=result["commission_amount"],
+                        loss_carry_in=result["loss_in"],
+                        loss_carry_out=result["loss_out"],
                         notes=(request.POST.get("notes") or "").strip(),
                         posted_by=request.user,
                     )
                     sync_commission_period(commission)
                     adjusted = apply_commission_advances(salesperson.id)
-                messages.success(request, f"Commission Rs {commission.commission_amount:,.2f} posted for {salesperson.username}. Previous advance applied: Rs {adjusted:,.2f}.")
-                return redirect(f"{request.path}?salesperson={salesperson.id}&period=this_week")
+                messages.success(
+                    request,
+                    f"Finalized {period_start:%d %b}–{period_end:%d %b %Y}. "
+                    f"Commission: Rs {commission.commission_amount:,.2f}; "
+                    f"loss carried forward: Rs {commission.loss_carry_out:,.2f}; "
+                    f"advance applied: Rs {adjusted:,.2f}."
+                )
+                return redirect(f"{request.path}?salesperson={salesperson.id}&period=this_month")
             elif action == "record_payment":
                 salesperson = get_object_or_404(User, pk=request.POST.get("salesperson"), is_active=True)
                 if not can_sell(salesperson):
@@ -2380,26 +2401,54 @@ def commissions(request):
                     messages.success(request, f"Recorded Rs {payment.amount:,.2f}. Applied to posted commissions: Rs {applied:,.2f}; advance remaining: Rs {remaining:,.2f}.")
                 return redirect(f"{request.path}?salesperson={salesperson.id}&period=this_month")
             elif action == "recalculate":
-                commission = get_object_or_404(
-                    EggPOSCommissionPeriod.objects.select_related("salesperson").prefetch_related("payments"),
-                    pk=request.POST.get("commission_id"),
+                with transaction.atomic():
+                    commission = get_object_or_404(
+                        EggPOSCommissionPeriod.objects.select_related("salesperson").prefetch_related(
+                            "payments", "advance_allocations"
+                        ), pk=request.POST.get("commission_id"),
+                    )
+                    User.objects.select_for_update().get(pk=commission.salesperson_id)
+                    if Decimal(commission.amount_paid) > ZERO:
+                        raise ValueError("A paid or partially paid period cannot be recalculated. Use an audited adjustment.")
+                    if EggPOSCommissionPeriod.objects.filter(
+                        salesperson_id=commission.salesperson_id,
+                        period_end__gt=commission.period_end,
+                    ).exists():
+                        raise ValueError(
+                            "Cannot recalculate an earlier finalized period because later loss balances "
+                            "depend on it. Use an audited adjustment instead."
+                        )
+                    if EggPOSExpense.objects.filter(
+                        used_by_id=commission.salesperson_id, status="pending", affects_commission=True,
+                        expense_date__gte=commission.period_start,
+                        expense_date__lte=commission.period_end,
+                    ).exists():
+                        raise ValueError("Resolve pending commission-affecting expenses before recalculating.")
+                    snapshot = commission_preview(
+                        commission.salesperson, commission.period_start, commission.period_end
+                    )
+                    result = commission_with_loss(snapshot, commission.loss_carry_in)
+                    commission.sales_revenue = snapshot["sales_revenue"]
+                    commission.cogs = snapshot["cogs"]
+                    commission.selling_expenses = snapshot["selling_expenses"]
+                    commission.commissionable_profit = result["net_profit"]
+                    commission.commission_percent = snapshot["commission_percent"]
+                    commission.commission_amount = result["commission_amount"]
+                    commission.loss_carry_out = result["loss_out"]
+                    commission.save(update_fields=[
+                        "sales_revenue", "cogs", "selling_expenses", "commissionable_profit",
+                        "commission_percent", "commission_amount", "loss_carry_out",
+                    ])
+                    sync_commission_period(commission)
+                messages.success(
+                    request,
+                    f"Latest commission period recalculated. Earned: Rs {commission.commission_amount:,.2f}; "
+                    f"loss carried: Rs {commission.loss_carry_out:,.2f}."
                 )
-                if Decimal(commission.amount_paid) > ZERO:
-                    raise ValueError("A paid or partially paid commission cannot be recalculated. Record an adjustment instead.")
-                snapshot = commission_preview(commission.salesperson, commission.period_start, commission.period_end)
-                commission.sales_revenue = snapshot["sales_revenue"]
-                commission.cogs = snapshot["cogs"]
-                commission.selling_expenses = snapshot["selling_expenses"]
-                commission.commissionable_profit = snapshot["commissionable_profit"]
-                commission.commission_percent = snapshot["commission_percent"]
-                commission.commission_amount = snapshot["commission_amount"]
-                commission.save(update_fields=[
-                    "sales_revenue", "cogs", "selling_expenses", "commissionable_profit",
-                    "commission_percent", "commission_amount",
-                ])
-                sync_commission_period(commission)
-                messages.success(request, f"Commission period recalculated. New commission: Rs {commission.commission_amount:,.2f}.")
-                return redirect(f"{request.path}?salesperson={commission.salesperson_id}&start={commission.period_start}&end={commission.period_end}")
+                return redirect(
+                    f"{request.path}?salesperson={commission.salesperson_id}"
+                    f"&start={commission.period_start}&end={commission.period_end}"
+                )
             elif action == "pay":
                 commission = get_object_or_404(EggPOSCommissionPeriod.objects.prefetch_related("payments"), pk=request.POST.get("commission_id"))
                 balance = money(commission.balance_due)
@@ -2459,9 +2508,16 @@ def commissions(request):
         .order_by("-payment_date", "-pk")[:30]
         if selected else []
     )
-    # Management performance (the full selection) is not a new commission bill.
-    # Keep posted commission snapshots unchanged and calculate prospective earnings
-    # only for calendar dates not covered by an existing posted period.
+    # Full-range sales/profit are read-only. Only the next chronological
+    # unposted period can be finalized. Do not display cherry-picked profitable
+    # days as payable if an earlier unposted day is excluded from the filter.
+    latest_posted = (
+        EggPOSCommissionPeriod.objects.filter(salesperson=selected)
+        .order_by("-period_end", "-pk").first()
+        if selected else None
+    )
+    required_start = next_commission_start(latest_posted)
+    current_loss = money(latest_posted.loss_carry_out if latest_posted else ZERO)
     open_dates = unposted_date_ranges(start_date, end_date, overlap_periods) if selected else []
     unposted_rows = []
     unposted_earned = ZERO
@@ -2471,6 +2527,10 @@ def commissions(request):
     unposted_net = ZERO
     for from_date, to_date in open_dates:
         estimate = commission_preview(selected, from_date, to_date)
+        # If a later selected start skips any unposted dates, don't assign a
+        # payout estimate that ignores the unseen expense/loss history.
+        eligible = (not required_start or from_date == required_start) and to_date <= today
+        result = commission_with_loss(estimate, current_loss) if eligible else None
         pending = EggPOSExpense.objects.filter(
             used_by=selected, status="pending", affects_commission=True,
             expense_date__gte=from_date, expense_date__lte=to_date,
@@ -2478,8 +2538,12 @@ def commissions(request):
         unposted_rows.append({
             "start": from_date, "end": to_date,
             "estimate": estimate, "pending_expenses": pending,
+            "eligible": eligible, "result": result,
         })
-        unposted_earned += estimate["commission_amount"]
+        if eligible:
+            current_loss = result["loss_out"]
+            required_start = to_date + timedelta(days=1)
+            unposted_earned += result["commission_amount"]
         unposted_sales += estimate["sales_revenue"]
         unposted_cogs += estimate["cogs"]
         unposted_expenses += estimate["selling_expenses"]
@@ -2507,7 +2571,10 @@ def commissions(request):
         "unposted_net": money(unposted_net),
         "has_boundary_periods": boundary_periods,
         "unposted_rows": unposted_rows,
-        "can_post_selected": bool(selected and not overlap_periods and len(unposted_rows) == 1),
+        "next_start": next_commission_start(latest_posted),
+        "loss_brought_forward": money(latest_posted.loss_carry_out if latest_posted else ZERO),
+        "has_skipped_dates": any(not r["eligible"] for r in unposted_rows),
+        "can_post_selected": bool(selected and len(unposted_rows) == 1 and unposted_rows[0]["eligible"]),
     }
     return render(request, "api/egg_pos_commissions.html", {
         "commission_account": commission_account,

@@ -855,6 +855,9 @@ class EggPOSCommissionPeriod(models.Model):
     commissionable_profit = models.DecimalField(max_digits=16, decimal_places=2, default=MONEY_ZERO)
     commission_percent = models.DecimalField(max_digits=5, decimal_places=2, default=MONEY_ZERO)
     commission_amount = models.DecimalField(max_digits=16, decimal_places=2, default=MONEY_ZERO)
+    # Historic periods default to zero. Only NEW posted periods carry losses forward.
+    loss_carry_in = models.DecimalField(max_digits=16, decimal_places=2, default=MONEY_ZERO)
+    loss_carry_out = models.DecimalField(max_digits=16, decimal_places=2, default=MONEY_ZERO)
     notes = models.TextField(blank=True)
     posted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
