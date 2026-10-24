@@ -159,9 +159,7 @@ class EggPOSPurchase(models.Model):
     def amount_paid(self):
         if not self.pk:
             return MONEY_ZERO
-        paid_direct = sum((Decimal(payment.amount or 0) for payment in self.payments.all()), MONEY_ZERO)
-        paid_from_advances = sum((Decimal(row.amount or 0) for row in self.advance_allocations.all()), MONEY_ZERO)
-        return paid_direct + paid_from_advances
+        return sum((Decimal(payment.amount or 0) for payment in self.payments.all()), MONEY_ZERO)
 
     @property
     def balance_due(self):
