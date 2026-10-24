@@ -20,12 +20,12 @@
         {% if request.user.is_superuser or request.user.is_staff %}
           {% if not p.sold_eggs and not p.amount_paid %}
           <details class="ep-void-toggle" style="min-width:200px"><summary class="ep-btn" style="cursor:pointer;color:#a32121">Void Duplicate</summary>
-            <form method="post" action="{% url 'egg_pos_void_purchase' p.id %}" style="margin-top:9px;max-width:240px" onsubmit="return confirm('Void purchase #{{ p.id }}? This reverses its stock and accounting and cannot be undone automatically.');">
+            <form method="post" autocomplete="off" action="{% url 'egg_pos_void_purchase' p.id %}" style="margin-top:9px;max-width:240px" onsubmit="return confirm('Void purchase #{{ p.id }}? This reverses its stock and accounting and cannot be undone automatically.');">
               {% csrf_token %}
               <label style="font-size:11px;display:block;margin-bottom:4px">Reason (required)</label>
-              <input type="text" name="reason" minlength="8" maxlength="500" required placeholder="Duplicate purchase entered by mistake" class="ep-input" style="width:100%;margin-bottom:6px" autocomplete="off">
+              <textarea name="reason" minlength="8" maxlength="500" required rows="2" placeholder="Duplicate purchase entered by mistake" class="ep-input" style="width:100%;margin-bottom:6px" autocomplete="off" autocapitalize="sentences" spellcheck="true" data-lpignore="true"></textarea>
               <label style="font-size:11px;display:block;margin-bottom:4px">Admin password</label>
-              <input type="password" name="admin_password" required class="ep-input" style="width:100%;margin-bottom:6px" autocomplete="current-password">
+              <input type="password" name="admin_password" required class="ep-input" style="width:100%;margin-bottom:6px" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true">
               <button type="submit" class="ep-btn" style="color:#a32121">Confirm Void Purchase #{{ p.id }}</button>
             </form>
           </details>

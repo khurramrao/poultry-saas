@@ -21,8 +21,10 @@ def void_supplier_purchase(*, purchase_id, actor, reason):
     if len(reason) < 8:
         raise ValueError("Void reason must be at least 8 characters.")
 
+    # On PostgreSQL, FOR UPDATE cannot lock the nullable side of a LEFT JOIN.
+    # created_by is optional, and isn't needed here; lock the purchase row only.
     purchase = (EggPOSPurchase.objects.select_for_update()
-                .select_related("supplier", "created_by").get(pk=purchase_id))
+                .select_related("supplier").get(pk=purchase_id))
     if purchase.is_voided:
         raise ValueError("Purchase has already been voided; no changes made.")
 
