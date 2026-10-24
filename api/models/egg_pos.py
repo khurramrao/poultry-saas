@@ -139,6 +139,13 @@ class EggPOSPurchase(models.Model):
         related_name="egg_pos_purchases_created",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    is_voided = models.BooleanField(default=False)
+    void_reason = models.CharField(max_length=500, blank=True)
+    voided_at = models.DateTimeField(null=True, blank=True)
+    voided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="egg_pos_purchases_voided",
+    )
 
     class Meta:
         ordering = ["-purchase_date", "-id"]
@@ -163,6 +170,8 @@ class EggPOSPurchase(models.Model):
 
     @property
     def balance_due(self):
+        if self.is_voided:
+            return MONEY_ZERO
         payable = Decimal(self.total_amount or 0)
         if self.transport_payment_method == "supplier_payable":
             payable += Decimal(self.transport_cost or 0)
@@ -177,6 +186,8 @@ class EggPOSPurchase(models.Model):
 
     @property
     def payment_status(self):
+        if self.is_voided:
+            return "voided"
         paid = Decimal(self.amount_paid or 0)
         total = Decimal(self.payable_total or 0)
         if total <= MONEY_ZERO or paid >= total:
@@ -189,6 +200,7 @@ class EggPOSPurchase(models.Model):
             "paid": "Paid",
             "partial": "Partially Paid",
             "unpaid": "Unpaid",
+            "voided": "Voided",
         }[self.payment_status]
 
 

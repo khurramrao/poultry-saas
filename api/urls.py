@@ -75,6 +75,7 @@ path(
     path("egg-pos/purchases/", egg_pos.purchase_list, name="egg_pos_purchase_list"),
     path("egg-pos/purchases/add/", egg_pos.add_purchase, name="egg_pos_add_purchase"),
     path("egg-pos/purchases/<int:purchase_id>/edit/", egg_pos.edit_purchase, name="egg_pos_edit_purchase"),
+    path("egg-pos/purchases/<int:purchase_id>/void/", egg_pos.void_purchase, name="egg_pos_void_purchase"),
     path("egg-pos/farm-transfer/", egg_pos.farm_transfer, name="egg_pos_farm_transfer"),
     path("egg-pos/farm-transfer/<int:transfer_id>/", egg_pos.farm_transfer_detail, name="egg_pos_farm_transfer_detail"),
     path("egg-pos/farm-transfer/<int:transfer_id>/edit/", egg_pos.edit_farm_transfer, name="egg_pos_edit_farm_transfer"),
@@ -107,8 +108,6 @@ path(
     path("goats/", goats.goat_dashboard, name="goat_dashboard"),
     path("goats/add/", goats.add_goat, name="add_goat"),
     path("goats/<int:goat_id>/", goats.goat_detail, name="goat_detail"),
-    path("goats/<int:goat_id>/photo/", goats.goat_photo, name="goat_photo"),
-    path("goats/<int:goat_id>/photo/update/", goats.update_goat_photo, name="update_goat_photo"),
     path("goats/<int:goat_id>/weight/add/", goats.add_goat_weight, name="add_goat_weight"),
     path("goats/<int:goat_id>/pedigree/", goats.edit_goat_pedigree, name="edit_goat_pedigree"),
     path("goats/<int:goat_id>/dates/", goat_age.edit_goat_dates, name="edit_goat_dates"),
@@ -154,9 +153,6 @@ path(
 from api.views import online_shop
 urlpatterns += [
     path('shop/', online_shop.storefront, name='raynoor_store'),
-    path('shop/pack-photo/<int:offer_id>/', online_shop.offer_photo, name='raynoor_offer_photo'),
-    path('shop/gallery-photo/<int:photo_id>/', online_shop.offer_gallery_photo, name='raynoor_offer_gallery_photo'),
-    path('shop/product/<int:offer_id>/', online_shop.product_detail, name='raynoor_product_detail'),
     path('shop/cart/', online_shop.cart, name='raynoor_cart'),
     path('shop/cart/update/', online_shop.cart_change, name='raynoor_cart_update'),
     path('shop/checkout/', online_shop.checkout, name='raynoor_checkout'),

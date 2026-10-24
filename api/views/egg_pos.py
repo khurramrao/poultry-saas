@@ -451,10 +451,37 @@ def purchase_list(request):
             int(item.lot.quantity_remaining or 0)
             for item in items if item.lot_id and item.lot
         )
-        purchase.sold_eggs = max(purchase.total_eggs - purchase.remaining_eggs, 0)
+        purchase.sold_eggs = 0 if purchase.is_voided else max(purchase.total_eggs - purchase.remaining_eggs, 0)
     return render(request, "api/egg_pos_purchases.html", {
         "purchases": purchases,
     })
+
+
+@login_required
+@require_POST
+def void_purchase(request, purchase_id):
+    """Admin-only, password-confirmed, audited stock + journal reversal."""
+    if not _invoice_admin(request):
+        return _deny(request, "Only a Django administrator can void supplier purchases.")
+    if not _verify_invoice_admin_password(request):
+        return redirect("egg_pos_purchase_list")
+    reason = (request.POST.get("reason") or "").strip()
+    if len(reason) < 8:
+        messages.error(request, "Please enter a meaningful void reason (at least 8 characters).")
+        return redirect("egg_pos_purchase_list")
+    try:
+        from api.services.egg_pos_purchase_void import void_supplier_purchase
+        void_supplier_purchase(purchase_id=purchase_id, actor=request.user, reason=reason)
+    except ValueError as exc:
+        messages.error(request, str(exc))
+    except Exception:
+        # Do not expose internal server details to users; preserve for server logs.
+        import logging
+        logging.getLogger(__name__).exception("Purchase void failed for #%s", purchase_id)
+        messages.error(request, "Unable to void this purchase. No changes were saved; check server logs.")
+    else:
+        messages.success(request, f"Purchase #{purchase_id} voided. Stock removed and accounting reversed; audit retained.")
+    return redirect("egg_pos_purchase_list")
 
 
 @login_required
@@ -587,6 +614,9 @@ def edit_purchase(request, purchase_id):
         ),
         pk=purchase_id,
     )
+    if purchase.is_voided:
+        messages.error(request, "This purchase has already been voided and cannot be edited.")
+        return redirect("egg_pos_purchase_list")
     items = list(purchase.items.all())
     suppliers_qs = EggPOSSupplier.objects.filter(is_active=True).order_by("name")
 
@@ -1819,7 +1849,7 @@ def supplier_detail(request, supplier_id):
             purchase = None
             purchase_id = (request.POST.get("purchase") or "").strip()
             if purchase_id:
-                purchase = get_object_or_404(EggPOSPurchase, pk=purchase_id, supplier=supplier)
+                purchase = get_object_or_404(EggPOSPurchase, pk=purchase_id, supplier=supplier, is_voided=False)
             payment = EggPOSSupplierPayment.objects.create(
                 supplier=supplier,
                 purchase=purchase,
@@ -1837,7 +1867,7 @@ def supplier_detail(request, supplier_id):
             messages.error(request, str(error))
 
     purchases = list(
-        supplier.egg_pos_purchases.select_related("created_by")
+        supplier.egg_pos_purchases.filter(is_voided=False).select_related("created_by")
         .prefetch_related("items__product", "payments")
         .order_by("-purchase_date", "-id")
     )

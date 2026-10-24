@@ -446,7 +446,7 @@ def sync_all_egg_pos_books():
     """Idempotently rebuild journals from all recorded Egg POS transactions."""
     for capital in EggPOSOwnerCapitalTransaction.objects.select_related("recorded_by").order_by("id"):
         sync_owner_capital(capital)
-    for purchase in EggPOSPurchase.objects.select_related("supplier", "created_by").prefetch_related("items").order_by("id"):
+    for purchase in EggPOSPurchase.objects.filter(is_voided=False).select_related("supplier", "created_by").prefetch_related("items").order_by("id"):
         sync_purchase(purchase)
     for payment in EggPOSSupplierPayment.objects.select_related("supplier", "purchase", "recorded_by").order_by("id"):
         sync_supplier_payment(payment)

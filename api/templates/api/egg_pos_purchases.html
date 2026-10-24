@@ -7,17 +7,38 @@
 <div class="ph-top"><div><h2><i class="fa-solid fa-truck-ramp-box"></i> Purchase History</h2><p>Every vendor receipt, landed inventory cost and supplier payable in one place.</p></div><a class="ep-btn primary" href="{% url 'egg_pos_add_purchase' %}"><i class="fa-solid fa-plus"></i> Stock In / Purchase</a></div>
 
 {% for p in purchases %}
-<div class="purchase-card">
+<div class="purchase-card" {% if p.is_voided %}style="opacity:.68;border:1px solid #e6a8a8"{% endif %}>
   <div class="purchase-main">
-    <div><div class="purchase-supplier">{{ p.supplier.name }}</div><div class="purchase-ref">Purchase #{{ p.id }} · {{ p.purchase_date|date:"d M Y" }}{% if p.reference %} · {{ p.reference }}{% endif %}</div></div>
+    <div><div class="purchase-supplier">{{ p.supplier.name }}</div><div class="purchase-ref">Purchase #{{ p.id }} · {{ p.purchase_date|date:"d M Y" }}{% if p.reference %} · {{ p.reference }}{% endif %}{% if p.is_voided %} <strong style="color:#a32121"> · VOIDED</strong>{% endif %}</div></div>
     <div><div class="purchase-label">Base Vendor Cost</div><div class="purchase-value">Rs {{ p.total_amount|floatformat:0|intcomma }}</div></div>
     <div><div class="purchase-label">Transport</div><div class="purchase-value">Rs {{ p.transport_cost|floatformat:0|intcomma }}</div></div>
     <div><div class="purchase-label">Landed Cost</div><div class="purchase-value good">Rs {{ p.landed_total|floatformat:0|intcomma }}</div></div>
     <div><div class="purchase-label">Supplier Balance</div><div class="purchase-value {% if p.balance_due %}bad{% endif %}">Rs {{ p.balance_due|floatformat:0|intcomma }}</div></div>
-    <div class="actions"><a class="ep-btn" href="{% url 'egg_pos_edit_purchase' p.id %}"><i class="fa-solid fa-pen"></i> Correct</a><a class="ep-btn" href="{% url 'egg_pos_supplier_detail' p.supplier.id %}">Ledger</a></div>
+    <div class="actions">
+      {% if not p.is_voided %}
+        <a class="ep-btn" href="{% url 'egg_pos_edit_purchase' p.id %}"><i class="fa-solid fa-pen"></i> Correct</a>
+        {% if request.user.is_superuser or request.user.is_staff %}
+          {% if not p.sold_eggs and not p.amount_paid %}
+          <details class="ep-void-toggle" style="min-width:200px"><summary class="ep-btn" style="cursor:pointer;color:#a32121">Void Duplicate</summary>
+            <form method="post" action="{% url 'egg_pos_void_purchase' p.id %}" style="margin-top:9px;max-width:240px" onsubmit="return confirm('Void purchase #{{ p.id }}? This reverses its stock and accounting and cannot be undone automatically.');">
+              {% csrf_token %}
+              <label style="font-size:11px;display:block;margin-bottom:4px">Reason (required)</label>
+              <input type="text" name="reason" minlength="8" maxlength="500" required placeholder="Duplicate purchase entered by mistake" class="ep-input" style="width:100%;margin-bottom:6px" autocomplete="off">
+              <label style="font-size:11px;display:block;margin-bottom:4px">Admin password</label>
+              <input type="password" name="admin_password" required class="ep-input" style="width:100%;margin-bottom:6px" autocomplete="current-password">
+              <button type="submit" class="ep-btn" style="color:#a32121">Confirm Void Purchase #{{ p.id }}</button>
+            </form>
+          </details>
+          {% endif %}
+        {% endif %}
+      {% else %}
+        <small style="font-weight:700;color:#a32121">Voided {{ p.voided_at|date:'d M Y H:i' }} · {{ p.void_reason }}</small>
+      {% endif %}
+      <a class="ep-btn" href="{% url 'egg_pos_supplier_detail' p.supplier.id %}">Ledger</a>
+    </div>
   </div>
   <div class="purchase-items">
-    <span><strong>{{ p.total_eggs|intcomma }}</strong> eggs received · <strong>{{ p.remaining_eggs|intcomma }}</strong> remaining · {{ p.sold_eggs|intcomma }} sold</span>
+    <span>{% if p.is_voided %}<strong>{{ p.total_eggs|intcomma }}</strong> eggs voided — excluded from inventory and payables{% else %}<strong>{{ p.total_eggs|intcomma }}</strong> eggs received · <strong>{{ p.remaining_eggs|intcomma }}</strong> remaining · {{ p.sold_eggs|intcomma }} sold{% endif %}</span>
     <span>{% for i in p.items.all %}{{ i.product.name }}: {{ i.quantity|intcomma }} eggs @ Rs {{ i.unit_cost|floatformat:4 }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
   </div>
 </div>
