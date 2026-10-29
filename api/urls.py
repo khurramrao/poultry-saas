@@ -122,6 +122,8 @@ path(
     path("goat-accounts/", goats.goat_accounts, name="goat_accounts"),
     path("goat-accounts/<int:owner_id>/", goats.goat_account_detail, name="goat_account_detail"),
     path("goat-accounts/<int:owner_id>/payment/", goats.record_goat_account_payment, name="record_goat_account_payment"),
+    path("goats/<int:goat_id>/photo/", goats.goat_photo, name="goat_photo"),
+    path("goats/<int:goat_id>/photo/update/", goats.update_goat_photo, name="update_goat_photo"),
     path("finance-tracker/", finance_tracker.finance_tracker, name="finance_tracker"),
     path("investor-accounts/", investor_accounts.investor_accounts, name="investor_accounts"),
     path("investor-accounts/<int:allocation_id>/", investor_accounts.investor_account_detail, name="investor_account_detail"),
