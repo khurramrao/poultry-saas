@@ -44,10 +44,17 @@
   .ep-sales-mobile-actions{display:flex;align-items:center;gap:8px}
   .ep-sales-mobile-actions a{font-size:9px;font-weight:900;color:#0b6fb7;text-decoration:none}
   {# RAYNOOR_POS_SALES_SOURCE_COLUMN_V1 #}
-  .ep-sales-table{min-width:1140px}
+  .ep-sales-table{min-width:1240px}
   .ep-origin-tag{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;
     background:#f1f5f9;color:#536478;border:1px solid #e1e9f1;font-size:9px;font-weight:850;
     white-space:nowrap;max-width:165px}
+  /* RAYNOOR_CUSTOMER_STATUS_V1: independently verified purchase history */
+  .ep-customer-status{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;
+    font-size:9px;font-weight:850;white-space:nowrap;border:1px solid #e1e9f1;
+    background:#f1f5f9;color:#536478}
+  .ep-customer-status.status-new{background:#edf6ff;color:#155a9c;border-color:#d7e9fb}
+  .ep-customer-status.status-returning{background:#eaf8ef;color:#147344;border-color:#d2eedc}
+  .ep-customer-status.status-reversed{background:#f3e8ff;color:#7e22ce;border-color:#ebd5fa}
   .ep-origin-tag.source-tiktok{background:#eef0fc;color:#454da7;border-color:#e0e4ff}
   .ep-origin-tag.source-facebook{background:#ebf3ff;color:#1759a8;border-color:#d5e5ff}
   .ep-origin-tag.source-instagram{background:#fff0f7;color:#a93c72;border-color:#ffdeec}
@@ -169,6 +176,7 @@
           <th>Invoice</th>
           <th>Source</th>
           <th>Customer</th>
+          <th>Customer Status</th>
           {% if can_manage_pos %}<th>Staff</th>{% endif %}
           <th>Net Sale</th>
           <th>Paid</th>
@@ -196,6 +204,7 @@
           </td>
           <td><span class="ep-origin-tag source-{{ sale.raynoor_origin_key }}">{{ sale.raynoor_origin_label }}</span>{% if sale.raynoor_acquired_label != "Untracked" %}<div style="font-size:9px;color:#627389;margin-top:5px">Acquired: <b>{{ sale.raynoor_acquired_label }}</b>{% if sale.raynoor_repeat_customer %} · Repeat{% endif %}</div>{% endif %}</td>
           <td><span class="ep-sales-customer">{{ sale.customer_name|default:"Walk-in" }}</span></td>
+          <td><span class="ep-customer-status status-{{ sale.raynoor_customer_status_key }}" {% if sale.raynoor_customer_status_key == "unverified" %}title="No linked customer history; not enough information to determine New or Returning"{% endif %}>{{ sale.raynoor_customer_status }}</span></td>
           {% if can_manage_pos %}
           <td>
             <div class="ep-sales-staff">
@@ -220,7 +229,7 @@
           </td>
         </tr>
       {% empty %}
-        <tr><td colspan="{% if can_manage_pos %}10{% else %}8{% endif %}"><div class="ep-empty">No sales yet.</div></td></tr>
+        <tr><td colspan="{% if can_manage_pos %}11{% else %}9{% endif %}"><div class="ep-empty">No sales yet.</div></td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -241,6 +250,7 @@
               {% endif %}
             {% endif %}
             <div class="ep-sales-mobile-customer">{{ sale.customer_name|default:"Walk-in" }}</div>
+            <div style="margin:5px 0"><span class="ep-customer-status status-{{ sale.raynoor_customer_status_key }}" {% if sale.raynoor_customer_status_key == "unverified" %}title="No linked customer history; not enough information to determine New or Returning"{% endif %}>{{ sale.raynoor_customer_status }}</span></div>
             <span class="ep-origin-tag source-{{ sale.raynoor_origin_key }}" style="margin-top:7px">{{ sale.raynoor_origin_label }}</span>{% if sale.raynoor_acquired_label != "Untracked" %}<div style="font-size:9px;color:#627389;margin-top:4px">Acquired: {{ sale.raynoor_acquired_label }}{% if sale.raynoor_repeat_customer %} · Repeat{% endif %}</div>{% endif %}
           </div>
           <div class="ep-sales-mobile-net">Rs {{ sale.net_total|floatformat:0|intcomma }}</div>

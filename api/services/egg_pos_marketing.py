@@ -12,6 +12,7 @@ from api.models.egg_pos_marketing import (
     MARKETING_CHANNELS,
 )
 from api.models.egg_pos_prebooking import EggPOSManualPrebooking as Booking
+from api.models.egg_pos import EggPOSSale
 
 LABELS = dict(MARKETING_CHANNELS)
 
@@ -119,10 +120,27 @@ def decorate_sales(sales):
             marketing_customer_id__in=profile_ids, sale__is_reversed=False,
         ).order_by("sale__sale_date", "sale_id").values_list("marketing_customer_id", "sale_id"):
             first_sale.setdefault(profile_id, sale_id)
+
+    # A saved POS customer ID also proves identity. It identifies repeat
+    # customers even when their earlier invoices pre-date marketing tracking.
+    # Never match unrelated directory entries using a similar name or phone.
+    customer_ids = {sale.customer_id for sale in listed if sale.customer_id}
+    first_customer_sale = {}
+    if customer_ids:
+        for customer_id, sale_id in EggPOSSale.objects.filter(
+            customer_id__in=customer_ids, is_reversed=False,
+        ).order_by("customer_id", "sale_date", "pk").values_list("customer_id", "pk"):
+            first_customer_sale.setdefault(customer_id, sale_id)
+
     for sale in listed:
         a = entries.get(sale.pk)
         sale.raynoor_acquired_label = "Untracked"
         sale.raynoor_repeat_customer = False
+        # Display status is deliberately separate from the sale's source
+        # and acquisition channel. Generic/unidentified names are not enough
+        # to claim that someone is a new customer.
+        sale.raynoor_customer_status = "Unverified"
+        sale.raynoor_customer_status_key = "unverified"
         if a:
             if not getattr(sale, "online_order_id", None):
                 sale.raynoor_origin_key = a.order_source
@@ -130,8 +148,21 @@ def decorate_sales(sales):
             if a.marketing_customer_id:
                 sale.raynoor_acquired_label = LABELS[a.marketing_customer.acquired_from]
                 sale.raynoor_repeat_customer = first_sale.get(a.marketing_customer_id) != sale.pk
-        # Older POS invoices without attribution are intentionally not
-        # merged or backfilled by phone alone.
+
+        if sale.is_reversed:
+            sale.raynoor_customer_status = "Reversed"
+            sale.raynoor_customer_status_key = "reversed"
+            continue
+
+        first_for_directory = first_customer_sale.get(sale.customer_id)
+        first_for_profile = first_sale.get(a.marketing_customer_id) if a else None
+        if first_for_directory is not None or first_for_profile is not None:
+            returning = any(first != sale.pk for first in (first_for_directory, first_for_profile)
+                            if first is not None)
+            sale.raynoor_customer_status = "Returning" if returning else "New"
+            sale.raynoor_customer_status_key = "returning" if returning else "new"
+        # Historical invoices without an explicit saved customer or verified
+        # marketing profile remain Unverified; never infer from phone alone.
     return listed
 
 
