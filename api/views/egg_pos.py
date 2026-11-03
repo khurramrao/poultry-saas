@@ -2347,6 +2347,13 @@ def commissions(request):
                     raise ValueError("Period end cannot be before period start.")
                 if period_end > today:
                     raise ValueError("Cannot finalize commission for future dates.")
+                from api.services.egg_pos_payroll import salary_cutoff
+                salary_from = salary_cutoff(salesperson.pk)
+                if salary_from is not None and period_end >= salary_from:
+                    raise ValueError(
+                        f"Salary starts {salary_from:%d %b %Y} for this employee. "
+                        "Do not post overlapping commission. Historical commission remains payable."
+                    )
                 # Serialize postings for a salesperson so two requests cannot
                 # skip or overlap dates under concurrent administrators.
                 with transaction.atomic():
@@ -2416,6 +2423,19 @@ def commissions(request):
                 paid_on = _parse_date(request.POST.get("payment_date"), "Payment date", default=today)
                 if paid_on > today:
                     raise ValueError("Payment date cannot be in the future.")
+                from api.services.egg_pos_payroll import salary_cutoff
+                if salary_cutoff(salesperson.pk) is not None:
+                    from api.models.egg_pos import EggPOSCommissionPeriod as _SalarySwitchCommissionPeriod
+                    remaining_commission = sum(
+                        (p.balance_due for p in _SalarySwitchCommissionPeriod.objects.filter(salesperson=salesperson)),
+                        Decimal('0.00'),
+                    )
+                    amount_to_pay = _parse_money(request.POST.get("amount"), "Commission payment")
+                    if amount_to_pay > remaining_commission:
+                        raise ValueError(
+                            f"This employee has switched to salary. Only Rs {remaining_commission:,.2f} "
+                            "historical commission is payable; new commission advances are disabled."
+                        )
                 payment, applied, repeated = record_commission_cash_payment(
                     salesperson_id=salesperson.pk,
                     amount=_parse_money(request.POST.get("amount"), "Commission payment"),

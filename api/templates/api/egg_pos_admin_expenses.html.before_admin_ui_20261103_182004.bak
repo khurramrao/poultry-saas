@@ -1,0 +1,43 @@
+{% extends "api/egg_pos_base.html" %}{% load humanize %}
+{% block egg_pos_css %}
+<style>
+.ep-adm-note{background:#f0f7ff;border:1px solid #cde2f8;border-radius:10px;padding:12px;margin:10px 0;font-size:11px;color:#224e72;line-height:1.5}
+.ep-adm-narrow{max-width:1050px;margin:0 auto}.ep-adm-history{overflow-x:auto}
+.ep-adm-badge{display:inline-block;padding:4px 9px;border-radius:8px;background:#eaf7ed;color:#14713d;font-weight:800}.ep-adm-badge.void{background:#ffebeb;color:#b71c1c}
+.ep-adm-void{display:grid;grid-template-columns:minmax(140px,1fr) minmax(140px,1fr) auto;gap:7px;margin-top:9px}.ep-adm-void input{min-width:0}
+@media(max-width:720px){.ep-adm-void{grid-template-columns:1fr}.ep-adm-history{font-size:10px}}
+</style>
+{% endblock %}
+{% block egg_pos_content %}
+<div class="ep-adm-narrow">
+  <div class="ep-section-title"><div><h3><i class="fa-solid fa-building-circle-check"></i> Admin &amp; Office Expenses</h3><p>Rent, electricity, stationery, repairs, marketing and office equipment. For Egg POS business administration, not sales staff.</p></div><a class="ep-btn" href="{% url 'egg_pos_expenses' %}">Fuel / Staff Expenses</a></div>
+  <section class="ep-kpis">
+    <div class="ep-kpi orange"><div class="ep-kpi-label">General Operating Costs (all dates)</div><strong>Rs {{ operating_total|floatformat:0|intcomma }}</strong><div class="ep-kpi-note">Included in the income statement</div></div>
+    <div class="ep-kpi green"><div class="ep-kpi-label">Equipment / Fixed Assets (all dates)</div><strong>Rs {{ equipment_total|floatformat:0|intcomma }}</strong><div class="ep-kpi-note">Capitalized; not immediate profit expense</div></div>
+  </section>
+  <div class="ep-adm-note"><strong>Accounting:</strong> A payment reduces <strong>Main Cash or Bank</strong> and increases the correct general-expense account. <strong>Equipment (Fixed Asset)</strong> is recorded as an asset instead of an immediate expense. These entries do <strong>not</strong> change sales commission, staff cash collections or supplier balances. Only record payments made from the Egg POS business accounts; use your Farm accounts for separate farm costs.</div>
+  <section class="ep-panel"><div class="ep-panel-head">Record an Admin Expense / Asset Purchase</div><div class="ep-panel-body">
+    <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="request_token" value="{{ request_token }}">
+      <div class="ep-form-grid">
+        <div class="ep-field"><label for="ae-date">Date</label><input id="ae-date" class="ep-input" type="date" name="expense_date" value="{{ today|date:'Y-m-d' }}" required></div>
+        <div class="ep-field"><label for="ae-category">Expense Category</label><select id="ae-category" class="ep-select" name="category" required>{% for code,label in categories %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
+        <div class="ep-field"><label for="ae-amount">Amount (Rs)</label><input id="ae-amount" class="ep-input" type="number" min="0.01" max="999999999999.99" step="0.01" name="amount" inputmode="decimal" required></div>
+        <div class="ep-field"><label for="ae-payment">Paid From</label><select id="ae-payment" class="ep-select" name="payment_source" required>{% for code,label in payment_sources %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
+        <div class="ep-field"><label for="ae-payee">Paid To (optional)</label><input id="ae-payee" class="ep-input" name="paid_to" maxlength="160" placeholder="Landlord, shop, vendor ..."></div>
+        <div class="ep-field"><label for="ae-reference">Receipt / Reference</label><input id="ae-reference" class="ep-input" name="reference" maxlength="120" placeholder="Invoice, receipt or voucher"></div>
+      </div>
+      <div class="ep-field" style="margin-top:12px"><label for="ae-notes">Description</label><textarea id="ae-notes" class="ep-textarea" name="notes" placeholder="e.g., November office rent, office printer purchase ..."></textarea></div>
+      <div class="ep-field" style="margin-top:12px;max-width:350px"><label for="ae-auth">Confirm Admin Password</label><input id="ae-auth" class="ep-input" type="password" name="admin_password" autocomplete="new-password" required></div>
+      <button class="ep-btn primary" type="submit"><i class="fa-solid fa-check"></i> Record &amp; Post to Accounts</button>
+    </form>
+  </div></section>
+  <section class="ep-panel" style="margin-top:16px"><div class="ep-panel-head">Admin Expense History (latest 200)</div>
+  <div class="ep-adm-history"><table class="ep-table"><thead><tr><th>Date</th><th>Category / Detail</th><th>Paid To</th><th>Amount</th><th>Source</th><th>Recorded By</th><th>Status / Correct</th></tr></thead><tbody>
+    {% for e in rows %}<tr><td>{{ e.expense_date|date:'d M Y' }}</td><td><strong>{{ e.get_category_display }}</strong>{% if e.notes %}<br><small>{{ e.notes|truncatechars:85 }}</small>{% endif %}{% if e.reference %}<br><small>Ref: {{ e.reference }}</small>{% endif %}</td><td>{{ e.paid_to|default:'—' }}</td><td><strong>Rs {{ e.amount|floatformat:2|intcomma }}</strong>{% if e.is_capital_asset %}<br><small>Fixed asset</small>{% endif %}</td><td>{{ e.get_payment_source_display }}</td><td>{{ e.recorded_by.username }}</td><td>
+      {% if e.is_voided %}<span class="ep-adm-badge void">Voided</span><br><small>{{ e.void_reason }}</small>{% else %}<span class="ep-adm-badge">Posted</span>
+      <form method="post" class="ep-adm-void" action="{% url 'egg_pos_void_admin_expense' e.id %}" autocomplete="off">{% csrf_token %}<input type="text" name="reason" maxlength="500" minlength="12" placeholder="Meaningful void reason" required autocomplete="off" aria-label="Void reason"><input type="password" name="admin_password" placeholder="Admin password" required autocomplete="new-password" aria-label="Admin password"><button type="submit" class="ep-btn danger" onclick="return confirm('Void admin expense #{{ e.id }} and post an audited reversal?');">Void</button></form>
+      {% endif %}
+    </td></tr>{% empty %}<tr><td colspan="7">No admin expenses recorded yet.</td></tr>{% endfor %}
+  </tbody></table></div></section>
+</div>
+{% endblock %}

@@ -1,8 +1,14 @@
 from django.urls import path
+from api.views import egg_pos_admin_expenses
 from api.views import sensor, camera, sales, logs, finance_tracker, investor_accounts, eggs, goats, goat_age, egg_pos
 
 
+from api.views import egg_pos_expiry
+
+from api.views import egg_pos_payroll
 urlpatterns = [
+    path("egg-pos/payroll/", egg_pos_payroll.payroll, name="egg_pos_payroll"),
+
     path("sensor-data/", sensor.receive_sensor_data),
 path(
     "relay-commands/",
@@ -69,6 +75,8 @@ path(
     path("eggs/damage/add/", eggs.add_egg_damage, name="add_egg_damage"),
     path("egg-pos/", egg_pos.dashboard, name="egg_pos_dashboard"),
     path("egg-pos/inventory/", egg_pos.inventory, name="egg_pos_inventory"),
+    path("egg-pos/inventory/lots/<int:lot_id>/expiry/", egg_pos_expiry.correct_lot_expiry, name="egg_pos_lot_expiry"),
+
     path("egg-pos/products/", egg_pos.products, name="egg_pos_products"),
     path("egg-pos/suppliers/", egg_pos.suppliers, name="egg_pos_suppliers"),
     path("egg-pos/suppliers/<int:supplier_id>/", egg_pos.supplier_detail, name="egg_pos_supplier_detail"),
@@ -93,6 +101,8 @@ path(
     path("egg-pos/sales/<int:sale_id>/edit/", egg_pos.edit_pos_sale, name="egg_pos_edit_sale"),
     path("egg-pos/sales/<int:sale_id>/restore/", egg_pos.undo_pos_sale_reversal, name="egg_pos_restore_sale"),
     path("egg-pos/staff-access/", egg_pos.staff_access, name="egg_pos_staff_access"),
+    path("egg-pos/admin-expenses/", egg_pos_admin_expenses.admin_expenses, name="egg_pos_admin_expenses"),
+    path("egg-pos/admin-expenses/<int:expense_id>/void/", egg_pos_admin_expenses.void_admin_expense, name="egg_pos_void_admin_expense"),
     path("egg-pos/expenses/", egg_pos.expenses, name="egg_pos_expenses"),
     path("egg-pos/expenses/<int:expense_id>/approve/", egg_pos.approve_expense, name="egg_pos_approve_expense"),
     path("egg-pos/cash-settlements/", egg_pos.cash_settlements, name="egg_pos_cash_settlements"),

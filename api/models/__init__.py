@@ -1,4 +1,5 @@
 from .accounting import ChartOfAccount, JournalEntry, JournalLine
+from .egg_pos_admin_expense import EggPOSAdminExpense
 from .sensor import Shed, Device, SensorData, RelayChannel
 from .temperature import TemperatureRule
 from .sales import SaleRecord, BatchBirdSaleReconciliation
@@ -45,3 +46,8 @@ from .egg_pos import (
 # Online retail customers are intentionally separate from staff and wholesale customers.
 from .online_shop import OnlineRetailAccount, OnlineOffer, OnlineDeliveryZone, OnlineOrder, OnlineOrderItem, OnlineOrderEvent
 from .accounting import EggPOSFundsTransfer
+
+from .egg_pos_payroll import (
+    EggPOSSalaryPlan, EggPOSPayrollPeriod, EggPOSSalaryAdvance,
+    EggPOSSalaryAdvanceAllocation, EggPOSSalaryPayment,
+)

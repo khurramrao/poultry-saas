@@ -11,6 +11,19 @@ CENT = Decimal("0.01")
 
 
 ACCOUNT_SPECS = {
+    "1310": ("Staff Salary Advances", "asset", "debit"),
+    "2050": ("Staff Salaries Payable", "liability", "credit"),
+    "6390": ("Staff Salaries Expense", "expense", "debit"),
+    "1500": ("Office Equipment / Fixed Assets", "asset", "debit"),
+    "6300": ("Office / Shop Rent", "expense", "debit"),
+    "6310": ("Electricity / Utilities Expense", "expense", "debit"),
+    "6320": ("Internet / Phone Expense", "expense", "debit"),
+    "6330": ("Stationery / Printing Expense", "expense", "debit"),
+    "6340": ("Office Consumables Expense", "expense", "debit"),
+    "6350": ("Repairs & Maintenance Expense", "expense", "debit"),
+    "6360": ("Marketing / Advertising Expense", "expense", "debit"),
+    "6370": ("Professional / Admin Fees", "expense", "debit"),
+    "6380": ("Other Administrative Expense", "expense", "debit"),
     "1000": ("Main Cash", "asset", "debit"),
     "1010": ("Bank / Digital Wallet", "asset", "debit"),
     "1040": ("Cash Held by Sales Staff", "asset", "debit"),

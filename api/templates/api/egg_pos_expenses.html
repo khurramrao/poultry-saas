@@ -6,6 +6,8 @@
 </style>
 {% endblock %}
 {% block egg_pos_content %}
+{% if request.user.is_superuser or request.user.is_staff %}<div style="margin-bottom:12px"><a class="ep-btn primary" href="{% url 'egg_pos_admin_expenses' %}"><i class="fa-solid fa-building"></i> Record Rent, Stationery & Admin Expenses</a></div>{% endif %}
+
 <div class="ep-section-title"><div><h3>Fuel &amp; Selling Expenses</h3><p>Track who used each expense, who entered it, and whether it can be deducted from collected cash.</p></div>{% if not can_manage_pos %}<a href="{% url 'egg_pos_cash_settlements' %}">My Cash</a>{% endif %}</div>
 {% if not can_manage_pos %}<div class="ep-message" style="margin-bottom:12px"><strong>Cash currently to hand over: Rs {{ cash_to_hand_over|floatformat:0|intcomma }}</strong><br>An expense marked “Deduct from Sales Collection” reduces this only after management approves it.</div>{% endif %}
 <section class="ep-kpis">

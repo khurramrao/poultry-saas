@@ -444,6 +444,10 @@ def sync_owner_capital(transaction):
 
 def sync_all_egg_pos_books():
     """Idempotently rebuild journals from all recorded Egg POS transactions."""
+    from api.services.egg_pos_admin_expenses import rebuild_admin_expenses
+    rebuild_admin_expenses()
+    from api.services.egg_pos_payroll import rebuild_staff_payroll
+    rebuild_staff_payroll()
     for capital in EggPOSOwnerCapitalTransaction.objects.select_related("recorded_by").order_by("id"):
         sync_owner_capital(capital)
     for purchase in EggPOSPurchase.objects.filter(is_voided=False).select_related("supplier", "created_by").prefetch_related("items").order_by("id"):

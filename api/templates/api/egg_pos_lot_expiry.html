@@ -1,0 +1,35 @@
+{% extends "api/egg_pos_base.html" %}{% load humanize %}
+{% block egg_pos_content %}
+<style>
+.exp-wrap{max-width:900px;margin:0 auto}.exp-panel{background:#fff;border:1px solid #dce7f0;border-radius:16px;padding:22px;margin:14px 0}.exp-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.exp-label{display:block;font-size:12px;font-weight:800;color:#345; margin:12px 0 6px}.exp-input{width:100%;border:1px solid #cad8e7;border-radius:9px;padding:10px;font-size:14px}.exp-warning{border:1px solid #f0cf86;background:#fff9e8;padding:12px;border-radius:10px;color:#775521}.exp-submit{border:0;border-radius:9px;padding:11px 18px;background:#1669c8;color:#fff;cursor:pointer;font-weight:700}.exp-history{padding:10px 0;border-bottom:1px solid #ecf0f5}.exp-muted{color:#667f92;font-size:13px}.exp-facts{display:flex;gap:16px;flex-wrap:wrap}.exp-facts span{background:#f3f7fb;border-radius:8px;padding:8px 11px}@media(max-width:620px){.exp-grid{grid-template-columns:1fr}}
+</style>
+<div class="exp-wrap">
+  <p><a href="{% url 'egg_pos_inventory' %}">← Back to Egg Inventory</a></p>
+  <h2>Correct FIFO lot expiry date</h2>
+  <div class="exp-panel">
+    <h3>{{ lot.product.name }} — {{ lot.lot_code }}</h3>
+    <div class="exp-facts">
+      <span>Received: <strong>{{ lot.received_date|date:"d M Y" }}</strong></span>
+      <span>Current expiry: <strong>{% if lot.expiry_date %}{{ lot.expiry_date|date:"d M Y" }}{% else %}Not recorded{% endif %}</strong></span>
+      <span>FIFO remaining: <strong>{{ lot.quantity_remaining|intcomma }} eggs</strong></span>
+    </div>
+    {% if is_expired %}<p style="color:#a34122;font-weight:700">This lot is currently excluded from sellable stock because its recorded expiry date has passed.</p>{% endif %}
+    <p class="exp-warning">Only correct a genuinely incorrect <strong>recorded</strong> expiry date, based on documented information. Do not extend the real shelf life of eggs to make old stock saleable. An expiry correction may immediately make this lot available for sales and online orders. Physically inspect and verify stock suitability first.</p>
+    <form method="post" autocomplete="off">
+      {% csrf_token %}
+      <div class="exp-grid">
+        <div><label class="exp-label" for="expiry_date">Correct expiry date</label><input class="exp-input" id="expiry_date" type="date" name="expiry_date" value="{{ lot.expiry_date|date:'Y-m-d' }}" min="{{ lot.received_date|date:'Y-m-d' }}" required></div>
+        <div><label class="exp-label" for="expiry_reason">Correction reason (required)</label><textarea class="exp-input" id="expiry_reason" name="reason" rows="3" minlength="12" maxlength="1000" required placeholder="Example: Supplier document confirms incorrect date was entered"></textarea></div>
+      </div>
+      <label style="display:block;margin:16px 0"><input type="checkbox" name="verified_date_correction" value="yes"> I verified the actual expiry date and confirm this is a data-entry correction, not an extension of the eggs' real shelf life. <small>(Required if moving the date later.)</small></label>
+      <label class="exp-label" for="expiry_admin_auth">Admin password</label><input class="exp-input" id="expiry_admin_auth" style="max-width:300px" type="password" name="admin_password" autocomplete="off" required>
+      <p><button class="exp-submit" type="submit">Save expiry correction</button></p>
+    </form>
+  </div>
+  <div class="exp-panel">
+    <h3>Expiry correction history</h3>
+    {% for entry in history %}<div class="exp-history"><strong>{{ entry.action_time|date:"d M Y, h:i A" }}</strong> · {{ entry.user.get_username }}<p class="exp-muted">{{ entry.change_message }}</p></div>
+    {% empty %}<p class="exp-muted">No expiry corrections have been recorded for this lot.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

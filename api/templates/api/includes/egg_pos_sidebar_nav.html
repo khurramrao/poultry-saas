@@ -10,6 +10,8 @@
 <a href="{% url 'egg_pos_customers' %}" class="{% if page == 'egg_pos_customers' or page == 'egg_pos_customer_detail' or page == 'egg_pos_add_customer' %}active{% endif %}"><i class="fa-solid fa-users"></i><span>Customers</span></a>
 <a href="{% url 'egg_pos_inventory' %}" class="{% if page == 'egg_pos_inventory' %}active{% endif %}"><i class="fa-solid fa-boxes-stacked"></i><span>Inventory</span></a>
 <a href="{% url 'egg_pos_expenses' %}" class="{% if page == 'egg_pos_expenses' %}active{% endif %}"><i class="fa-solid fa-gas-pump"></i><span>Fuel & Expenses</span></a>
+{% if request.user.is_superuser or request.user.is_staff %}<a href="{% url 'egg_pos_admin_expenses' %}" class="{% if request.resolver_match.url_name == 'egg_pos_admin_expenses' %}active{% endif %}"><i class="fa-solid fa-building"></i><span>Admin Expenses</span></a>{% endif %}
+{% if request.user.is_superuser or request.user.is_staff %}<a href="{% url 'egg_pos_payroll' %}" class="{% if request.resolver_match.url_name == 'egg_pos_payroll' %}active{% endif %}"><i class="fa-solid fa-money-bill-wave"></i><span>Staff Salaries</span></a>{% endif %}
 <a href="{% url 'egg_pos_commissions' %}" class="{% if page == 'egg_pos_commissions' %}active{% endif %}"><i class="fa-solid fa-percent"></i><span>Commission</span></a>
 <a href="{% url 'egg_pos_cash_settlements' %}" class="{% if page == 'egg_pos_cash_settlements' %}active{% endif %}"><i class="fa-solid fa-hand-holding-dollar"></i><span>{% if request.user.is_superuser or request.user.is_staff or request.user.egg_pos_access.can_manage %}Cash Handover{% else %}My Cash{% endif %}</span></a>
 {% if request.user.is_superuser or request.user.is_staff %}
