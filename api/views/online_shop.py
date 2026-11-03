@@ -542,23 +542,49 @@ def admin_orders(request):
 
 def admin_order_detail(request, order_id):
     _require_admin(request)
-    order = get_object_or_404(OnlineOrder.objects.select_related('zone','pos_sale').prefetch_related('items'), pk=order_id)
-    return render(request, 'api/online_admin_order_detail.html', {'order':order})
+    order = get_object_or_404(OnlineOrder.objects.select_related('zone','pos_sale').prefetch_related('items__source_allocations'), pk=order_id)
+    from api.services.egg_pos_mixed_sources import source_products, source_available, packed_source_reserved
+    packing_rows = []
+    for item in order.items.all():
+        selected = {a.source_product_id: a.quantity for a in item.source_allocations.all()}
+        source_rows = []
+        for source in source_products(item.product_id):
+            physical = source_available(source.pk)
+            held_by_others = packed_source_reserved(source.pk, excluding_order=order.pk)
+            source_rows.append({'sku': source.sku, 'id': source.pk, 'available': max(0, physical - held_by_others),
+                                'selected': selected.get(source.pk, item.egg_quantity if not selected and source_products(item.product_id).count() == 1 else 0)})
+        packing_rows.append({'item': item, 'sources': source_rows})
+    return render(request, 'api/online_admin_order_detail.html', {'order':order, 'packing_rows':packing_rows})
 
 
 @require_POST
 def admin_order_action(request, order_id):
     _require_admin(request)
     try:
-        if request.POST.get('action') in ('settle', 'change_fee') and not request.user.check_password(request.POST.get('admin_password') or ''):
-            raise ValueError('Enter your correct admin password to confirm this financial action.')
-        action_order(order_id, request.user, request.POST.get('action') or '',
+        requested_action = request.POST.get('action') or ''
+        if requested_action in ('settle', 'change_fee') or (requested_action == 'repack' and OnlineOrder.objects.filter(pk=order_id, status=OnlineOrder.DISPATCHED).exists()):
+            if not request.user.check_password(request.POST.get('admin_password') or ''):
+                raise ValueError('Enter your correct admin password to confirm this financial action.')
+        if requested_action == 'repack' and OnlineOrder.objects.filter(pk=order_id, status=OnlineOrder.DISPATCHED).exists() and len((request.POST.get('reason') or '').strip()) < 4:
+            raise ValueError('A reason is required to revise an already dispatched carton.')
+        source_allocations = {}
+        if requested_action in ('pack', 'repack'):
+            from api.services.egg_pos_mixed_sources import source_products
+            target_order = OnlineOrder.objects.prefetch_related('items').get(pk=order_id)
+            for item in target_order.items.all():
+                source_allocations[item.pk] = {}
+                for source in source_products(item.product_id):
+                    key = f'sku_qty_{item.pk}_{source.pk}'
+                    if key in request.POST:
+                        source_allocations[item.pk][source.pk] = request.POST[key]
+        action_order(order_id, request.user, requested_action,
             delivery_method=request.POST.get('delivery_method') or '',
             rider_name=request.POST.get('rider_name') or '',
             reference=request.POST.get('tracking_reference') or '',
             actual_cost=request.POST.get('delivery_cost') or '0',
             reason=request.POST.get('reason') or '',
-            customer_delivery_fee=request.POST.get('customer_delivery_fee'))
+            customer_delivery_fee=request.POST.get('customer_delivery_fee'),
+            source_allocations=source_allocations)
         messages.success(request, 'Order updated successfully.')
     except (ValueError, ArithmeticError) as error:
         messages.error(request, str(error))

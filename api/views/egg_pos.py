@@ -168,7 +168,11 @@ def _stock_rows(products):
         )
         value = sum((lot.stock_value for lot in sellable_lots), ZERO)
         from api.services.online_shop import reserved_quantity
-        online_reserved = reserved_quantity(product.pk)
+        from api.services.egg_pos_mixed_sources import packed_source_reserved
+        is_grouped = product.selling_product_id or product.source_skus.exists()
+        # Source-specific reserves only become fixed when the carton is packed;
+        # earlier web orders hold quantity at the combined selling-product level.
+        online_reserved = packed_source_reserved(product.pk) if is_grouped else reserved_quantity(product.pk)
         free_stock = max(0, current - online_reserved)
 
         # Dashboard stock bars must represent how much of the currently-open
@@ -187,6 +191,7 @@ def _stock_rows(products):
             "product": product,
             "stock": current,
             "online_reserved": online_reserved,
+            "source_reservation": bool(is_grouped),
             "free_stock": free_stock,
             "stock_reference": stock_reference,
             "stock_percent": stock_percent,
@@ -359,8 +364,22 @@ def inventory(request):
         return _deny(request)
     products = EggPOSProduct.objects.filter(is_active=True).order_by("name")
     stock_rows = _stock_rows(products)
+    from api.services.egg_pos_mixed_sources import source_ids
+    from api.services.online_shop import reserved_quantity
+    grouped_stock = []
+    for primary in EggPOSProduct.objects.filter(is_active=True, selling_product__isnull=True).order_by('name'):
+        if not primary.source_skus.exists():
+            continue
+        relevant = [row for row in stock_rows if row['product'].pk in source_ids(primary.pk)]
+        total = sum(row['stock'] for row in relevant)
+        cost = sum((row['stock_value'] for row in relevant), ZERO)
+        reserved = reserved_quantity(primary.pk)
+        grouped_stock.append({'primary': primary, 'rows': relevant, 'stock': total,
+                              'reserved': reserved, 'free': max(0, total-reserved),
+                              'average_cost': (cost / total) if total else ZERO})
     manage = can_manage(request.user)
     return render(request, "api/egg_pos_inventory.html", {
+        'grouped_stock': grouped_stock,
         "stock_rows": stock_rows,
         "can_manage_pos": manage,
         "total_stock": sum(row["stock"] for row in stock_rows),
@@ -379,6 +398,21 @@ def products(request):
 
     if request.method == "POST":
         try:
+            if request.POST.get('action') == 'link_source':
+                source = EggPOSProduct.objects.get(pk=int(request.POST['source_id']))
+                raw_primary = (request.POST.get('selling_product') or '').strip()
+                primary = EggPOSProduct.objects.get(pk=int(raw_primary), selling_product__isnull=True) if raw_primary else None
+                if primary and (source.pk == primary.pk or source.source_skus.exists()):
+                    raise ValueError('A source SKU cannot point to itself or to a nested selling group.')
+                if source.online_offers.filter(is_active=True).exists():
+                    raise ValueError('Deactivate online offers for this source SKU before linking it.')
+                from api.models.online_shop import OnlineOrderItem
+                if OnlineOrderItem.objects.filter(product=source, order__status__in=('reserved','confirmed','packed','dispatched')).exists():
+                    raise ValueError('This SKU has active online orders and cannot be regrouped yet.')
+                source.selling_product = primary
+                source.save(update_fields=['selling_product'])
+                messages.success(request, f'{source.sku} source SKU mapping updated.')
+                return redirect('egg_pos_products')
             name = (request.POST.get("name") or "").strip()
             sku = (request.POST.get("sku") or "").strip().upper()
             if not name or not sku:
@@ -392,6 +426,9 @@ def products(request):
             EggPOSProduct.objects.create(
                 name=name,
                 sku=sku,
+                selling_product=(EggPOSProduct.objects.get(
+                    pk=int(request.POST['selling_product']), selling_product__isnull=True)
+                    if request.POST.get('selling_product') else None),
                 weight_grams=weight,
                 default_sale_price=price,
                 low_stock_eggs=low_stock,
@@ -404,6 +441,7 @@ def products(request):
 
     return render(request, "api/egg_pos_products.html", {
         "products": EggPOSProduct.objects.all().order_by("name"),
+        "primary_products": EggPOSProduct.objects.filter(selling_product__isnull=True).order_by('name'),
     })
 
 
@@ -1057,9 +1095,20 @@ def new_sale(request):
     if not can_sell(request.user):
         return _deny(request)
 
-    products_qs = list(EggPOSProduct.objects.filter(is_active=True).order_by("name"))
+    from api.services.egg_pos_mixed_sources import source_products
+    products_qs = list(EggPOSProduct.objects.filter(is_active=True, selling_product__isnull=True).order_by("name"))
+    source_choices = {}
     for product in products_qs:
         product.pos_stock = available_product_stock(product)
+        choices = list(source_products(product.id))
+        for source in choices:
+            source.stock_on_hand = int(EggPOSInventoryLot.objects.filter(
+                product=source, quantity_remaining__gt=0, received_date__lte=timezone.localdate(),
+            ).filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=timezone.localdate())).aggregate(
+                n=Sum('quantity_remaining'))['n'] or 0)
+        source_choices[str(product.id)] = [{'id': p.id, 'sku': p.sku,
+            'stock': p.stock_on_hand, 'name': p.name} for p in choices]
+
 
     customers_qs = list(
         EggPOSCustomer.objects.filter(is_active=True)
@@ -1076,6 +1125,14 @@ def new_sale(request):
         except (TypeError, ValueError):
             selected_customer_id = None
 
+    # PREBOOK_UPGRADE_20261103: Admin-only, read-only POS draft prefill.
+    prebooking_prefill = None
+    if request.method == "GET" and request.GET.get("prebooking"):
+        from api.services.egg_pos_prebooking_sale import prefill_for_sale
+        prebooking_prefill = prefill_for_sale(request.user, request.GET["prebooking"], customers_qs)
+        if prebooking_prefill["customer_id"]:
+            selected_customer_id = prebooking_prefill["customer_id"]
+
     if request.method == "POST":
         try:
             sale_date = _parse_date(request.POST.get("sale_date"), "Sale date")
@@ -1085,6 +1142,7 @@ def new_sale(request):
             sale_units = request.POST.getlist("sale_unit")
             unit_counts = request.POST.getlist("unit_count")
             unit_rates = request.POST.getlist("unit_rate")
+            source_allocations = request.POST.getlist("source_allocations")
 
             unit_sizes = {"egg": 1, "dozen": 12, "tray": 30, "crate": 360}
             rows = []
@@ -1129,9 +1187,23 @@ def new_sale(request):
                     unit_rate = unit_price
                     line_total = money(Decimal(qty) * unit_price)
 
+                from api.services.egg_pos_mixed_sources import source_ids
+                sku_ids = source_ids(product.pk)
+                if len(sku_ids) > 1:
+                    import json
+                    raw_mix = source_allocations[index] if index < len(source_allocations) else ''
+                    try:
+                        mix = json.loads(raw_mix) if raw_mix else {}
+                        mix = {int(k): int(v) for k, v in mix.items() if int(v) != 0}
+                    except (TypeError, ValueError, AttributeError):
+                        raise ValueError(f'Provide the manual source mix for {product.name}.')
+                    if any(v < 0 for v in mix.values()) or set(mix) - set(sku_ids) or sum(mix.values()) != qty:
+                        raise ValueError(f'{product.name}: farm/outside eggs must add up to {qty}.')
+                else:
+                    mix = None
                 rows.append((
                     product, qty, unit_price, sale_unit, unit_count,
-                    unit_size, unit_rate, line_total,
+                    unit_size, unit_rate, line_total, mix,
                 ))
                 if product.id not in requested_by_product:
                     requested_by_product[product.id] = {"product": product, "qty": 0}
@@ -1214,6 +1286,14 @@ def new_sale(request):
                 raise ValueError("Credit due date cannot be before the sale date.")
 
             with transaction.atomic():
+                # PREBOOK_UPGRADE_20261103: Lock BEFORE inventory so two browser
+                # tabs cannot issue two invoices for the same confirmed booking.
+                prebooking_sale = None
+                if request.POST.get("prebooking_id"):
+                    from api.services.egg_pos_prebooking_sale import lock_confirmed_for_sale
+                    prebooking_sale = lock_confirmed_for_sale(request.user, request.POST["prebooking_id"])
+                    if payment_type in ("full", "partial") and request.POST.get("confirm_payment_received") != "yes":
+                        raise ValueError("Confirm money actually received for this social pre-booking, or select Full Credit. No invoice saved.")
                 # CRITICAL STOCK GUARD:
                 # lock the actual inventory lots and re-check stock BEFORE the
                 # sale/invoice is created. This prevents zero-stock sales and
@@ -1221,10 +1301,11 @@ def new_sale(request):
                 for requested in requested_by_product.values():
                     product = requested["product"]
                     qty = requested["qty"]
+                    from api.services.egg_pos_mixed_sources import source_ids
                     locked_lots = list(
                         EggPOSInventoryLot.objects.select_for_update()
                         .filter(
-                            product=product,
+                            product_id__in=source_ids(product.id),
                             quantity_remaining__gt=0,
                             received_date__lte=sale_date,
                         )
@@ -1260,7 +1341,7 @@ def new_sale(request):
                     discount_amount=discount,
                     subtotal=subtotal,
                     net_total=net_total,
-                    notes=(request.POST.get("notes") or "").strip(),
+                    notes=((f"Manual pre-booking {prebooking_sale.booking_number} from {prebooking_sale.get_channel_display()}. " if prebooking_sale else "") + (request.POST.get("notes") or "").strip())[:2000],
                     created_by=request.user,
                 )
                 sale.sale_number = f"RNE-{sale.id:05d}"
@@ -1269,7 +1350,7 @@ def new_sale(request):
                 cogs_total = ZERO
                 for (
                     product, qty, unit_price, sale_unit, unit_count,
-                    unit_size, unit_rate, line_total,
+                    unit_size, unit_rate, line_total, mix,
                 ) in rows:
                     item = EggPOSSaleItem.objects.create(
                         sale=sale,
@@ -1282,7 +1363,11 @@ def new_sale(request):
                         unit_price=unit_price,
                         line_total=line_total,
                     )
-                    cogs_total += allocate_fifo_to_sale_item(item, sale.sale_date)
+                    if mix is None:
+                        cogs_total += allocate_fifo_to_sale_item(item, sale.sale_date)
+                    else:
+                        from api.services.egg_pos_mixed_sources import allocate_selected_sources
+                        cogs_total += allocate_selected_sources(item, sale.sale_date, mix)
 
                 sale.cogs_total = money(cogs_total)
                 sale.profit_total = money(sale.net_total - sale.cogs_total)
@@ -1300,6 +1385,16 @@ def new_sale(request):
                     )
                     sync_sale_payment(payment)
 
+                if prebooking_sale:
+                    # Same atomic transaction as FIFO and POS accounting.
+                    from api.services.egg_pos_prebooking_sale import complete_with_sale
+                    complete_with_sale(prebooking_sale, sale, request.user)
+
+                # RAYNOOR_REPEAT_CUSTOMER_SOURCES_V1: save source AFTER actual invoice creation, in same DB transaction.
+                from api.services.egg_pos_marketing import record_marketing_sale
+                record_marketing_sale(sale, prebooking_sale,
+                                      (request.POST.get("order_source") or "direct").strip(), request.user)
+
             messages.success(
                 request,
                 f"Sale {sale.sale_number} completed. Balance due Rs {balance_due:,.2f}.",
@@ -1311,6 +1406,15 @@ def new_sale(request):
             # Always refresh displayed stock after a rejected checkout.
             for product in products_qs:
                 product.pos_stock = available_product_stock(product)
+            if request.POST.get("prebooking_id"):
+                try:
+                    from api.services.egg_pos_prebooking_sale import prefill_for_sale
+                    prebooking_prefill = prefill_for_sale(request.user, request.POST["prebooking_id"], customers_qs)
+                    if prebooking_prefill["customer_id"]:
+                        selected_customer_id = prebooking_prefill["customer_id"]
+                except Exception:
+                    # Primary error message above remains visible; no changes committed.
+                    pass
 
     return render(request, "api/egg_pos_sale_new.html", {
         "products": products_qs,
@@ -1318,6 +1422,8 @@ def new_sale(request):
         "selected_customer_id": selected_customer_id,
         "payment_methods": EggPOSSalePayment.PAYMENT_METHOD_CHOICES,
         "today": timezone.localdate(),
+        "prebooking_prefill": prebooking_prefill,
+        "source_choices": source_choices,
     })
 
 
@@ -1510,6 +1616,48 @@ def sales(request):
                 pos_sale__isnull=False
             ).count(),
         })
+    # RAYNOOR_POS_SALES_SOURCE_COLUMN_V1
+    # Only use an actual, completed manual pre-booking linked to this POS
+    # invoice. An invoice entered directly has no verified social origin.
+    from api.models.egg_pos_prebooking import EggPOSManualPrebooking, CHANNELS
+
+    displayed_sales = list(context["sales"])
+    sale_refs = [s.sale_number for s in displayed_sales if s.sale_number]
+    prebook_sources = {}
+    if sale_refs:
+        for invoice_ref, channel in EggPOSManualPrebooking.objects.filter(
+            status="completed", invoice_reference__in=sale_refs
+        ).values_list("invoice_reference", "channel"):
+            prebook_sources.setdefault(invoice_ref, []).append(channel)
+
+    labels = dict(CHANNELS)
+    for sale in displayed_sales:
+        if getattr(sale, "online_order", None) is not None:
+            sale.raynoor_origin_label = "Website"
+            sale.raynoor_origin_key = "website"
+        else:
+            matches = prebook_sources.get(sale.sale_number, [])
+            if len(matches) == 1 and matches[0] in labels:
+                sale.raynoor_origin_label = labels[matches[0]]
+                sale.raynoor_origin_key = matches[0]
+            elif len(matches) > 1:
+                # Do not silently attribute one sale to multiple enquiries.
+                sale.raynoor_origin_label = "Multiple bookings"
+                sale.raynoor_origin_key = "ambiguous"
+            else:
+                sale.raynoor_origin_label = "Direct / Unattributed"
+                sale.raynoor_origin_key = "direct"
+    context["sales"] = displayed_sales
+    # Customer acquisition is separate from this invoice's order source.
+    from api.services.egg_pos_marketing import decorate_sales, acquisition_report
+    context["sales"] = decorate_sales(context["sales"])
+    if manage:
+        context["marketing_acquisition_report"] = acquisition_report()
+        # RAYNOOR_CHANNEL_REPORTS_V2: read-only, all-time reporting.
+        from api.services.egg_pos_channel_reports import order_source_report, repeat_customer_report
+        (context["marketing_order_source_report"],
+         context["marketing_order_source_total"]) = order_source_report()
+        context["marketing_repeat_report"] = repeat_customer_report()
     return render(request, "api/egg_pos_sales.html", context)
 
 def _invoice_admin(request):

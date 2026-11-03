@@ -80,6 +80,7 @@
   <a href="{% url 'egg_pos_new_sale' %}" class="sale {% if request.resolver_match.url_name == 'egg_pos_new_sale' %}active{% endif %}"><i class="fa-solid fa-cart-plus"></i><span>New Sale</span></a>
   <a href="{% url 'egg_pos_sales' %}" class="{% if request.resolver_match.url_name == 'egg_pos_sales' or request.resolver_match.url_name == 'egg_pos_sale_detail' %}active{% endif %}"><i class="fa-solid fa-receipt"></i><span>Sales</span></a>
   <a href="{% url 'egg_pos_customers' %}" class="{% if request.resolver_match.url_name == 'egg_pos_customers' or request.resolver_match.url_name == 'egg_pos_customer_detail' %}active{% endif %}"><i class="fa-solid fa-users"></i><span>Customers</span></a>
+  {% if request.user.is_superuser or request.user.is_staff %}<a href="{% url 'egg_pos_manual_prebookings' %}" class="{% if request.resolver_match.url_name == 'egg_pos_manual_prebookings' %}active{% endif %}"><i class="fa-solid fa-clipboard-list"></i><span>Manual Pre-Bookings</span></a>{% endif %}
   <a href="{% url 'egg_pos_inventory' %}" class="{% if request.resolver_match.url_name == 'egg_pos_inventory' %}active{% endif %}"><i class="fa-solid fa-boxes-stacked"></i><span>Stock</span></a>
   {% else %}
   <a href="{% url 'egg_pos_dashboard' %}" class="{% if request.resolver_match.url_name == 'egg_pos_dashboard' %}active{% endif %}"><i class="fa-solid fa-house"></i><span>Home</span></a>

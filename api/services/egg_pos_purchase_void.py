@@ -71,10 +71,13 @@ def void_supplier_purchase(*, purchase_id, actor, reason):
     for lot in lots:
         if lot.received_date <= timezone.localdate() and (not lot.expiry_date or lot.expiry_date >= timezone.localdate()):
             removed_by_product[lot.product_id] = removed_by_product.get(lot.product_id, 0) + int(lot.quantity_remaining)
+    from api.services.egg_pos_mixed_sources import source_available, packed_source_reserved, primary_id
     for product_id, removed in sorted(removed_by_product.items()):
         available_after_void = gross_available(product_id, lock=True) - removed
         if available_after_void < reserved_quantity(product_id):
             raise ValueError("This purchase is needed for pending online orders. Complete or cancel reservations first.")
+        if source_available(product_id, lock=True) - removed < packed_source_reserved(product_id):
+            raise ValueError("This source SKU is locked to packed online orders and cannot be voided.")
 
     original_key = f"egg_pos:purchase:{purchase.id}"
     original = JournalEntry.objects.select_for_update().filter(source_key=original_key).first()

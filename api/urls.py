@@ -6,7 +6,10 @@ from api.views import sensor, camera, sales, logs, finance_tracker, investor_acc
 from api.views import egg_pos_expiry
 
 from api.views import egg_pos_payroll
+from api.views import egg_pos_prebookings
 urlpatterns = [
+    path("egg-pos/manual-prebookings/", egg_pos_prebookings.manual_prebookings, name="egg_pos_manual_prebookings"),
+
     path("egg-pos/payroll/", egg_pos_payroll.payroll, name="egg_pos_payroll"),
 
     path("sensor-data/", sensor.receive_sensor_data),

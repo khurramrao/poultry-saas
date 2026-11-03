@@ -500,3 +500,34 @@ class EggPOSOwnerCapitalTransactionAdmin(admin.ModelAdmin):
 
 # Management screens for retail price packs and Lahore delivery zones.
 from api import online_admin  # noqa: F401,E402
+
+# RAYNOOR_REPEAT_CUSTOMER_SOURCES_V1: Django Admin keeps a standard audit log of source corrections.
+from api.models.egg_pos_marketing import EggPOSMarketingCustomer, EggPOSMarketingSale
+
+@admin.register(EggPOSMarketingCustomer)
+class EggPOSMarketingCustomerAdmin(admin.ModelAdmin):
+    list_display = ("name", "phone_key", "acquired_from", "pos_customer", "acquired_at")
+    list_filter = ("acquired_from",)
+    search_fields = ("name", "phone_key")
+    readonly_fields = ("name", "name_key", "phone_key", "pos_customer", "created_by", "created_at", "acquired_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+@admin.register(EggPOSMarketingSale)
+class EggPOSMarketingSaleAdmin(admin.ModelAdmin):
+    list_display = ("sale", "order_source", "marketing_customer", "created_at")
+    list_filter = ("order_source",)
+    search_fields = ("sale__sale_number", "marketing_customer__name")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

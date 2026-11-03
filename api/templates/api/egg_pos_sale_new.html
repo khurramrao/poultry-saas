@@ -1045,6 +1045,17 @@
 
     <form method="post" id="saleForm">
         {% csrf_token %}
+        {# PREBOOK_UPGRADE_20261103: draft only, no automatic sale or payment. #}
+        {% if prebooking_prefill %}
+        <input type="hidden" name="prebooking_id" value="{{ prebooking_prefill.id }}">
+        {{ prebooking_prefill|json_script:"prebookingSalePrefillData" }}
+        <div id="prebookingDraftNotice" role="status" style="padding:14px 16px;margin:10px 0;border:1px solid #b6d8ed;border-radius:12px;background:#eff8ff;color:#164d72;font-size:12px;line-height:1.6">
+          <strong>Draft from {{ prebooking_prefill.booking_number }} · {{ prebooking_prefill.channel }}</strong><br>
+          Check customer, quantities, rates and sellable stock. This pre-booking has NOT created an invoice. Payment defaults to <strong>Full Credit (unpaid)</strong> until you deliberately choose otherwise.
+          <div id="prebookingStockNotice" style="font-weight:bold;color:#aa3b1e" hidden></div>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:8px;font-weight:700"><input type="checkbox" name="confirm_payment_received" value="yes"> I personally verified the payment was actually received (tick ONLY for Paid in Full / Partial).</label>
+        </div>
+        {% endif %}
 
         <div class="pos-sale-layout">
 
@@ -1227,6 +1238,21 @@
                                 Walk-in sale.
                             </div>
                         </div>
+                    </div>
+
+                    {# RAYNOOR_REPEAT_CUSTOMER_SOURCES_V1 #}
+                    <div class="pos-field" style="margin:14px 0">
+                      <label for="orderSource">Order received via</label>
+                      <select class="pos-select" id="orderSource" name="order_source" aria-label="Order source">
+                        <option value="direct">Direct / Walk-in</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="phone">Phone Call</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <small style="color:#60778b">Choose where this order came from. The customer's original acquisition platform is tracked separately. For linked pre-bookings, the original booking source is used automatically.</small>
                     </div>
 
                     <div class="pos-field pos-sale-date-box">
@@ -1602,6 +1628,12 @@
         <input type="hidden" name="sale_unit" class="cart-sale-unit" value="egg">
         <input type="hidden" name="quantity" class="cart-egg-qty" value="1">
         <input type="hidden" name="unit_price" class="cart-unit-price" value="0">
+        <input type="hidden" name="source_allocations" class="cart-source-json" value="">
+        <div class="cart-source-editor" hidden style="border:1px solid #b7ddc6;border-radius:9px;background:#f3fcf7;padding:10px;margin:8px 0;font-size:12px">
+            <strong>Choose actual farm / purchased eggs</strong>
+            <div class="cart-source-fields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:8px;margin-top:8px"></div>
+            <div class="cart-source-status" style="margin-top:5px;font-weight:bold"></div>
+        </div>
 
         <div class="pos-unit-block">
             <span class="pos-mini-label">Sell As</span>
@@ -1701,8 +1733,47 @@
 </template>
 
 
+{{ source_choices|json_script:"eggPosSourceChoices" }}
 <script>
 (function () {
+    const sourceChoices = JSON.parse(document.getElementById("eggPosSourceChoices").textContent);
+    function initSourceEditor(row, productId) {
+        const sources = sourceChoices[String(productId)] || [];
+        if (sources.length < 2) return;
+        const editor = row.querySelector('.cart-source-editor');
+        const fields = row.querySelector('.cart-source-fields');
+        editor.hidden = false;
+        sources.forEach(src => {
+            const label = document.createElement('label');
+            label.style.display = 'block';
+            label.textContent = src.sku + ' (' + src.stock + ' on hand)';
+            const input = document.createElement('input');
+            input.type = 'number'; input.min = '0'; input.step = '1';
+            input.max = String(src.stock); input.value = '0';
+            input.className = 'ep-input cart-source-quantity';
+            input.dataset.sourceId = String(src.id);
+            input.dataset.sourceStock = String(src.stock);
+            input.style.width = '100%'; input.style.marginTop = '3px';
+            label.appendChild(input); fields.appendChild(label);
+        });
+    }
+    function validateSourceEditor(row) {
+        const editor = row.querySelector('.cart-source-editor');
+        if (editor.hidden) return true;
+        const target = parseInt(row.querySelector('.cart-egg-qty').value || '0',10);
+        let total = 0, valid = true, values = {};
+        editor.querySelectorAll('.cart-source-quantity').forEach(input => {
+            const n = Number(input.value);
+            if (!Number.isInteger(n) || n < 0 || n > Number(input.dataset.sourceStock)) valid = false;
+            total += n; values[input.dataset.sourceId] = n;
+        });
+        valid = valid && total === target;
+        row.querySelector('.cart-source-json').value = JSON.stringify(values);
+        const status = row.querySelector('.cart-source-status');
+        status.textContent = total + ' of ' + target + ' eggs allocated' + (valid ? ' ✓' : ' — adjust sources before saving');
+        status.style.color = valid ? '#087b3b' : '#bd422e';
+        return valid;
+    }
 
     const productList = document.getElementById("productList");
     const productSearch = document.getElementById("productSearch");
@@ -2004,6 +2075,7 @@
         row.querySelector(".cart-unit-stock").textContent =
             "Loose: " + stock + " eggs available";
 
+        initSourceEditor(row, productId);
         cartItems.appendChild(fragment);
 
         selectedProducts.set(productId, true);
@@ -2079,6 +2151,7 @@
 
                 row.querySelector(".cart-sale-unit").value = unit;
                 row.querySelector(".cart-egg-qty").value = eggQty;
+                validateSourceEditor(row);
                 row.querySelector(".cart-unit-price").value = perEgg.toFixed(2);
                 row.querySelector(".cart-unit-stock").textContent =
                     unitCount + " " + info.noun + (unitCount === 1 ? "" : "s") +
@@ -2325,7 +2398,7 @@
     cartItems.addEventListener(
         "input",
         function (event) {
-            if (event.target.matches(".cart-price")) {
+            if (event.target.matches(".cart-price") || event.target.matches(".cart-source-quantity")) {
                 calculate();
             }
         }
@@ -2452,6 +2525,14 @@
 
             const totals = calculate();
 
+            const badMix = [...cartItems.querySelectorAll('[data-cart-item]')]
+                .find(row => !validateSourceEditor(row));
+            if (badMix) {
+                event.preventDefault();
+                alert('Please allocate the exact farm and outside egg quantities for each mixed product.');
+                badMix.querySelector('.cart-source-editor').scrollIntoView({block:'center'});
+                return;
+            }
             if (totals.itemCount === 0) {
                 event.preventDefault();
 
@@ -2497,9 +2578,65 @@
     );
 
 
+    // PREBOOK_UPGRADE_20261103: Fill the existing POS cart from a validated booking.
+    // No invoices/payments are created until user presses Complete Sale.
+    function loadConfirmedPrebooking() {
+        const dataElement = document.getElementById("prebookingSalePrefillData");
+        if (!dataElement) return;
+        const data = JSON.parse(dataElement.textContent);
+        const credit = document.querySelector('input[name="payment_type"][value="credit"]');
+        if (credit) { credit.checked = true; updatePaymentUI(); }
+        if (data.customer_id) {
+            customerSelect.value = String(data.customer_id);
+            refreshCustomerInfo();
+        } else {
+            openNewCustomerModal();
+            newCustomerForm.querySelector('[name="name"]').value = data.customer_name || "";
+            newCustomerForm.querySelector('[name="phone"]').value = data.customer_phone || "";
+            newCustomerForm.querySelector('[name="address"]').value = data.delivery_area || "";
+        }
+        const note = document.querySelector('#saleForm textarea[name="notes"]');
+        if (note && !note.value) note.value = (data.notes || "").slice(0, 1200);
+        const shortages = [];
+        // Validate the WHOLE booking first. Do not silently show a smaller cart.
+        for (const item of data.items || []) {
+            const card = Array.from(productList.querySelectorAll('[data-product-card]')).find(
+                node => Number(node.dataset.productId) === Number(item.product_id)
+            );
+            if (!card || Number(card.dataset.stock || 0) < Number(item.eggs || 0)) {
+                shortages.push((card?.dataset.name || 'Egg product #' + item.product_id) +
+                    ' needs ' + item.eggs + ' eggs, available ' + (card?.dataset.stock || 0));
+            }
+        }
+        if (shortages.length) {
+            const warning = document.getElementById("prebookingStockNotice");
+            if (warning) {
+                warning.hidden = false;
+                warning.textContent = "Not enough sellable stock to prefill this booking. " + shortages.join("; ") +
+                  ". Enter stock before invoicing; no partial cart was created.";
+            }
+            return;
+        }
+        for (const item of data.items || []) {
+            const card = Array.from(productList.querySelectorAll('[data-product-card]')).find(
+                node => Number(node.dataset.productId) === Number(item.product_id)
+            );
+            if (!card) continue;
+            addProduct(card);
+            const row = getCartItem(item.product_id);
+            if (!row) continue;
+            const unit = Object.prototype.hasOwnProperty.call(SALE_UNITS, item.unit) ? item.unit : 'egg';
+            if (unit !== 'egg') setSaleUnit(row, unit);
+            row.querySelector('.cart-qty').value = String(item.unit_count);
+            calculate();
+        }
+        updatePaymentUI();
+    }
+
     refreshCustomerInfo();
     updatePaymentUI();
     calculate();
+    loadConfirmedPrebooking();
 
 })();
 </script>

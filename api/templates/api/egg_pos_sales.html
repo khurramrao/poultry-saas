@@ -3,7 +3,6 @@
 {% block egg_pos_content %}
 <style>
   .ep-sales-panel{border-radius:16px;box-shadow:0 8px 24px rgba(26,67,101,.045)}
-  .ep-sales-table{min-width:1040px}
   .ep-sales-source{display:block;margin-top:5px;font-size:9px;font-weight:800;color:#237c55;text-decoration:none;white-space:nowrap}
   a.ep-sales-source:hover{text-decoration:underline}
   .ep-online-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
@@ -44,6 +43,17 @@
   .ep-sales-mobile-profit{font-size:10px;font-weight:950}
   .ep-sales-mobile-actions{display:flex;align-items:center;gap:8px}
   .ep-sales-mobile-actions a{font-size:9px;font-weight:900;color:#0b6fb7;text-decoration:none}
+  {# RAYNOOR_POS_SALES_SOURCE_COLUMN_V1 #}
+  .ep-sales-table{min-width:1140px}
+  .ep-origin-tag{display:inline-flex;align-items:center;border-radius:999px;padding:5px 9px;
+    background:#f1f5f9;color:#536478;border:1px solid #e1e9f1;font-size:9px;font-weight:850;
+    white-space:nowrap;max-width:165px}
+  .ep-origin-tag.source-tiktok{background:#eef0fc;color:#454da7;border-color:#e0e4ff}
+  .ep-origin-tag.source-facebook{background:#ebf3ff;color:#1759a8;border-color:#d5e5ff}
+  .ep-origin-tag.source-instagram{background:#fff0f7;color:#a93c72;border-color:#ffdeec}
+  .ep-origin-tag.source-whatsapp{background:#eaf9ef;color:#0f7843;border-color:#d5f0de}
+  .ep-origin-tag.source-website{background:#eaf8fa;color:#176c83;border-color:#d5eaf0}
+  .ep-origin-tag.source-ambiguous{background:#fff5e8;color:#8b581c;border-color:#f4e2c6}
   @media(max-width:768px){
     .ep-online-summary{gap:6px}
     .ep-online-summary .ep-online-box{padding:10px 8px}
@@ -54,6 +64,25 @@
     .ep-sales-panel{background:transparent;border:0;box-shadow:none;overflow:visible}
     .ep-mobile-list{padding-bottom:3px}
   }
+
+  /* RAYNOOR_CHANNEL_REPORTS_V2: read-only marketing reporting */
+  .ep-channel-reports{display:grid;gap:10px;margin:0 0 14px}
+  .ep-channel-report{border:1px solid #dfe8f1;border-radius:14px;background:#fff;overflow:hidden}
+  .ep-channel-report summary{list-style:none;display:flex;align-items:center;justify-content:space-between;
+    gap:14px;cursor:pointer;padding:14px 16px;color:#153b61;font-size:13px;font-weight:900}
+  .ep-channel-report summary::-webkit-details-marker{display:none}
+  .ep-channel-report summary:after{content:'+';color:#1b67b7;font-size:18px;font-weight:700}
+  .ep-channel-report[open] summary:after{content:'−'}
+  .ep-channel-report .ep-channel-body{border-top:1px solid #edf1f7;padding:13px 15px 16px}
+  .ep-channel-report p{color:#61758a;font-size:11px;line-height:1.55;margin:0 0 12px}
+  .ep-channel-report .ep-channel-table-wrap{overflow-x:auto}
+  .ep-channel-report table{width:100%;border-collapse:collapse;font-size:11px;min-width:510px}
+  .ep-channel-report th{text-align:left;background:#f5f9fd;color:#506b84;letter-spacing:.02em;font-size:9px;padding:10px 12px}
+  .ep-channel-report td{padding:10px 12px;border-top:1px solid #eaf0f5;color:#1c4365}
+  .ep-channel-report .ep-channel-money{font-weight:850;white-space:nowrap}
+  .ep-channel-report .ep-channel-total td{background:#f4f9ff;font-weight:900;border-top:2px solid #dce8f5}
+  .ep-channel-kicker{display:block;color:#72849b;font-size:10px;font-weight:550;margin-top:3px}
+
 </style>
 
 <div class="ep-page-title">
@@ -86,6 +115,51 @@
   <a href="{% url 'egg_pos_sales' %}?source=counter"{% if source == 'counter' %} class="active" aria-current="page"{% endif %}>Counter Sales</a>
   {% if can_access_online_orders %}<a href="{% url 'raynoor_admin_orders' %}"><i class="fa-solid fa-basket-shopping" style="margin-right:5px"></i> All Online Orders</a>{% endif %}
 </nav>
+{# RAYNOOR_REPEAT_CUSTOMER_SOURCES_V1 #}
+{# RAYNOOR_CHANNEL_REPORTS_V2 #}
+{% if can_manage_pos %}
+<div class="ep-channel-reports">
+  <details class="ep-channel-report" open>
+    <summary><span>Order Source Performance <small class="ep-channel-kicker">All non-reversed POS invoices · all time</small></span></summary>
+    <div class="ep-channel-body">
+      <p>Counts real POS invoices by where each order originated. Unpaid invoices are included in <b>invoiced value</b> (not money collected). Website invoices require an RNWEB link; completed pre-bookings preserve their verified platform. Older unmatched invoices remain Direct / Unattributed.</p>
+      <div class="ep-channel-table-wrap"><table>
+        <thead><tr><th>Order source</th><th>Invoices</th><th>Invoiced value (Rs)</th></tr></thead>
+        <tbody>
+        {% for row in marketing_order_source_report %}
+          <tr><td>{{ row.label }}</td><td>{{ row.invoices|intcomma }}</td><td class="ep-channel-money">Rs {{ row.revenue|floatformat:0|intcomma }}</td></tr>
+        {% endfor %}
+          <tr class="ep-channel-total"><td>Total</td><td>{{ marketing_order_source_total.invoices|intcomma }}</td><td>Rs {{ marketing_order_source_total.revenue|floatformat:0|intcomma }}</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </details>
+  <details class="ep-channel-report">
+    <summary><span>Customer Acquisition <small class="ep-channel-kicker">Identified customers · original acquisition channel</small></span></summary>
+    <div class="ep-channel-body">
+      <p>Tracks only positively identified customer profiles. A source-labelled invoice can appear above even when this report shows zero because no verified customer profile is attached. Lifetime value includes all linked, non-reversed invoices, regardless of where a repeat order was placed.</p>
+      <div class="ep-channel-table-wrap"><table>
+        <thead><tr><th>Originally acquired from</th><th>Identified customers</th><th>Linked invoices</th><th>Lifetime invoiced value</th></tr></thead>
+        <tbody>{% for row in marketing_acquisition_report %}
+        <tr><td>{{ row.label }}</td><td>{{ row.customers|intcomma }}</td><td>{{ row.orders|intcomma }}</td><td class="ep-channel-money">Rs {{ row.revenue|floatformat:0|intcomma }}</td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+    </div>
+  </details>
+  <details class="ep-channel-report">
+    <summary><span>Repeat Customer Revenue <small class="ep-channel-kicker">Second and later verified purchases · original platform</small></span></summary>
+    <div class="ep-channel-body">
+      <p>Repeat customers are matched only using verified customer profiles, not phone numbers alone. Repeat revenue is credited to the platform that first acquired the customer, even if later orders arrive by WhatsApp or direct sale. Reversed invoices are excluded.</p>
+      <div class="ep-channel-table-wrap"><table>
+        <thead><tr><th>Originally acquired from</th><th>Returning customers</th><th>Repeat invoices</th><th>Repeat invoiced value</th></tr></thead>
+        <tbody>{% for row in marketing_repeat_report %}
+        <tr><td>{{ row.label }}</td><td>{{ row.repeat_customers|intcomma }}</td><td>{{ row.repeat_orders|intcomma }}</td><td class="ep-channel-money">Rs {{ row.repeat_revenue|floatformat:0|intcomma }}</td></tr>
+        {% endfor %}</tbody>
+      </table></div>
+    </div>
+  </details>
+</div>
+{% endif %}
 <section class="ep-panel ep-sales-panel">
   <div class="ep-table-wrap">
     <table class="ep-table ep-sales-table desktop-only">
@@ -93,6 +167,7 @@
         <tr>
           <th>Date / Time</th>
           <th>Invoice</th>
+          <th>Source</th>
           <th>Customer</th>
           {% if can_manage_pos %}<th>Staff</th>{% endif %}
           <th>Net Sale</th>
@@ -119,6 +194,7 @@
               {% endif %}
             {% endif %}
           </td>
+          <td><span class="ep-origin-tag source-{{ sale.raynoor_origin_key }}">{{ sale.raynoor_origin_label }}</span>{% if sale.raynoor_acquired_label != "Untracked" %}<div style="font-size:9px;color:#627389;margin-top:5px">Acquired: <b>{{ sale.raynoor_acquired_label }}</b>{% if sale.raynoor_repeat_customer %} · Repeat{% endif %}</div>{% endif %}</td>
           <td><span class="ep-sales-customer">{{ sale.customer_name|default:"Walk-in" }}</span></td>
           {% if can_manage_pos %}
           <td>
@@ -144,7 +220,7 @@
           </td>
         </tr>
       {% empty %}
-        <tr><td colspan="{% if can_manage_pos %}9{% else %}7{% endif %}"><div class="ep-empty">No sales yet.</div></td></tr>
+        <tr><td colspan="{% if can_manage_pos %}10{% else %}8{% endif %}"><div class="ep-empty">No sales yet.</div></td></tr>
       {% endfor %}
       </tbody>
     </table>
@@ -165,6 +241,7 @@
               {% endif %}
             {% endif %}
             <div class="ep-sales-mobile-customer">{{ sale.customer_name|default:"Walk-in" }}</div>
+            <span class="ep-origin-tag source-{{ sale.raynoor_origin_key }}" style="margin-top:7px">{{ sale.raynoor_origin_label }}</span>{% if sale.raynoor_acquired_label != "Untracked" %}<div style="font-size:9px;color:#627389;margin-top:4px">Acquired: {{ sale.raynoor_acquired_label }}{% if sale.raynoor_repeat_customer %} · Repeat{% endif %}</div>{% endif %}
           </div>
           <div class="ep-sales-mobile-net">Rs {{ sale.net_total|floatformat:0|intcomma }}</div>
         </div>

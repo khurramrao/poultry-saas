@@ -45,8 +45,9 @@ def can_manage(user):
 
 def available_product_stock(product, as_of_date=None):
     as_of_date = as_of_date or timezone.localdate()
+    from api.services.egg_pos_mixed_sources import source_ids
     qs = EggPOSInventoryLot.objects.filter(
-        product=product,
+        product_id__in=source_ids(product.id) if not product.selling_product_id else [product.id],
         quantity_remaining__gt=0,
         received_date__lte=as_of_date,
     ).filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=as_of_date))
@@ -54,7 +55,11 @@ def available_product_stock(product, as_of_date=None):
     # Active online reservations make eggs unavailable to counter sales too.
     if as_of_date == timezone.localdate():
         from api.services.online_shop import reserved_quantity
-        gross -= reserved_quantity(product.id)
+        if not product.selling_product_id:
+            gross -= reserved_quantity(product.id)
+        else:
+            from api.services.egg_pos_mixed_sources import packed_source_reserved
+            gross -= packed_source_reserved(product.id)
     return max(0, gross)
 
 

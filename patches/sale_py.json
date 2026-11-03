@@ -1,0 +1,56 @@
+[
+  {
+    "target": "            selected_customer_id = None\n\n",
+    "replacement": "            selected_customer_id = None\n\n    # PREBOOK_UPGRADE_20261103: Admin-only, read-only POS draft prefill.\n    prebooking_prefill = None\n    if request.method == \"GET\" and request.GET.get(\"prebooking\"):\n        from api.services.egg_pos_prebooking_sale import prefill_for_sale\n        prebooking_prefill = prefill_for_sale(request.user, request.GET[\"prebooking\"], customers_qs)\n        if prebooking_prefill[\"customer_id\"]:\n            selected_customer_id = prebooking_prefill[\"customer_id\"]\n\n",
+    "context_lines": [
+      2,
+      0
+    ],
+    "base_at_line": 1041
+  },
+  {
+    "target": "                # CRITICAL STOCK GUARD:\n",
+    "replacement": "                # PREBOOK_UPGRADE_20261103: Lock BEFORE inventory so two browser\n                # tabs cannot issue two invoices for the same confirmed booking.\n                prebooking_sale = None\n                if request.POST.get(\"prebooking_id\"):\n                    from api.services.egg_pos_prebooking_sale import lock_confirmed_for_sale\n                    prebooking_sale = lock_confirmed_for_sale(request.user, request.POST[\"prebooking_id\"])\n                    if payment_type in (\"full\", \"partial\") and request.POST.get(\"confirm_payment_received\") != \"yes\":\n                        raise ValueError(\"Confirm money actually received for this social pre-booking, or select Full Credit. No invoice saved.\")\n                # CRITICAL STOCK GUARD:\n",
+    "context_lines": [
+      0,
+      1
+    ],
+    "base_at_line": 1179
+  },
+  {
+    "target": "                    net_total=net_total,\n                    notes=(request.POST.get(\"notes\") or \"\").strip(),\n",
+    "replacement": "                    net_total=net_total,\n                    notes=((f\"Manual pre-booking {prebooking_sale.booking_number} from {prebooking_sale.get_channel_display()}. \" if prebooking_sale else \"\") + (request.POST.get(\"notes\") or \"\").strip())[:2000],\n",
+    "context_lines": [
+      1,
+      0
+    ],
+    "base_at_line": 1225
+  },
+  {
+    "target": "                    sync_sale_payment(payment)\n\n",
+    "replacement": "                    sync_sale_payment(payment)\n\n                if prebooking_sale:\n                    # Same atomic transaction as FIFO and POS accounting.\n                    from api.services.egg_pos_prebooking_sale import complete_with_sale\n                    complete_with_sale(prebooking_sale, sale, request.user)\n\n",
+    "context_lines": [
+      2,
+      0
+    ],
+    "base_at_line": 1265
+  },
+  {
+    "target": "                product.pos_stock = available_product_stock(product)\n",
+    "replacement": "                product.pos_stock = available_product_stock(product)\n            if request.POST.get(\"prebooking_id\"):\n                try:\n                    from api.services.egg_pos_prebooking_sale import prefill_for_sale\n                    prebooking_prefill = prefill_for_sale(request.user, request.POST[\"prebooking_id\"], customers_qs)\n                    if prebooking_prefill[\"customer_id\"]:\n                        selected_customer_id = prebooking_prefill[\"customer_id\"]\n                except Exception:\n                    # Primary error message above remains visible; no changes committed.\n                    pass\n",
+    "context_lines": [
+      1,
+      0
+    ],
+    "base_at_line": 1276
+  },
+  {
+    "target": "        \"selected_customer_id\": selected_customer_id,\n        \"payment_methods\": EggPOSSalePayment.PAYMENT_METHOD_CHOICES,\n        \"today\": timezone.localdate(),\n",
+    "replacement": "        \"selected_customer_id\": selected_customer_id,\n        \"payment_methods\": EggPOSSalePayment.PAYMENT_METHOD_CHOICES,\n        \"today\": timezone.localdate(),\n        \"prebooking_prefill\": prebooking_prefill,\n",
+    "context_lines": [
+      3,
+      0
+    ],
+    "base_at_line": 1283
+  }
+]

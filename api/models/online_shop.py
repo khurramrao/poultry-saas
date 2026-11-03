@@ -150,6 +150,22 @@ class OnlineOrderItem(models.Model):
     class Meta:
         ordering = ('id',)
 
+class OnlineOrderItemSource(models.Model):
+    """Physical SKU mix selected at packing, before the final POS invoice.
+
+    These reservations do not change inventory remaining until delivery; they
+    protect the chosen source SKU while the order is packed/dispatched.
+    """
+    item = models.ForeignKey(OnlineOrderItem, on_delete=models.CASCADE, related_name='source_allocations')
+    source_product = models.ForeignKey('api.EggPOSProduct', on_delete=models.PROTECT)
+    quantity = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+
+    class Meta:
+        constraints = [models.UniqueConstraint(
+            fields=['item', 'source_product'], name='unique_online_item_source_sku',
+        )]
+
+
 class OnlineOrderEvent(models.Model):
     """Immutable history for admin actions, independent of POS invoice audit."""
     order = models.ForeignKey(OnlineOrder, on_delete=models.CASCADE, related_name='events')

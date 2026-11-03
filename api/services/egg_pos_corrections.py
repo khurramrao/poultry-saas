@@ -103,6 +103,9 @@ def edit_invoice(sale_id, actor, posted_rows, discount, reason):
         raise ValueError("An invoice requires 1 to 40 valid item rows.")
 
     original_items = {obj.pk: obj for obj in sale.items.select_related("product").order_by("id")}
+    from api.services.egg_pos_mixed_sources import source_ids
+    mixed_original = {item.pk for item in original_items.values() if len(source_ids(item.product_id)) > 1}
+
     original_ids = set(original_items)
     used_ids = set()
     clean_rows = []
@@ -140,6 +143,15 @@ def edit_invoice(sale_id, actor, posted_rows, discount, reason):
         clean_rows.append((item_id, product, unit, count, rate))
     if set(original_ids) != used_ids:
         raise ValueError("All original invoice items must be included (use quantity 0 to remove a row).")
+    # A quantity/source edit requires new source allocation; do not silently use
+    # root-SKU FIFO and corrupt the mixed source accounting. Price edits are safe.
+    for item_id, product, unit, count, _rate in clean_rows:
+        if item_id in mixed_original:
+            old = original_items[item_id]
+            if product is None or product.pk != old.product_id or count * UNITS[unit] != old.quantity:
+                raise ValueError('Mixed-SKU invoice quantities or products cannot be edited here; reverse and reissue with the correct farm/outside mix.')
+        elif product is not None and len(source_ids(product.pk)) > 1:
+            raise ValueError('Adding or moving items into mixed-SKU products requires a new invoice with manual allocation.')
     active = [row for row in clean_rows if row[3] > 0]
     if not active:
         raise ValueError("An invoice needs at least one item with a positive quantity.")
@@ -266,6 +278,24 @@ def restore_invoice(sale_id, actor, reason):
                 "Cannot restore: original FIFO eggs have since been sold or stock is inconsistent. "
                 "Review the lot before retrying; no records were changed."
             )
+    # Before restoration, protect already packed online source reservations.
+    from api.services.egg_pos_mixed_sources import packed_source_reserved
+    from api.services.online_shop import free_available
+    by_source = {}
+    by_group = {}
+    from api.services.egg_pos_mixed_sources import primary_id
+    for lot_id, qty in needs.items():
+        source_id = lots[lot_id].product_id
+        by_source[source_id] = by_source.get(source_id, 0) + qty
+        group_id = primary_id(source_id)
+        by_group[group_id] = by_group.get(group_id, 0) + qty
+    for group_id, qty in by_group.items():
+        if free_available(group_id, lock=True) < qty:
+            raise ValueError('Cannot restore: the eggs are now reserved for online customers.')
+    for source_id, qty in by_source.items():
+        from api.services.egg_pos_mixed_sources import source_available
+        if source_available(source_id, lock=True) - packed_source_reserved(source_id) < qty:
+            raise ValueError('Cannot restore: the original SKU is reserved in packed online orders.')
     for lot_id, qty in needs.items():
         lot = lots[lot_id]
         lot.quantity_remaining -= qty

@@ -15,7 +15,8 @@ from api.models.egg_pos import (
     EggPOSInventoryLot, EggPOSProduct, EggPOSSale, EggPOSSaleItem,
     EggPOSSalePayment,
 )
-from api.models.online_shop import OnlineOffer, OnlineOrder, OnlineOrderItem, OnlineOrderEvent
+from api.models.online_shop import OnlineOffer, OnlineOrder, OnlineOrderItem, OnlineOrderItemSource, OnlineOrderEvent
+from api.services.egg_pos_mixed_sources import primary_id, source_ids, source_available, packed_source_reserved, allocate_selected_sources
 from api.services.egg_pos import allocate_fifo_to_sale_item
 from api.services.egg_pos_accounting import sync_sale_invoice, sync_sale_payment
 
@@ -30,7 +31,8 @@ def cash(value):
 
 def reserved_quantity(product_id, excluding_order=None):
     now = timezone.now()
-    qs = OnlineOrderItem.objects.filter(product_id=product_id).filter(
+    group_ids = source_ids(product_id)
+    qs = OnlineOrderItem.objects.filter(product_id__in=group_ids).filter(
         Q(order__status__in=[OnlineOrder.CONFIRMED, OnlineOrder.PACKED, OnlineOrder.DISPATCHED])
         | Q(order__status=OnlineOrder.RESERVED, order__reserved_until__gt=now)
     )
@@ -42,7 +44,7 @@ def reserved_quantity(product_id, excluding_order=None):
 def gross_available(product_id, as_of=None, lock=False):
     as_of = as_of or timezone.localdate()
     lots = EggPOSInventoryLot.objects.filter(
-        product_id=product_id, quantity_remaining__gt=0, received_date__lte=as_of,
+        product_id__in=source_ids(product_id), quantity_remaining__gt=0, received_date__lte=as_of,
     ).filter(Q(expiry_date__isnull=True) | Q(expiry_date__gte=as_of)).order_by('id')
     if lock:
         lots = lots.select_for_update()
@@ -89,7 +91,7 @@ def checkout_order(cart, *, account, name, phone, address, zone, note):
             raise ValueError(f'{offer} is not yet available for purchase.')
         eggs = int(offer.pack_size) * count
         line_total = cash(offer.price_per_pack * count)
-        by_product[offer.product_id] += eggs
+        by_product[primary_id(offer.product_id)] += eggs
         subtotal += line_total
         clean.append((offer, count, eggs, line_total))
     subtotal = cash(subtotal)
@@ -129,7 +131,7 @@ def checkout_order(cart, *, account, name, phone, address, zone, note):
 
 
 @transaction.atomic
-def action_order(order_id, actor, action, *, delivery_method='', rider_name='', reference='', actual_cost='0', reason='', customer_delivery_fee=None):
+def action_order(order_id, actor, action, *, delivery_method='', rider_name='', reference='', actual_cost='0', reason='', customer_delivery_fee=None, source_allocations=None):
     order = OnlineOrder.objects.select_for_update().select_related('zone').get(pk=order_id)
     # Idempotent delivery: a repeated click/request must NEVER allocate FIFO eggs or
     # post another POS invoice/journal. The OneToOneField is a DB-level safeguard;
@@ -139,6 +141,7 @@ def action_order(order_id, actor, action, *, delivery_method='', rider_name='', 
     allowed = {
         'confirm': [OnlineOrder.RESERVED],
         'pack': [OnlineOrder.CONFIRMED],
+        'repack': [OnlineOrder.PACKED, OnlineOrder.DISPATCHED],
         'dispatch': [OnlineOrder.PACKED],
         'deliver': [OnlineOrder.DISPATCHED],
         'cancel': [OnlineOrder.RESERVED, OnlineOrder.CONFIRMED, OnlineOrder.PACKED],
@@ -174,15 +177,66 @@ def action_order(order_id, actor, action, *, delivery_method='', rider_name='', 
     if action == 'confirm':
         by_product = defaultdict(int)
         for item in order.items.all():
-            by_product[item.product_id] += item.egg_quantity
+            by_product[primary_id(item.product_id)] += item.egg_quantity
         # A timed-out reservation must be acquired again under stock locks.
         for product_id, qty in sorted(by_product.items()):
             free = free_available(product_id, lock=True, excluding_order=order.id)
             if qty > free:
                 raise ValueError(f'Only {free} eggs are free for product #{product_id}; cannot confirm.')
         order.status = OnlineOrder.CONFIRMED
-    elif action == 'pack':
-        order.status = OnlineOrder.PACKED
+    elif action in ('pack', 'repack'):
+        # Allocate specific physical source SKUs at packing. No stock is deducted
+        # yet: these SKU choices are reserved until delivery/cancellation.
+        source_allocations = source_allocations or {}
+        item_rows = list(order.items.select_related('product').order_by('id'))
+        aggregated = defaultdict(int)
+        clean_rows = {}
+        for item in item_rows:
+            sources = list(source_ids(item.product_id))
+            entered = source_allocations.get(item.pk)
+            if entered is None and len(sources) == 1:
+                # Existing single-SKU orders keep their one-click packing flow.
+                entered = {sources[0]: item.egg_quantity}
+            if entered is None:
+                raise ValueError(f'Allocate the farm/outside source mix for {item.product_name} before packing.')
+            try:
+                clean = {int(k): int(v) for k, v in entered.items() if int(v) != 0}
+            except (TypeError, ValueError, AttributeError):
+                raise ValueError('Source quantities must be whole numbers.')
+            if any(v <= 0 for v in clean.values()) or sum(clean.values()) != item.egg_quantity:
+                raise ValueError(f'{item.product_name}: source quantities must total {item.egg_quantity} eggs.')
+            if set(clean) - set(sources):
+                raise ValueError('A selected source SKU is not part of this product.')
+            clean_rows[item.pk] = clean
+            for source_id, qty in clean.items():
+                aggregated[source_id] += qty
+        # Lock all eligible physical lots BEFORE checking other packed holds.
+        source_stock = {}
+        for source_id in sorted(aggregated):
+            source_stock[source_id] = source_available(source_id, lock=True)
+        for source_id, qty in aggregated.items():
+            free = source_stock[source_id] - packed_source_reserved(source_id, excluding_order=order.pk)
+            if qty > free:
+                source = EggPOSProduct.objects.get(pk=source_id)
+                raise ValueError(f'{source.sku}: only {max(free,0)} eggs available for packing; {qty} requested.')
+        # Do not let a large order consume stock held for other online customers.
+        for product_id in sorted({primary_id(item.product_id) for item in item_rows}):
+            needed = sum(item.egg_quantity for item in item_rows if primary_id(item.product_id) == product_id)
+            if needed > free_available(product_id, lock=True, excluding_order=order.pk):
+                raise ValueError('The total unallocated stock is reserved for another order.')
+        OnlineOrderItemSource.objects.filter(item__order=order).delete()
+        OnlineOrderItemSource.objects.bulk_create([
+            OnlineOrderItemSource(item_id=item_id, source_product_id=source_id, quantity=qty)
+            for item_id, mix in clean_rows.items() for source_id, qty in mix.items()
+        ])
+        if action == 'pack':
+            order.status = OnlineOrder.PACKED
+        OnlineOrderEvent.objects.create(order=order, actor=actor, event='source_allocation',
+            previous_status=previous_status, new_status=order.status,
+            details=('; '.join(
+                f'{item.pk}: ' + ', '.join(f'{EggPOSProduct.objects.get(pk=k).sku}={v}' for k,v in sorted(clean_rows[item.pk].items()))
+                for item in item_rows
+            ) + (f'; reason: {reason.strip()[:100]}' if reason else ''))[:500])
     elif action == 'dispatch':
         if delivery_method not in ('own','third'):
             raise ValueError('Select our rider or a third-party courier.')
@@ -209,7 +263,7 @@ def action_order(order_id, actor, action, *, delivery_method='', rider_name='', 
         # Lock lots first; remove this reservation atomically as sale is posted.
         by_product = defaultdict(int)
         for item in order.items.select_related('product').all():
-            by_product[item.product_id] += item.egg_quantity
+            by_product[primary_id(item.product_id)] += item.egg_quantity
         for product_id, qty in sorted(by_product.items()):
             free = free_available(product_id, lock=True, excluding_order=order.id)
             if qty > free:
@@ -233,7 +287,15 @@ def action_order(order_id, actor, action, *, delivery_method='', rider_name='', 
                 unit_price=cash(item.line_total / item.egg_quantity),
                 line_total=item.line_total,
             )
-            cogs += allocate_fifo_to_sale_item(pos_item, sale.sale_date)
+            selections = {a.source_product_id: a.quantity for a in item.source_allocations.all()}
+            if selections:
+                cogs += allocate_selected_sources(pos_item, sale.sale_date, selections,
+                                                  excluding_online_order=order.pk)
+            elif len(source_ids(item.product_id)) == 1:
+                # Legacy dispatched orders from before source-allocation migration.
+                cogs += allocate_fifo_to_sale_item(pos_item, sale.sale_date)
+            else:
+                raise ValueError('This mixed-SKU order needs an audited source allocation before delivery.')
         sale.cogs_total = cash(cogs)
         sale.profit_total = cash(sale.net_total - sale.cogs_total)
         sale.save(update_fields=['cogs_total','profit_total'])

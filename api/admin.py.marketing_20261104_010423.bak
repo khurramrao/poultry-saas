@@ -1,0 +1,502 @@
+from django.contrib import admin
+
+from api.models import InvestorProfile, InvestorAllocation, InvestorAccountPayment, InvestorSalePayout, BatchCost, FeedEntry, MedicineEntry, UserProfile
+from api.models.investors import FarmAccountPayment, FarmSaleWithdrawal
+from api.models.sensor import (
+    Shed,
+    Device,
+    RelayChannel,
+    Batch,
+    SensorData,
+    MortalityRecord,
+    VaccineSchedule,
+    VaccineRecord,
+)
+from api.models.temperature import TemperatureRule
+from api.models.sales import SaleRecord, Expense, ChickCostEntry, BatchBirdSaleReconciliation
+from api.models.eggs import EggProductionEntry, EggSale
+from api.models.goats import Goat, GoatWeightRecord, GoatCostEntry, GoatCostAllocation, GoatSale, GoatAccountPayment, GoatBreedingRecord, GoatKiddingRecord
+
+
+
+@admin.register(Shed)
+class ShedAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'shed_type')
+    list_filter = ('shed_type',)
+    search_fields = ('name',)
+
+
+@admin.register(Device)
+class DeviceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'device_id', 'shed')
+    list_filter = ('shed',)
+    search_fields = ('device_id',)
+
+
+@admin.register(Batch)
+class BatchAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'batch_number',
+        'shed',
+        'start_date',
+        'starting_age_days',
+        'bird_count_initial',
+        'is_active',
+    )
+    list_filter = ('shed', 'is_active')
+    search_fields = ('batch_number', 'shed__name')
+
+
+@admin.register(SensorData)
+class SensorDataAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'device',
+        'temperature',
+        'humidity',
+        'light_percent',
+        'ammonia_raw',
+        'sensor_error',
+        'created_at',
+    )
+    list_filter = ('device', 'sensor_error', 'created_at')
+    search_fields = ('device__device_id',)
+    ordering = ('-created_at',)
+
+
+@admin.register(MortalityRecord)
+class MortalityRecordAdmin(admin.ModelAdmin):
+    list_display = ('id', 'batch', 'date', 'count')
+    list_filter = ('batch', 'date')
+    search_fields = ('batch__batch_number',)
+
+
+@admin.register(VaccineSchedule)
+class VaccineScheduleAdmin(admin.ModelAdmin):
+    list_display = ('id', 'shed_type', 'vaccine_name', 'day_number')
+    list_filter = ('shed_type',)
+    search_fields = ('vaccine_name',)
+
+
+@admin.register(VaccineRecord)
+class VaccineRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        'id',
+        'batch',
+        'vaccine_name',
+        'scheduled_day',
+        'due_date',
+        'status',
+        'given_date',
+    )
+    list_filter = ('batch', 'status', 'due_date')
+    search_fields = ('batch__batch_number', 'vaccine_name')
+
+@admin.register(BatchCost)
+class BatchCostAdmin(admin.ModelAdmin):
+    list_display = (
+        "batch",
+        "chick_cost",
+        "carriage_cost",
+        "feed_cost",
+        "medicine_cost",
+        "total_cogs",
+        "updated_at",
+    )
+
+
+@admin.register(SaleRecord)
+class SaleRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "batch",
+        "sale_date",
+        "sale_mode",
+        "birds_sold",
+        "total_weight_kg",
+        "rate_per_kg",
+        "average_weight_kg",
+        "gross_amount",
+        "discount_amount",
+        "total_amount",
+        "created_at",
+    )
+
+
+@admin.register(Expense)
+class ExpenseAdmin(admin.ModelAdmin):
+    list_display = (
+        "batch",
+        "expense_date",
+        "category",
+        "description",
+        "amount",
+        "created_at",
+    )
+
+@admin.register(FeedEntry)
+class FeedEntryAdmin(admin.ModelAdmin):
+    list_display = ("batch", "entry_date", "amount", "notes", "created_at")
+
+
+@admin.register(MedicineEntry)
+class MedicineEntryAdmin(admin.ModelAdmin):
+    list_display = ("batch", "entry_date", "amount", "notes", "created_at")
+
+
+@admin.register(ChickCostEntry)
+class ChickCostEntry(admin.ModelAdmin):
+    list_display = ("batch", "chick_cost", "carriage_cost", "notes", "created_at")
+
+@admin.register(RelayChannel)
+class RelayChannelAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "device",
+        "channel_number",
+        "name",
+        "gpio_pin",
+        "load_type",
+        "automation_type",
+        "is_enabled",
+        "desired_state",
+        "actual_state",
+        "commanded_at",
+        "reported_at",
+    )
+
+    list_filter = (
+        "device",
+        "load_type",
+        "automation_type",
+        "is_enabled",
+        "desired_state",
+        "actual_state",
+    )
+
+    search_fields = (
+        "device__device_id",
+        "name",
+    )
+
+    ordering = (
+        "device",
+        "channel_number",
+    )
+
+
+@admin.register(InvestorAccountPayment)
+class InvestorAccountPaymentAdmin(admin.ModelAdmin):
+    list_display = (
+        "payment_date",
+        "allocation",
+        "amount",
+        "payment_method",
+        "reference",
+        "recorded_by",
+    )
+    list_filter = ("payment_method", "payment_date")
+    search_fields = (
+        "allocation__investor__user__username",
+        "allocation__investor__user__first_name",
+        "allocation__investor__user__last_name",
+        "allocation__batch__batch_number",
+        "reference",
+    )
+    ordering = ("-payment_date", "-id")
+
+
+
+@admin.register(BatchBirdSaleReconciliation)
+class BatchBirdSaleReconciliationAdmin(admin.ModelAdmin):
+    list_display = (
+        "reconciliation_date",
+        "batch",
+        "counted_birds_sold",
+        "reconciled_weight_only_birds",
+        "total_birds_sold",
+        "total_weight_sold_kg",
+        "is_active",
+        "confirmed_by",
+    )
+    list_filter = ("is_active", "reconciliation_date")
+    search_fields = ("batch__batch_number", "notes")
+
+
+@admin.register(InvestorSalePayout)
+class InvestorSalePayoutAdmin(admin.ModelAdmin):
+    list_display = (
+        "payout_date",
+        "allocation",
+        "amount",
+        "payment_method",
+        "reference",
+        "recorded_by",
+    )
+    list_filter = ("payment_method", "payout_date")
+    search_fields = (
+        "allocation__investor__user__username",
+        "allocation__investor__user__first_name",
+        "allocation__investor__user__last_name",
+        "allocation__batch__batch_number",
+        "reference",
+    )
+    ordering = ("-payout_date", "-id")
+
+
+
+
+admin.site.register(UserProfile)
+admin.site.register(TemperatureRule)
+
+admin.site.register(InvestorProfile)
+admin.site.register(InvestorAllocation)
+
+
+
+
+
+@admin.register(EggProductionEntry)
+class EggProductionEntryAdmin(admin.ModelAdmin):
+    list_display = (
+        "production_date",
+        "batch",
+        "eggs_collected",
+        "damaged_eggs",
+        "usable_eggs",
+        "recorded_by",
+    )
+    list_filter = ("production_date", "batch")
+    search_fields = ("batch__batch_number", "notes")
+    ordering = ("-production_date", "-id")
+
+
+@admin.register(EggSale)
+class EggSaleAdmin(admin.ModelAdmin):
+    list_display = (
+        "sale_date",
+        "batch",
+        "buyer_name",
+        "eggs_sold",
+        "rate_per_egg",
+        "discount_amount",
+        "total_amount",
+        "payment_method",
+    )
+    list_filter = ("payment_method", "sale_date", "batch")
+    search_fields = ("batch__batch_number", "buyer_name", "notes")
+    ordering = ("-sale_date", "-id")
+
+
+@admin.register(Goat)
+class GoatAdmin(admin.ModelAdmin):
+    list_display = (
+        "goat_code",
+        "name",
+        "breed",
+        "sex",
+        "owner",
+        "sire",
+        "dam",
+        "shed",
+        "purchase_date",
+        "purchase_cost",
+        "status",
+    )
+    list_filter = ("status", "sex", "shed", "acquisition_type")
+    search_fields = (
+        "goat_code",
+        "name",
+        "breed",
+        "owner__username",
+        "owner__first_name",
+        "owner__last_name",
+        "sire__goat_code",
+        "dam__goat_code",
+        "sire_external",
+        "dam_external",
+    )
+    ordering = ("goat_code",)
+
+
+@admin.register(GoatWeightRecord)
+class GoatWeightRecordAdmin(admin.ModelAdmin):
+    list_display = ("record_date", "goat", "weight_kg", "recorded_by")
+    list_filter = ("record_date",)
+    search_fields = ("goat__goat_code", "goat__name")
+    ordering = ("-record_date", "-id")
+
+
+@admin.register(GoatCostEntry)
+class GoatCostEntryAdmin(admin.ModelAdmin):
+    list_display = ("entry_date", "category", "shed", "amount", "allocation_scope", "created_by")
+    list_filter = ("category", "allocation_scope", "shed", "entry_date")
+    search_fields = ("title", "notes")
+    ordering = ("-entry_date", "-id")
+
+
+@admin.register(GoatCostAllocation)
+class GoatCostAllocationAdmin(admin.ModelAdmin):
+    list_display = ("cost_entry", "goat", "owner_snapshot", "amount")
+    search_fields = ("goat__goat_code", "owner_snapshot__username", "cost_entry__title")
+
+
+@admin.register(GoatSale)
+class GoatSaleAdmin(admin.ModelAdmin):
+    list_display = ("sale_date", "goat", "sale_weight_kg", "rate_per_kg", "total_amount", "locked_total_cost")
+    list_filter = ("sale_date", "payment_method")
+    search_fields = ("goat__goat_code", "buyer_name")
+
+
+@admin.register(GoatAccountPayment)
+class GoatAccountPaymentAdmin(admin.ModelAdmin):
+    list_display = ("payment_date", "owner", "amount", "payment_method", "reference", "recorded_by")
+    list_filter = ("payment_method", "payment_date")
+    search_fields = ("owner__username", "owner__first_name", "owner__last_name", "reference")
+
+
+
+@admin.register(GoatBreedingRecord)
+class GoatBreedingRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "mating_date",
+        "doe",
+        "buck",
+        "status",
+        "relationship_risk",
+        "expected_kidding_date",
+        "created_by",
+    )
+    list_filter = ("status", "relationship_risk", "mating_date")
+    search_fields = (
+        "doe__goat_code",
+        "doe__name",
+        "buck__goat_code",
+        "buck__name",
+        "relationship_label",
+    )
+    readonly_fields = ("relationship_risk", "relationship_label", "relationship_details")
+    ordering = ("-mating_date", "-id")
+
+
+@admin.register(GoatKiddingRecord)
+class GoatKiddingRecordAdmin(admin.ModelAdmin):
+    list_display = ("kidding_date", "breeding_record", "kid_count_display", "recorded_by")
+    list_filter = ("kidding_date",)
+    search_fields = (
+        "breeding_record__doe__goat_code",
+        "breeding_record__buck__goat_code",
+        "kids__goat_code",
+    )
+    filter_horizontal = ("kids",)
+    ordering = ("-kidding_date", "-id")
+
+    @admin.display(description="Kids")
+    def kid_count_display(self, obj):
+        return obj.kids.count()
+
+
+@admin.register(FarmAccountPayment)
+class FarmAccountPaymentAdmin(admin.ModelAdmin):
+    list_display = (
+        "payment_date",
+        "batch",
+        "amount",
+        "payment_method",
+        "reference",
+        "recorded_by",
+    )
+    list_filter = ("payment_method", "payment_date")
+    search_fields = ("batch__batch_number", "reference", "notes")
+    ordering = ("-payment_date", "-id")
+
+
+@admin.register(FarmSaleWithdrawal)
+class FarmSaleWithdrawalAdmin(admin.ModelAdmin):
+    list_display = (
+        "withdrawal_date",
+        "batch",
+        "amount",
+        "payment_method",
+        "reference",
+        "recorded_by",
+    )
+    list_filter = ("payment_method", "withdrawal_date")
+    search_fields = ("batch__batch_number", "reference", "notes")
+    ordering = ("-withdrawal_date", "-id")
+
+# Egg POS accounting foundation (kept visible in Django admin for audit/debugging).
+from api.models.accounting import ChartOfAccount, JournalEntry, JournalLine
+from api.models.egg_pos import (
+    EggPOSSupplierPayment,
+    EggPOSExpense,
+    EggPOSCashSettlement,
+    EggPOSCommissionPeriod,
+    EggPOSCommissionPayment,
+    EggPOSOwnerCapitalTransaction,
+)
+
+
+@admin.register(ChartOfAccount)
+class ChartOfAccountAdmin(admin.ModelAdmin):
+    list_display = ("code", "name", "account_type", "normal_balance", "is_active", "is_system")
+    list_filter = ("account_type", "normal_balance", "is_active")
+    search_fields = ("code", "name")
+    ordering = ("code",)
+
+
+class JournalLineInline(admin.TabularInline):
+    model = JournalLine
+    extra = 0
+    can_delete = False
+    readonly_fields = ("account", "description", "debit", "credit", "party_type", "party_id", "party_name")
+
+
+@admin.register(JournalEntry)
+class JournalEntryAdmin(admin.ModelAdmin):
+    list_display = ("entry_date", "reference", "module", "source_type", "source_id", "created_by")
+    list_filter = ("module", "source_type", "entry_date")
+    search_fields = ("reference", "memo", "source_key")
+    ordering = ("-entry_date", "-id")
+    inlines = [JournalLineInline]
+
+
+@admin.register(EggPOSSupplierPayment)
+class EggPOSSupplierPaymentAdmin(admin.ModelAdmin):
+    list_display = ("payment_date", "supplier", "purchase", "amount", "payment_method", "recorded_by")
+    list_filter = ("payment_method", "payment_date")
+
+
+@admin.register(EggPOSExpense)
+class EggPOSExpenseAdmin(admin.ModelAdmin):
+    list_display = ("expense_date", "expense_type", "used_by", "amount", "payment_source", "status", "entered_by")
+    list_filter = ("expense_type", "payment_source", "status", "expense_date")
+
+
+@admin.register(EggPOSCashSettlement)
+class EggPOSCashSettlementAdmin(admin.ModelAdmin):
+    list_display = ("settlement_date", "salesperson", "amount", "destination", "recorded_by")
+    list_filter = ("destination", "settlement_date")
+
+
+@admin.register(EggPOSCommissionPeriod)
+class EggPOSCommissionPeriodAdmin(admin.ModelAdmin):
+    list_display = ("salesperson", "period_start", "period_end", "commissionable_profit", "commission_percent", "commission_amount")
+    list_filter = ("period_start", "period_end")
+
+
+@admin.register(EggPOSCommissionPayment)
+class EggPOSCommissionPaymentAdmin(admin.ModelAdmin):
+    list_display = ("payment_date", "commission", "amount", "payment_method", "recorded_by")
+    list_filter = ("payment_method", "payment_date")
+
+
+@admin.register(EggPOSOwnerCapitalTransaction)
+class EggPOSOwnerCapitalTransactionAdmin(admin.ModelAdmin):
+    list_display = ("transaction_date", "transaction_type", "amount", "cash_account", "recorded_by")
+    list_filter = ("transaction_type", "cash_account", "transaction_date")
+    search_fields = ("reference", "notes", "recorded_by__username")
+    ordering = ("-transaction_date", "-id")
+
+# Management screens for retail price packs and Lahore delivery zones.
+from api import online_admin  # noqa: F401,E402

@@ -14,6 +14,13 @@ MONEY_ZERO = Decimal("0.00")
 class EggPOSProduct(models.Model):
     name = models.CharField(max_length=120, unique=True)
     sku = models.CharField(max_length=40, unique=True)
+    # Source SKU -> primary sellable product. Inventory remains on its actual SKU.
+    # Leave blank for a normal standalone product or for a primary selling SKU.
+    selling_product = models.ForeignKey(
+        'self', null=True, blank=True, on_delete=models.PROTECT,
+        related_name='source_skus',
+        help_text='Optional: combine this source SKU under another product for POS and online sales.',
+    )
     weight_grams = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
     default_sale_price = models.DecimalField(max_digits=10, decimal_places=2, default=MONEY_ZERO)
     low_stock_eggs = models.PositiveIntegerField(default=100)
