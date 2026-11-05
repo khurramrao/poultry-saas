@@ -1,6 +1,6 @@
 {% extends 'api/online_base.html' %}{% load humanize product_rich_text %}
 {% block page_title %}{% if offer.seo_title %}{{ offer.seo_title }}{% else %}{{ offer.title|default:offer.product.name }} | RayNoor Farms Lahore{% endif %}{% endblock %}
-{% block meta_description %}{% if offer.seo_description %}{{ offer.seo_description }}{% elif offer.description %}{{ offer.description|plain_product_description|truncatechars:155 }}{% else %}Buy {{ offer.pack_size }} fresh chicken eggs online from RayNoor Farms. Lahore delivery available.{% endif %}{% endblock %}
+{% block meta_description %}{% if offer.seo_description %}{{ offer.seo_description }}{% elif offer.description %}{{ offer.description|plain_product_description|truncatechars:155 }}{% else %}Order {{ offer.title|default:offer.product.name }} from RayNoor Farms. Lahore delivery available.{% endif %}{% endblock %}
 {% block head_extras %}<link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{% url 'raynoor_product_detail' offer_id=offer.pk %}">{% endblock %}
 {% block body %}
 <style>
@@ -57,7 +57,7 @@
         <img id="pd-main-img" src="{% url 'raynoor_offer_photo' offer_id=offer.pk %}?v={{ offer.photo_updated_at|date:'U' }}" alt="{{ offer.photo_alt|default:offer.title|default:offer.product.name }}" style="object-fit:{{ offer.photo_fit }};object-position:{{ offer.photo_position }}" width="560" height="380">
       {% elif gallery %}
         <img id="pd-main-img" src="{% url 'raynoor_offer_gallery_photo' photo_id=gallery.0.pk %}" alt="{{ gallery.0.alt_text|default:offer.title|default:offer.product.name }}" width="560" height="380">
-      {% else %}<span role="img" aria-label="Farm fresh eggs">🥚</span>{% endif %}
+      {% else %}<span role="img" aria-label="{{ offer.product.get_category_display }}">{% if offer.product.category == "ghee" %}🫙{% elif offer.product.category == "honey" %}🍯{% else %}🥚{% endif %}</span>{% endif %}
     </div>
     {% if offer.has_photo or gallery %}
     <div class="pd-thumb-list" role="group" aria-label="Choose a product photo">
@@ -78,15 +78,16 @@
     <div class="pd-eyebrow">RayNoor Organic Farms · Lahore</div>
     <h1 id="pd-title">{{ offer.title|default:offer.product.name }}</h1>
     <div class="pd-price">Rs {{ offer.price_per_pack|floatformat:0|intcomma }} <span class="muted small">/ pack</span></div>
-    <div class="pd-tags"><span class="pd-tag">{{ offer.pack_size }} eggs per pack</span>{% if stock_packs %}<span class="pd-tag">✓ In stock</span>{% else %}<span class="pd-tag missing">Out of stock</span>{% endif %}</div>
+    <div class="pd-tags"><span class="pd-tag">{{ offer.pack_label }}</span>{% if stock_packs %}<span class="pd-tag">✓ In stock</span>{% else %}<span class="pd-tag missing">Out of stock</span>{% endif %}</div>
     <dl class="pd-information">
-      <div><dt>Pack size</dt><dd>{{ offer.pack_size }} eggs</dd></div>
-      <div><dt>Egg type</dt><dd>Chicken eggs</dd></div>
-      {% if offer.egg_weight_label %}<div><dt>Weight per egg</dt><dd>{{ offer.egg_weight_label }}</dd></div>{% endif %}
+      <div><dt>Pack size</dt><dd>{{ offer.pack_label }}</dd></div>
+      <div><dt>Product category</dt><dd>{{ offer.product.get_category_display }}</dd></div>
+      {% if not offer.product.is_egg and offer.product.weight_grams %}<div><dt>Net weight</dt><dd>{{ offer.product.size_label }}</dd></div>{% endif %}
+      {% if offer.product.is_egg and offer.egg_weight_label %}<div><dt>Weight per egg</dt><dd>{{ offer.egg_weight_label }}</dd></div>{% endif %}
       <div><dt>Delivery</dt><dd>Lahore only</dd></div>
     </dl>
     {% if offer.description %}<div class="pd-summary"><p>{{ offer.description|product_intro }}</p><a href="#pd-full-details">Read full product information ↓</a></div>{% endif %}
-    <div class="shop-minimum-note"><strong>Minimum order: Rs 1,000 in eggs.</strong> Combine this pack with any other egg packs in your cart. Delivery charges don't count toward the minimum.</div>
+    <div class="shop-minimum-note"><strong>Minimum order: Rs 1,000 in RayNoor products.</strong> Combine this offer with any other products in your cart. Delivery charges don't count toward the minimum.</div>
     <form method="post" action="{% url 'raynoor_cart_update' %}">{% csrf_token %}
       <input type="hidden" name="offer_id" value="{{ offer.pk }}">
       <div class="field">
@@ -97,7 +98,7 @@
           <button type="button" class="pd-qty-button" id="pd-qty-plus" aria-label="Increase quantity" {% if not stock_packs %}disabled{% endif %}>+</button>
         </div>
       </div>
-      <div class="pd-subtotal" aria-live="polite"><span>Eggs subtotal (delivery extra)</span><strong id="pd-line-total" data-unit-price="{{ offer.price_per_pack|stringformat:'f' }}">Rs {{ offer.price_per_pack|floatformat:0|intcomma }}</strong></div>
+      <div class="pd-subtotal" aria-live="polite"><span>Product subtotal (delivery extra)</span><strong id="pd-line-total" data-unit-price="{{ offer.price_per_pack|stringformat:'f' }}">Rs {{ offer.price_per_pack|floatformat:0|intcomma }}</strong></div>
       <button type="submit" class="button" style="width:100%;min-height:51px" {% if not stock_packs %}disabled{% endif %}>🛒 Add to Cart</button>
     </form>
     <p class="small muted" style="margin:13px 0 0">Delivery charge is calculated at checkout for your Lahore area. Cash on delivery available in supported areas.</p>
@@ -105,12 +106,12 @@
   </section>
 </div>
 <section class="pd-details" id="pd-full-details"><h2>Product information</h2>
-  {% if offer.description %}<div class="pd-description">{{ offer.description|rich_product_description }}</div>{% else %}<p class="muted">{{ offer.pack_size }} farm egg pack. For further details, please contact RayNoor before ordering.</p>{% endif %}
+  {% if offer.description %}<div class="pd-description">{{ offer.description|rich_product_description }}</div>{% else %}<p class="muted">{{ offer.product.name }}. For further details, please contact RayNoor before ordering.</p>{% endif %}
   <p class="small muted">Images are for illustration purposes. Actual packaging may vary.</p>
 </section>
 {% if related_offers %}
 <section class="pd-related"><h2>Other pack sizes</h2><div class="pd-related-list">
-  {% for related in related_offers %}<a href="{% url 'raynoor_product_detail' offer_id=related.pk %}">{{ related.pack_size }} eggs · Rs {{ related.price_per_pack|floatformat:0|intcomma }}</a>{% endfor %}
+  {% for related in related_offers %}<a href="{% url 'raynoor_product_detail' offer_id=related.pk %}">{{ related.pack_label }} · Rs {{ related.price_per_pack|floatformat:0|intcomma }}</a>{% endfor %}
 </div></section>
 {% endif %}
 <script>

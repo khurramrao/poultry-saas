@@ -1,6 +1,6 @@
 {% extends "api/base_dashboard.html" %}
 {% load humanize %}
-{% block title %}Egg POS{% endblock %}
+{% block title %}RayNoor Retail POS{% endblock %}
 {% block extra_css %}
 <style>
 :root{--ep-blue:#0d6fb8;--ep-blue2:#17a4bd;--ep-navy:#0d3f6d;--ep-green:#10944a;--ep-bg:#f4f7fb;--ep-border:#dfe7f0;--ep-muted:#718096;--ep-orange:#d77a00}
@@ -61,7 +61,7 @@
 <div class="ep-sp-mobile-head">
   <div class="ep-sp-mobile-brand">
     <div class="ep-sp-avatar">{{ request.user.first_name|default:request.user.username|first|upper }}</div>
-    <div><small>Egg POS · {% now "D, d M" %}</small><strong>{{ request.user.first_name|default:request.user.username|title }}</strong></div>
+    <div><small>Retail POS · {% now "D, d M" %}</small><strong>{{ request.user.first_name|default:request.user.username|title }}</strong></div>
   </div>
   <div class="ep-sp-top-actions">
     <a class="ep-sp-top-action" href="{% url 'egg_pos_commissions' %}" aria-label="Commission"><i class="fa-solid fa-coins"></i></a>
@@ -69,7 +69,7 @@
   </div>
 </div>
 <div class="ep-appbar">
-  <div class="ep-brand"><div class="ep-brand-icon"><i class="fa-solid fa-egg"></i></div><div><h1>Egg POS</h1><p>Sales, FIFO stock and egg inventory.</p></div></div>
+  <div class="ep-brand"><div class="ep-brand-icon"><i class="fa-solid fa-egg"></i></div><div><h1>RayNoor Retail POS</h1><p>Eggs · Desi Ghee · Honey · Sales &amp; Inventory.</p></div></div>
 
 </div>
 {# Egg POS navigation is now directly in the left sidebar; mobile bottom actions remain. #}

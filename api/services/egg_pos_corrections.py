@@ -13,7 +13,7 @@ from api.models.accounting import JournalEntry
 from api.services.egg_pos import money, reverse_sale
 from api.services.egg_pos_accounting import sync_sale_invoice, sync_sale_payment
 
-UNITS = {"egg": 1, "dozen": 12, "tray": 30, "crate": 360}
+UNITS = {"egg": 1, "jar": 1, "dozen": 12, "tray": 30, "crate": 360}
 
 
 def _snapshot(sale):
@@ -139,7 +139,9 @@ def edit_invoice(sale_id, actor, posted_rows, discount, reason):
             raise ValueError("Each selling rate must be greater than zero.")
         product = EggPOSProduct.objects.filter(pk=product_id, is_active=True).first()
         if product is None:
-            raise ValueError("The selected egg product is inactive or missing.")
+            raise ValueError("The selected product is inactive or missing.")
+        if (product.is_egg and unit == 'jar') or (not product.is_egg and unit != 'jar'):
+            raise ValueError('Choose an egg selling unit for eggs or Jar for sealed products.')
         clean_rows.append((item_id, product, unit, count, rate))
     if set(original_ids) != used_ids:
         raise ValueError("All original invoice items must be included (use quantity 0 to remove a row).")

@@ -1068,8 +1068,8 @@
 
                     <div class="pos-product-head-top">
                         <div>
-                            <h3>Egg Products</h3>
-                            <small>Current sellable Egg POS stock</small>
+                            <h3>RayNoor Products</h3>
+                            <small>Current sellable eggs, desi ghee and honey</small>
                         </div>
                     </div>
 
@@ -1079,7 +1079,7 @@
                             id="productSearch"
                             class="pos-search"
                             type="search"
-                            placeholder="Search egg product or SKU..."
+                            placeholder="Search product or SKU..."
                             autocomplete="off"
                         >
                     </div>
@@ -1093,6 +1093,7 @@
                         class="pos-product-card {% if p.pos_stock <= 0 %}out{% endif %}"
                         data-product-card
                         data-product-id="{{ p.id }}"
+                        data-category="{{ p.category }}"
                         data-name="{{ p.name|escape }}"
                         data-sku="{{ p.sku|escape }}"
                         data-price="{{ p.default_sale_price }}"
@@ -1100,7 +1101,7 @@
                     >
 
                         <div class="pos-product-icon">
-                            <i class="fa-solid fa-egg"></i>
+                            {% if p.category == "ghee" %}<i class="fa-solid fa-jar"></i>{% elif p.category == "honey" %}<i class="fa-solid fa-jar-wheat"></i>{% else %}<i class="fa-solid fa-egg"></i>{% endif %}
                         </div>
 
                         <div>
@@ -1113,12 +1114,12 @@
 
                                 <span>
                                     Stock:
-                                    <strong>{{ p.pos_stock|intcomma }} eggs</strong>
+                                    <strong>{{ p.pos_stock|intcomma }} {{ p.stock_unit_plural }}</strong>
                                 </span>
                             </div>
 
                             <div class="pos-product-price">
-                                Rs {{ p.default_sale_price|floatformat:2 }} / egg
+                                Rs {{ p.default_sale_price|floatformat:2 }} / {{ p.stock_unit }}
                             </div>
                         </div>
 
@@ -1138,7 +1139,7 @@
                     </article>
                     {% empty %}
                     <div class="pos-no-results" style="display:block;">
-                        No active Egg POS products found.
+                        No active RayNoor products found.
                     </div>
                     {% endfor %}
 
@@ -1521,7 +1522,7 @@
 
             <div class="pos-mobile-total">
                 <span id="mobileCartSummary">
-                    0 eggs · 0 items
+                    0 units · 0 items
                 </span>
 
                 <strong id="mobileNetText">
@@ -1642,6 +1643,7 @@
                 <button type="button" data-sale-unit="dozen" data-unit-size="12">Dozen <small>12</small></button>
                 <button type="button" data-sale-unit="tray" data-unit-size="30">Tray <small>30</small></button>
                 <button type="button" data-sale-unit="crate" data-unit-size="360">Paiti/Crate <small>360</small></button>
+                <button type="button" data-sale-unit="jar" data-unit-size="1" hidden>Sealed Jar</button>
             </div>
             <div class="pos-unit-stock cart-unit-stock">1 unit = 1 egg</div>
         </div>
@@ -1831,6 +1833,7 @@
 
     const SALE_UNITS = {
         egg: {size: 1, qtyLabel: "No. of Eggs", rateLabel: "Rate / Egg", noun: "egg"},
+        jar: {size: 1, qtyLabel: "No. of Jars", rateLabel: "Rate / Jar", noun: "jar"},
         dozen: {size: 12, qtyLabel: "No. of Dozens", rateLabel: "Rate / Dozen", noun: "dozen"},
         tray: {size: 30, qtyLabel: "No. of Trays", rateLabel: "Rate / Tray", noun: "tray"},
         crate: {size: 360, qtyLabel: "No. of Paiti/Crates", rateLabel: "Rate / Paiti/Crate", noun: "paiti/crate"}
@@ -1846,7 +1849,7 @@
         const maxUnits = Math.floor(stock / info.size);
 
         if (maxUnits < 1) {
-            alert("Not enough stock for one " + info.noun + ". Available stock: " + stock + " eggs.");
+            alert("Not enough stock for one " + info.noun + ". Available stock: " + stock + " units.");
             return;
         }
 
@@ -2011,6 +2014,7 @@
     function addProduct(card) {
 
         const productId = card.dataset.productId;
+        const category = card.dataset.category || "egg";
         const stock = parseInt(card.dataset.stock || "0", 10);
         const price = parseFloat(card.dataset.price || "0");
 
@@ -2049,21 +2053,22 @@
 
         row.dataset.productId = productId;
         row.dataset.stock = stock;
-        row.dataset.saleUnit = "egg";
+        row.dataset.category = category;
+        row.dataset.saleUnit = category === "egg" ? "egg" : "jar";
         row.dataset.unitSize = "1";
         row.dataset.baseEggPrice = String(price || 0);
         row._unitRates = {};
         if (price > 0) {
-            row._unitRates.egg = price.toFixed(2);
+            row._unitRates[category === "egg" ? "egg" : "jar"] = price.toFixed(2);
         }
 
         row.querySelector(".cart-product-id").value = productId;
 
         row.querySelector(".pos-cart-item-name").textContent =
-            card.dataset.name || "Egg Product";
+            card.dataset.name || "Product";
 
         row.querySelector(".pos-cart-item-stock").textContent =
-            "Available: " + stock + " eggs";
+            "Available: " + stock + (category === "egg" ? " eggs" : " jars");
 
         const qtyInput = row.querySelector(".cart-qty");
         qtyInput.max = stock;
@@ -2071,9 +2076,17 @@
 
         const priceInput = row.querySelector(".cart-price");
         priceInput.value = price > 0 ? price.toFixed(2) : "";
-        row.querySelector(".cart-sale-unit").value = "egg";
+        row.querySelector(".cart-sale-unit").value = category === "egg" ? "egg" : "jar";
         row.querySelector(".cart-unit-stock").textContent =
-            "Loose: " + stock + " eggs available";
+            (category === "egg" ? "Loose: " + stock + " eggs available" : "Jars: " + stock + " available");
+        if (category !== "egg") {
+            row.querySelectorAll('[data-sale-unit]').forEach(button => {
+                button.hidden = button.dataset.saleUnit !== 'jar';
+                button.classList.toggle('active', button.dataset.saleUnit === 'jar');
+            });
+            row.querySelector('.cart-qty-label').textContent = 'No. of Jars';
+            row.querySelector('.cart-rate-label').textContent = 'Rate / Jar';
+        }
 
         initSourceEditor(row, productId);
         cartItems.appendChild(fragment);
@@ -2155,7 +2168,7 @@
                 row.querySelector(".cart-unit-price").value = perEgg.toFixed(2);
                 row.querySelector(".cart-unit-stock").textContent =
                     unitCount + " " + info.noun + (unitCount === 1 ? "" : "s") +
-                    " = " + eggQty + " eggs · max " + maxUnits + " " + info.noun +
+                    " = " + eggQty + (row.dataset.category === 'egg' ? " eggs" : " jars") + " · max " + maxUnits + " " + info.noun +
                     (maxUnits === 1 ? "" : "s") + " from current stock";
 
                 subtotal += lineTotal;
@@ -2198,9 +2211,7 @@
 
         mobileCartSummary.textContent =
             totalEggs +
-            " egg" +
-            (totalEggs === 1 ? "" : "s") +
-            " · " +
+            " inventory units · " +
             itemCount +
             " item" +
             (itemCount === 1 ? "" : "s");
@@ -2536,7 +2547,7 @@
             if (totals.itemCount === 0) {
                 event.preventDefault();
 
-                alert("Add at least one egg product to the sale.");
+                alert("Add at least one product to the sale.");
 
                 return;
             }

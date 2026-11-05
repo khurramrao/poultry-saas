@@ -65,14 +65,14 @@
       <a class="sp-stock-card {% if row.low_stock %}low{% endif %}" href="{% url 'egg_pos_inventory' %}">
         <div class="sp-stock-top">
           <div class="sp-stock-name"><div class="sp-stock-icon"><i class="fa-solid fa-egg"></i></div><div><strong>{{ row.product.name }}</strong><small>{{ row.product.sku }}</small></div></div>
-          <div class="sp-stock-eggs"><strong>{{ row.stock|intcomma }}</strong><small>eggs available</small></div>
+          <div class="sp-stock-eggs"><strong>{{ row.stock|intcomma }}</strong><small>{{ row.product.stock_unit_plural }} available</small></div>
         </div>
-        <div class="sp-stock-units">
+        {% if row.product.is_egg %}<div class="sp-stock-units">
           <div class="sp-stock-unit"><b>{{ row.max_crates|intcomma }}</b><span>Crates</span></div>
           <div class="sp-stock-unit"><b>{{ row.max_trays|intcomma }}</b><span>Trays</span></div>
           <div class="sp-stock-unit"><b>{{ row.max_dozens|intcomma }}</b><span>Dozen</span></div>
         </div>
-        <div class="sp-stock-note">Equivalent quantities — inventory is always deducted in individual eggs.</div>
+        <div class="sp-stock-note">Equivalent quantities — inventory is always deducted in individual eggs.</div>{% else %}<div class="sp-stock-note">{{ row.product.size_label }} per sealed jar · FIFO by jar.</div>{% endif %}
         {% if row.low_stock %}<div class="sp-stock-low"><i class="fa-solid fa-triangle-exclamation"></i> Low stock</div>{% endif %}
       </a>
       {% empty %}<div class="ep-empty">No sellable stock available.</div>{% endfor %}
@@ -120,8 +120,8 @@
 {% if can_manage_pos %}
 <div class="ep-section-title"><div><h3>Business Snapshot</h3><p>Current stock and sales position.</p></div></div>
 <section class="ep-snapshot-grid">
-  <div class="ep-snapshot"><div class="ep-snapshot-top"><span class="ep-snapshot-label">Total Inventory</span><span class="ep-snapshot-icon"><i class="fa-solid fa-boxes-stacked"></i></span></div><strong>{{ total_stock|intcomma }}</strong><small>Sellable eggs currently in POS</small></div>
-  <div class="ep-snapshot"><div class="ep-snapshot-top"><span class="ep-snapshot-label">Active Products</span><span class="ep-snapshot-icon" style="background:#e9f8ef;color:#118b4b"><i class="fa-solid fa-egg"></i></span></div><strong>{{ active_product_count|intcomma }}</strong><small>Egg grades / products</small></div>
+  <div class="ep-snapshot"><div class="ep-snapshot-top"><span class="ep-snapshot-label">Total Inventory</span><span class="ep-snapshot-icon"><i class="fa-solid fa-boxes-stacked"></i></span></div><strong>{{ total_stock|intcomma }}</strong><small>Sellable physical units (eggs and jars)</small></div>
+  <div class="ep-snapshot"><div class="ep-snapshot-top"><span class="ep-snapshot-label">Active Products</span><span class="ep-snapshot-icon" style="background:#e9f8ef;color:#118b4b"><i class="fa-solid fa-egg"></i></span></div><strong>{{ active_product_count|intcomma }}</strong><small>Egg grades / jar SKUs</small></div>
   <div class="ep-snapshot"><div class="ep-snapshot-top"><span class="ep-snapshot-label">Low Stock Products</span><span class="ep-snapshot-icon" style="background:#fff2df;color:#d47400"><i class="fa-solid fa-triangle-exclamation"></i></span></div><strong>{{ low_stock_count|intcomma }}</strong><small>At or below alert level</small></div>
   <div class="ep-snapshot"><div class="ep-snapshot-top"><span class="ep-snapshot-label">Inventory Value</span><span class="ep-snapshot-icon" style="background:#f2ecff;color:#7447d4"><i class="fa-solid fa-wallet"></i></span></div><strong>Rs {{ stock_value|floatformat:0|intcomma }}</strong><small>Current FIFO stock cost</small></div>
   <div class="ep-snapshot"><div class="ep-snapshot-top"><span class="ep-snapshot-label">Farm Payable</span><span class="ep-snapshot-icon" style="background:#fff2df;color:#d47400"><i class="fa-solid fa-file-invoice-dollar"></i></span></div><strong>Rs {{ farm_transfer_payable|floatformat:0|intcomma }}</strong><small><a href="{% url 'egg_pos_farm_transfer' %}" style="color:#a96500;text-decoration:none">Due to RayNoor Egg Production →</a></small></div>
@@ -142,7 +142,7 @@
 <div class="ep-section-title"><div><h3>Recent Activity</h3><p>{% if can_manage_pos %}Latest Egg POS sales and inventory position.{% else %}Your latest Egg POS sales.{% endif %}</p></div><a href="{% url 'egg_pos_sales' %}">View All</a></div>
 <div class="ep-grid-2">
   <section class="ep-panel"><div class="ep-panel-head"><span>Recent {% if can_manage_pos %}Sales{% else %}My Sales{% endif %}</span></div>{% for sale in recent_sales %}<div class="ep-sale-card"><div class="ep-sale-card-top"><div><a class="ep-sale-card-title" href="{% url 'egg_pos_sale_detail' sale.id %}">{{ sale.sale_number }}</a><div class="ep-sale-card-meta">{{ sale.customer_name|default:"Walk-in Customer" }} · {{ sale.created_by.get_full_name|default:sale.created_by.username }}</div></div><div class="ep-sale-card-amount">Rs {{ sale.net_total|floatformat:0|intcomma }}</div></div><div class="ep-sale-card-foot"><span>{{ sale.sale_date|date:"d M Y" }} · {{ sale.created_at|date:"g:i A" }}</span>{% if can_manage_pos %}<span class="{% if sale.profit_total < 0 %}ep-money-neg{% else %}ep-money-pos{% endif %}">Profit Rs {{ sale.profit_total|floatformat:0|intcomma }}</span>{% else %}<span>{{ sale.get_payment_method_display }}</span>{% endif %}</div></div>{% empty %}<div class="ep-empty">No sales yet. Use <strong>New Sale</strong> to create the first transaction.</div>{% endfor %}</section>
-  <section class="ep-panel"><div class="ep-panel-head"><span>Stock at a Glance</span><a href="{% url 'egg_pos_inventory' %}" style="font-size:9px;color:#0b6fb7;text-decoration:none">Inventory</a></div>{% for row in stock_rows|slice:":6" %}<div class="ep-stock-mini {% if row.low_stock %}low{% endif %}"><div class="ep-stock-mini-top"><div><div class="ep-stock-mini-name">{{ row.product.name }}</div><small style="color:#8190a0">{{ row.product.sku }}</small></div><div style="text-align:right"><div class="ep-stock-mini-count">{{ row.stock|intcomma }}</div>{% if row.stock_reference %}<small style="color:#8190a0">of {{ row.stock_reference|intcomma }} · {{ row.stock_percent }}% left</small>{% endif %}</div></div><div class="ep-stock-bar" title="{{ row.stock|intcomma }} of {{ row.stock_reference|intcomma }} eggs remaining"><span style="width:{{ row.stock_percent }}%"></span></div></div>{% empty %}<div class="ep-empty">No Egg POS products yet.</div>{% endfor %}</section>
+  <section class="ep-panel"><div class="ep-panel-head"><span>Stock at a Glance</span><a href="{% url 'egg_pos_inventory' %}" style="font-size:9px;color:#0b6fb7;text-decoration:none">Inventory</a></div>{% for row in stock_rows|slice:":6" %}<div class="ep-stock-mini {% if row.low_stock %}low{% endif %}"><div class="ep-stock-mini-top"><div><div class="ep-stock-mini-name">{{ row.product.name }}</div><small style="color:#8190a0">{{ row.product.sku }}</small></div><div style="text-align:right"><div class="ep-stock-mini-count">{{ row.stock|intcomma }}</div>{% if row.stock_reference %}<small style="color:#8190a0">of {{ row.stock_reference|intcomma }} · {{ row.stock_percent }}% left</small>{% endif %}</div></div><div class="ep-stock-bar" title="{{ row.stock|intcomma }} of {{ row.stock_reference|intcomma }} {{ row.product.stock_unit_plural }} remaining"><span style="width:{{ row.stock_percent }}%"></span></div></div>{% empty %}<div class="ep-empty">No retail products yet.</div>{% endfor %}</section>
 </div>
 </div>
 {% endblock %}

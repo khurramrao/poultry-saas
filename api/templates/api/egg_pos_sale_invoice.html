@@ -57,6 +57,7 @@
         .invoice-actions {
             display: flex;
             justify-content: flex-end;
+            flex-wrap: wrap;
             gap: 8px;
 
             margin-bottom: 16px;
@@ -83,6 +84,12 @@
             font-weight: 800;
 
             cursor: pointer;
+        }
+
+        .invoice-action:hover,
+        .invoice-action:focus-visible {
+            border-color: var(--brand-green);
+            outline-offset: 2px;
         }
 
         .invoice-action.primary {
@@ -308,14 +315,6 @@
             color: var(--brand-green-dark);
 
             font-weight: 900;
-        }
-
-        .product-sku {
-            margin-top: 4px;
-
-            color: #708398;
-
-            font-size: 10px;
         }
 
         /* =============================
@@ -606,31 +605,29 @@
          SCREEN ACTIONS
     ========================================== -->
 
-    <div class="invoice-actions">
+    <nav class="invoice-actions" aria-label="Retail POS invoice actions">
 
-        <a
-            href="{% url 'egg_pos_new_sale' %}"
-            class="invoice-action new-sale"
-        >
-            ＋ New Sale
+        <a href="{% url 'egg_pos_dashboard' %}" class="invoice-action">
+            &#8962; POS Home
         </a>
 
-        <a
-            href="{% url 'egg_pos_sale_detail' sale.id %}"
-            class="invoice-action"
-        >
-            ← Sale Detail
+        <a href="{% url 'egg_pos_sales' %}" class="invoice-action">
+            &#8592; Sales History
         </a>
 
-        <button
-            type="button"
-            class="invoice-action primary"
-            onclick="window.print()"
-        >
+        <a href="{% url 'egg_pos_new_sale' %}" class="invoice-action new-sale">
+            + New Sale
+        </a>
+
+        <a href="{% url 'egg_pos_sale_detail' sale.id %}" class="invoice-action">
+            Sale Detail
+        </a>
+
+        <button type="button" class="invoice-action primary" onclick="window.print()">
             Print Invoice
         </button>
 
-    </div>
+    </nav>
 
 
     <!-- =========================================
@@ -644,7 +641,7 @@
         </span>
 
         <span>
-            {{ sale.sale_number }} | RayNoor Egg POS
+            {{ sale.sale_number }} | RayNoor Retail POS
         </span>
 
     </div>
@@ -830,9 +827,6 @@
                             {{ item.product.name }}
                         </div>
 
-                        <div class="product-sku">
-                            SKU: {{ item.product.sku }}
-                        </div>
 
                     </td>
 

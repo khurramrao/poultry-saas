@@ -14,7 +14,7 @@ class OnlineOfferSetupForm(forms.ModelForm):
         model = OnlineOffer
         fields = ('product', 'pack_size', 'title', 'description', 'seo_title', 'seo_description', 'egg_weight_label', 'price_per_pack', 'photo_fit', 'photo_position', 'photo_alt', 'sort_order', 'is_active')
         labels = {
-            'product': 'Existing Egg POS product', 'pack_size': 'Eggs per pack',
+            'product': 'Existing RayNoor POS product', 'pack_size': 'Egg pack or sealed jar',
             'title': 'Retail pack title (optional)', 'description': 'Product description (formatted)',
             'seo_title': 'SEO title (optional)', 'seo_description': 'Meta description (optional)',
             'egg_weight_label': 'Egg weight per piece (optional)',
@@ -68,6 +68,12 @@ class OnlineOfferSetupForm(forms.ModelForm):
         if cleaned.get('photo_upload') and cleaned.get('remove_photo'):
             self.add_error('remove_photo', 'Choose either a replacement photo or removal, not both.')
         product = cleaned.get('product')
+        if product and cleaned.get('pack_size'):
+            size = int(cleaned['pack_size'])
+            if product.is_egg and size not in (6, 12, 30):
+                self.add_error('pack_size', 'Egg offers must contain 6, 12 or 30 eggs.')
+            if not product.is_egg and size != 1:
+                self.add_error('pack_size', 'Ghee and honey offers sell one sealed jar per pack.')
         if cleaned.get('is_active') and product is not None and not product.is_active:
             self.add_error('product', 'Activate this product in Egg POS before publishing the pack.')
         return cleaned

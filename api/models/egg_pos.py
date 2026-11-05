@@ -12,6 +12,28 @@ MONEY_ZERO = Decimal("0.00")
 
 
 class EggPOSProduct(models.Model):
+    CATEGORY_CHOICES = [('egg', 'Eggs'), ('ghee', 'Desi Ghee'), ('honey', 'Honey')]
+    category = models.CharField(max_length=12, choices=CATEGORY_CHOICES, default='egg', db_index=True)
+
+    @property
+    def is_egg(self):
+        return self.category == 'egg'
+
+    @property
+    def stock_unit(self):
+        return 'egg' if self.is_egg else 'jar'
+
+    @property
+    def stock_unit_plural(self):
+        return 'eggs' if self.is_egg else 'jars'
+
+    @property
+    def size_label(self):
+        if not self.weight_grams:
+            return ''
+        grams = int(self.weight_grams)
+        return f'{grams / 1000:g}kg' if grams >= 1000 and grams % 1000 == 0 else f'{self.weight_grams:g}g'
+
     name = models.CharField(max_length=120, unique=True)
     sku = models.CharField(max_length=40, unique=True)
     # Source SKU -> primary sellable product. Inventory remains on its actual SKU.
@@ -167,7 +189,11 @@ class EggPOSPurchase(models.Model):
 
     @property
     def landed_total(self):
-        return Decimal(self.total_amount or 0) + Decimal(self.transport_cost or 0)
+        return Decimal(self.total_amount or 0) + Decimal(self.transport_cost or 0) + Decimal(self.sticker_total or 0)
+
+    @property
+    def sticker_total(self):
+        return sum((Decimal(item.sticker_cost_total or 0) for item in self.items.all()), MONEY_ZERO)
 
     @property
     def amount_paid(self):
@@ -422,6 +448,8 @@ class EggPOSPurchaseItem(models.Model):
     product = models.ForeignKey(EggPOSProduct, on_delete=models.PROTECT)
     quantity = models.PositiveIntegerField()
     unit_cost = models.DecimalField(max_digits=14, decimal_places=6)
+    # RayNoor adhesive labels/stickers are paid separately from the supplier invoice.
+    sticker_cost_total = models.DecimalField(max_digits=14, decimal_places=2, default=MONEY_ZERO)
     lot = models.OneToOneField(
         EggPOSInventoryLot,
         on_delete=models.SET_NULL,
@@ -574,6 +602,7 @@ class EggPOSSalePayment(models.Model):
 class EggPOSSaleItem(models.Model):
     SALE_UNIT_CHOICES = [
         ("egg", "Loose Egg"),
+        ("jar", "Sealed Jar"),
         ("dozen", "Dozen (12 eggs)"),
         ("tray", "Tray (30 eggs)"),
         ("crate", "Paiti / Crate (360 eggs)"),
@@ -603,6 +632,7 @@ class EggPOSSaleItem(models.Model):
     def sale_unit_short_label(self):
         return {
             "egg": "egg",
+            "jar": "jar",
             "dozen": "dozen",
             "tray": "tray",
             "crate": "paiti / crate",
@@ -612,8 +642,8 @@ class EggPOSSaleItem(models.Model):
     def display_sale_quantity(self):
         count = int(self.unit_count or 0)
         label = self.sale_unit_short_label
-        if self.sale_unit == "egg":
-            label = "egg" if count == 1 else "eggs"
+        if self.sale_unit in ("egg", "jar"):
+            label = ("egg" if count == 1 else "eggs") if self.sale_unit == "egg" else ("jar" if count == 1 else "jars")
             return f"{count} {label}"
         if count != 1:
             if self.sale_unit == "dozen":

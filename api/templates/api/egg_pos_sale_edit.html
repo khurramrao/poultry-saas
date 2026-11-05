@@ -44,7 +44,7 @@
         {% for item in sale.items.all %}
           <div class="ep-edit-line"><div class="ep-edit-grid">
             <input type="hidden" name="item_id" value="{{ item.id }}">
-            <div><label>Egg product</label><select name="product_id" required>
+            <div><label>Product</label><select name="product_id" required>
             {% for p in products %}<option value="{{ p.id }}" {% if p.id == item.product_id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
             </select></div>
             <div><label>Unit</label><select name="sale_unit">{% for value,label in unit_choices %}<option value="{{ value }}" {% if item.edit_sale_unit == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
@@ -94,7 +94,7 @@
 (function(){
  const form=document.getElementById('epEditInvoice'),rows=document.getElementById('epEditRows');
  const paid=Number('{{ sale.amount_paid }}');
- const units={egg:1,dozen:12,tray:30,crate:360};
+ const units={egg:1,jar:1,dozen:12,tray:30,crate:360};
  const money=n=>'Rs '+(Number.isFinite(n)?n:0).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2});
  function update(){
   let subtotal=0,eggs=0;
@@ -109,7 +109,7 @@
   document.getElementById('epBalancePreview').textContent=money(Math.max(0,net-paid));
   const invalid=net+0.001<paid || net<=0 || !eggs;
   document.getElementById('epSaveEdit').disabled=invalid;
-  document.getElementById('epEditWarning').textContent=net+0.001<paid?'New sale total is below payments already received. Please resolve excess payment separately.':(!eggs?'Keep at least one egg item.':'Stock and COGS will be validated before saving.');
+  document.getElementById('epEditWarning').textContent=net+0.001<paid?'New sale total is below payments already received. Please resolve excess payment separately.':(!eggs?'Keep at least one product.':'Stock and COGS will be validated before saving.');
  }
  document.getElementById('epAddRow').addEventListener('click',()=>{rows.appendChild(document.getElementById('epNewRow').content.cloneNode(true));update();});
  rows.addEventListener('click',e=>{const b=e.target.closest('[data-remove-item]');if(!b)return;const row=b.closest('.ep-edit-line');if(row.querySelector('[name=item_id]').value){row.querySelector('[name=unit_count]').value='0';row.style.opacity='.5';}else{row.remove();}update();});

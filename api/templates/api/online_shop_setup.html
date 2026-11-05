@@ -12,23 +12,23 @@
 @media(max-width:860px){.setup-columns{grid-template-columns:1fr}.setup-metrics{grid-template-columns:repeat(3,1fr)}}@media(max-width:500px){.setup-metrics{grid-template-columns:1fr}.shop-setup-hero{padding:20px}}
 </style>
 <section class="shop-setup-hero">
-  <div><h2>Online Shop Setup</h2><p>Create egg packs from your existing POS products and choose Lahore delivery areas. No additional stock is created.</p></div>
+  <div><h2>Online Shop Setup</h2><p>Create egg packs and sealed ghee/honey jars from your existing POS products and choose Lahore delivery areas. No additional stock is created.</p></div>
   <a href="{% url 'raynoor_store' %}" target="_blank" rel="noopener">Preview Customer Store ↗</a>
 </section>
 <div class="setup-metrics" aria-label="Online shop setup status">
-  <div class="setup-metric"><strong>{{ product_count }}</strong><span>Active Egg POS products</span></div>
-  <div class="setup-metric"><strong>{{ active_offer_count }}</strong><span>Published egg packs</span></div>
+  <div class="setup-metric"><strong>{{ product_count }}</strong><span>Active Retail POS products</span></div>
+  <div class="setup-metric"><strong>{{ active_offer_count }}</strong><span>Published offers</span></div>
   <div class="setup-metric"><strong>{{ active_zone_count }}</strong><span>Enabled delivery areas</span></div>
 </div>
-{% if not product_count %}<div class="ep-panel" style="padding:13px;margin-bottom:12px"><strong>No active Egg POS products yet.</strong> First add a product under <a href="{% url 'egg_pos_products' %}">Egg POS → Products</a>.</div>{% endif %}
+{% if not product_count %}<div class="ep-panel" style="padding:13px;margin-bottom:12px"><strong>No active RayNoor POS products yet.</strong> First add a product under <a href="{% url 'egg_pos_products' %}">Retail POS → Products</a>.</div>{% endif %}
 <div class="setup-columns">
   <section class="setup-card" id="packs">
-    <h3>{% if edit_offer %}Edit egg pack{% else %}Create an egg pack{% endif %}</h3>
-    <p>Select a real Egg POS product, pack size and retail selling price. Only active packs appear on the customer store. Pack stock comes directly from Egg POS FIFO inventory.</p>
+    <h3>{% if edit_offer %}Edit egg pack or sealed jar{% else %}Create an egg pack or sealed jar{% endif %}</h3>
+    <p>Select a retail product, quantity and price. Eggs are sold as packs of 6, 12 or 30; desi ghee and honey as individual sealed jars. Stock comes from the existing FIFO inventory.</p>
     <form method="post" enctype="multipart/form-data" class="setup-form">{% csrf_token %}<input type="hidden" name="kind" value="offer"><input type="hidden" name="object_id" value="{{ edit_offer.pk|default:'' }}">
       {% if offer_form.errors %}<ul class="setup-errors">{% for field, errors in offer_form.errors.items %}{% for error in errors %}<li>{{ field }}: {{ error }}</li>{% endfor %}{% endfor %}</ul>{% endif %}
-      <div class="setup-field"><label for="setup-product">Egg POS product</label><select id="setup-product" name="product" required><option value="">Select a product</option>{% for product in products %}<option value="{{ product.pk }}" {% if product.pk|stringformat:'s' == offer_values.product %}selected{% endif %}>{{ product.name }} ({{ product.sku }}){% if not product.is_active %} — inactive{% endif %}</option>{% endfor %}</select></div>
-      <div class="setup-field"><label for="setup-pack">Retail pack size</label><select id="setup-pack" name="pack_size" required><option value="6" {% if offer_values.pack_size == '6' %}selected{% endif %}>6 eggs</option><option value="12" {% if offer_values.pack_size == '12' %}selected{% endif %}>12 eggs</option><option value="30" {% if offer_values.pack_size == '30' %}selected{% endif %}>30 eggs</option></select></div>
+      <div class="setup-field"><label for="setup-product">Retail POS product</label><select id="setup-product" name="product" required><option value="">Select a product</option>{% for product in products %}<option value="{{ product.pk }}" data-category="{{ product.category }}" {% if product.pk|stringformat:'s' == offer_values.product %}selected{% endif %}>{{ product.name }} ({{ product.sku }}){% if not product.is_active %} — inactive{% endif %}</option>{% endfor %}</select></div>
+      <div class="setup-field"><label for="setup-pack">Retail pack size</label><select id="setup-pack" name="pack_size" required><option value="1" {% if offer_values.pack_size == '1' %}selected{% endif %}>1 sealed jar</option><option value="6" {% if offer_values.pack_size == '6' %}selected{% endif %}>6 eggs</option><option value="12" {% if offer_values.pack_size == '12' %}selected{% endif %}>12 eggs</option><option value="30" {% if offer_values.pack_size == '30' %}selected{% endif %}>30 eggs</option></select></div>
       <div class="setup-field"><label for="setup-title">Pack title (optional)</label><input id="setup-title" name="title" maxlength="160" value="{{ offer_values.title }}" placeholder="Fresh white eggs · Dozen"></div>
       <div class="setup-field"><label for="setup-description">Product description</label>
         <div class="seo-format-toolbar" aria-label="Description formatting toolbar">
@@ -102,11 +102,11 @@
       </div>
       <div class="setup-field"><label for="setup-order">Display order</label><input id="setup-order" type="number" name="sort_order" min="0" value="{{ offer_values.sort_order }}"></div>
       <div class="setup-field"><label class="setup-check"><input name="is_active" type="checkbox" {% if offer_values.is_active %}checked{% endif %}> Publish this pack on online store</label></div>
-      <div class="setup-actions"><button class="setup-primary" type="submit">{% if edit_offer %}Save pack changes{% else %}Save egg pack{% endif %}</button>{% if edit_offer %}<a class="setup-secondary" href="{% url 'raynoor_shop_setup' %}#packs">Cancel edit</a>{% endif %}</div>
+      <div class="setup-actions"><button class="setup-primary" type="submit">{% if edit_offer %}Save pack changes{% else %}Save retail offer{% endif %}</button>{% if edit_offer %}<a class="setup-secondary" href="{% url 'raynoor_shop_setup' %}#packs">Cancel edit</a>{% endif %}</div>
     </form>
     <div class="setup-grid" style="margin-top:18px"><table><thead><tr><th>Retail pack</th><th>Price</th><th>Status</th><th></th></tr></thead><tbody>
-    {% for offer in offers %}<tr><td><div style="display:flex;align-items:center;gap:10px">{% if offer.has_photo %}<img class="setup-thumb" src="{% url 'raynoor_offer_photo' offer_id=offer.pk %}?v={{ offer.photo_updated_at|date:'U' }}" loading="lazy" alt="">{% else %}<span style="font-size:22px">🥚</span>{% endif %}<div><strong>{{ offer.title|default:offer.product.name }}</strong><br><small>{{ offer.pack_size }} eggs · {{ offer.product.name }}</small></div></div></td><td>Rs {{ offer.price_per_pack|floatformat:0|intcomma }}</td><td><span class="setup-tag {% if not offer.is_active %}off{% endif %}">{% if offer.is_active %}Active{% else %}Draft{% endif %}</span></td><td><a href="?offer={{ offer.pk }}#packs">Edit</a>{% if offer.is_active and offer.product.is_active %}<br><a href="{% url 'raynoor_product_detail' offer_id=offer.pk %}" target="_blank" rel="noopener">View product ↗</a>{% endif %}</td></tr>
-    {% empty %}<tr><td colspan="4">No egg packs configured. Create your first pack above.</td></tr>{% endfor %}
+    {% for offer in offers %}<tr><td><div style="display:flex;align-items:center;gap:10px">{% if offer.has_photo %}<img class="setup-thumb" src="{% url 'raynoor_offer_photo' offer_id=offer.pk %}?v={{ offer.photo_updated_at|date:'U' }}" loading="lazy" alt="">{% else %}<span style="font-size:22px">🥚</span>{% endif %}<div><strong>{{ offer.title|default:offer.product.name }}</strong><br><small>{{ offer.pack_label }} · {{ offer.product.name }}</small></div></div></td><td>Rs {{ offer.price_per_pack|floatformat:0|intcomma }}</td><td><span class="setup-tag {% if not offer.is_active %}off{% endif %}">{% if offer.is_active %}Active{% else %}Draft{% endif %}</span></td><td><a href="?offer={{ offer.pk }}#packs">Edit</a>{% if offer.is_active and offer.product.is_active %}<br><a href="{% url 'raynoor_product_detail' offer_id=offer.pk %}" target="_blank" rel="noopener">View product ↗</a>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="4">No retail offers configured. Create your first pack above.</td></tr>{% endfor %}
     </tbody></table></div>
   </section>
   <section class="setup-card" id="zones">
@@ -131,6 +131,18 @@
 <div class="ep-panel" style="padding:17px;margin-bottom:20px"><strong>Before opening the online shop:</strong> Add at least one active egg pack and delivery zone, confirm POS stock, then test guest checkout and cancellation locally. Prices and delivery fees entered here are applied to new orders; previous orders keep their recorded values.</div>
 <script>
 (function(){
+  const product = document.getElementById('setup-product');
+  const size = document.getElementById('setup-pack');
+  if (product && size) {
+    const refresh = function(){
+      const category = product.selectedOptions[0]?.dataset.category || 'egg';
+      const choices = category === 'egg' ? ['6','12','30'] : ['1'];
+      Array.from(size.options).forEach(opt => { opt.hidden = !choices.includes(opt.value); opt.disabled = !choices.includes(opt.value); });
+      if (!choices.includes(size.value)) size.value = choices[0];
+    };
+    product.addEventListener('change', refresh); refresh();
+  }
+
   const input=document.getElementById('setup-photo');
   const wrapper=document.getElementById('new-photo-preview');
   const image=document.getElementById('new-photo-preview-img');

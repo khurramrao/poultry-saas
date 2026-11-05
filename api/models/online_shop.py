@@ -24,7 +24,7 @@ class OnlineRetailAccount(models.Model):
 
 class OnlineOffer(models.Model):
     product = models.ForeignKey('api.EggPOSProduct', on_delete=models.PROTECT, related_name='online_offers')
-    pack_size = models.PositiveSmallIntegerField(choices=[(6, '6 eggs'), (12, '12 eggs'), (30, '30 eggs')])
+    pack_size = models.PositiveSmallIntegerField(choices=[(1, '1 jar'), (6, '6 eggs'), (12, '12 eggs'), (30, '30 eggs')])
     price_per_pack = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
     title = models.CharField(max_length=160, blank=True)
     is_active = models.BooleanField(default=False)
@@ -51,8 +51,14 @@ class OnlineOffer(models.Model):
         ordering = ('sort_order', 'id')
         constraints = [models.UniqueConstraint(fields=['product', 'pack_size'], name='unique_online_egg_pack')]
 
+    @property
+    def pack_label(self):
+        if self.product.category == 'egg':
+            return f'{self.pack_size} eggs'
+        return f'{self.pack_size} jar' if self.pack_size == 1 else f'{self.pack_size} jars'
+
     def __str__(self):
-        return self.title or f'{self.product.name} · {self.pack_size} eggs'
+        return self.title or f'{self.product.name} · {self.pack_label}'
 
 
 class OnlineOfferGalleryPhoto(models.Model):

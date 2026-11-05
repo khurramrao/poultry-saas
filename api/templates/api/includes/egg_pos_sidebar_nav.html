@@ -3,7 +3,7 @@
 {% if request.user.is_superuser or request.user.is_staff %}
 <a class="sidebar-home-link" href="{% url 'dashboard' %}"><i class="fa-solid fa-arrow-left"></i><span>Main Dashboard</span></a>
 {% endif %}
-<div class="sidebar-context-title"><i class="fa-solid fa-cash-register"></i>&nbsp; Egg POS</div>
+<div class="sidebar-context-title"><i class="fa-solid fa-cash-register"></i>&nbsp; Retail POS</div>
 <a href="{% url 'egg_pos_dashboard' %}" class="{% if page == 'egg_pos_dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge-high"></i><span>POS Dashboard</span></a>
 <a href="{% url 'egg_pos_new_sale' %}" class="{% if page == 'egg_pos_new_sale' %}active{% endif %}"><i class="fa-solid fa-cart-plus"></i><span>New Sale</span></a>
 <a href="{% url 'egg_pos_sales' %}" class="{% if page == 'egg_pos_sales' or page == 'egg_pos_sale_detail' or page == 'egg_pos_sale_invoice' or page == 'egg_pos_edit_sale' or page == 'egg_pos_restore_sale' %}active{% endif %}"><i class="fa-solid fa-receipt"></i><span>{% if request.user.is_superuser or request.user.is_staff or request.user.egg_pos_access.can_manage %}Sales & Invoices{% else %}My Sales{% endif %}</span></a>

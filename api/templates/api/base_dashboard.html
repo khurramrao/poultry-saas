@@ -802,7 +802,7 @@
             </a>
             {% elif request.user.egg_pos_access.is_active %}
                 {% if request.user.egg_pos_access.can_sell or request.user.egg_pos_access.can_manage %}
-                <a href="{% url 'egg_pos_dashboard' %}" class="notification-link" title="Egg POS">
+                <a href="{% url 'egg_pos_dashboard' %}" class="notification-link" title="RayNoor Retail POS">
                     <i class="fa-solid fa-cash-register"></i>
                 </a>
                 {% elif request.user.owned_goats.exists %}

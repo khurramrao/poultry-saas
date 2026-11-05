@@ -270,7 +270,7 @@ def dashboard(request):
     today_revenue = money(sales_qs.aggregate(total=Sum("net_total"))["total"] or ZERO)
     today_profit = money(sales_qs.aggregate(total=Sum("profit_total"))["total"] or ZERO)
     today_eggs_sold = int(
-        EggPOSSaleItem.objects.filter(sale__in=sales_qs)
+        EggPOSSaleItem.objects.filter(sale__in=sales_qs).filter(product__category="egg")
         .aggregate(total=Sum("quantity"))["total"] or 0
     )
 
@@ -287,7 +287,7 @@ def dashboard(request):
         month_sales_qs.aggregate(total=Sum("net_total"))["total"] or ZERO
     )
     month_eggs_sold = int(
-        EggPOSSaleItem.objects.filter(sale__in=month_sales_qs)
+        EggPOSSaleItem.objects.filter(sale__in=month_sales_qs).filter(product__category="egg")
         .aggregate(total=Sum("quantity"))["total"] or 0
     )
 
@@ -402,6 +402,10 @@ def products(request):
                 source = EggPOSProduct.objects.get(pk=int(request.POST['source_id']))
                 raw_primary = (request.POST.get('selling_product') or '').strip()
                 primary = EggPOSProduct.objects.get(pk=int(raw_primary), selling_product__isnull=True) if raw_primary else None
+                if primary and source.category != primary.category:
+                    raise ValueError('Cannot combine eggs, ghee and honey in the same selling SKU group.')
+                if primary and not source.is_egg:
+                    raise ValueError('Jar products must use their own sellable SKU.')
                 if primary and (source.pk == primary.pk or source.source_skus.exists()):
                     raise ValueError('A source SKU cannot point to itself or to a nested selling group.')
                 if source.online_offers.filter(is_active=True).exists():
@@ -417,18 +421,28 @@ def products(request):
             sku = (request.POST.get("sku") or "").strip().upper()
             if not name or not sku:
                 raise ValueError("Product name and SKU are required.")
+            category = (request.POST.get('category') or 'egg').strip()
+            if category not in dict(EggPOSProduct.CATEGORY_CHOICES):
+                raise ValueError('Choose Eggs, Desi Ghee or Honey.')
             weight_raw = (request.POST.get("weight_grams") or "").strip()
             weight = Decimal(weight_raw) if weight_raw else None
+            if weight is not None and (not weight.is_finite() or weight <= 0):
+                raise ValueError('Pack / egg weight must be positive.')
+            if category != 'egg' and (not weight or weight < 1):
+                raise ValueError('Enter the net grams on the sealed jar (e.g. 500 or 1000).')
+            primary = (EggPOSProduct.objects.get(pk=int(request.POST['selling_product']), selling_product__isnull=True)
+                       if request.POST.get('selling_product') else None)
+            if primary and (primary.category != category or category != 'egg'):
+                raise ValueError('Selling groups can only combine matching egg product SKUs.')
             price = _parse_money(request.POST.get("default_sale_price") or "0", "Default sale price", allow_zero=True)
-            low_stock = int(request.POST.get("low_stock_eggs") or 100)
+            low_stock = int(request.POST.get("low_stock_eggs") or (100 if category == 'egg' else 5))
             if low_stock < 0:
                 raise ValueError("Low stock level cannot be negative.")
             EggPOSProduct.objects.create(
                 name=name,
                 sku=sku,
-                selling_product=(EggPOSProduct.objects.get(
-                    pk=int(request.POST['selling_product']), selling_product__isnull=True)
-                    if request.POST.get('selling_product') else None),
+                category=category,
+                selling_product=primary,
                 weight_grams=weight,
                 default_sale_price=price,
                 low_stock_eggs=low_stock,
@@ -546,6 +560,7 @@ def add_purchase(request):
             costs = request.POST.getlist("unit_cost")
             line_totals = request.POST.getlist("line_total_cost")
             expiries = request.POST.getlist("expiry_date")
+            sticker_costs = request.POST.getlist("sticker_cost_total")
 
             rows = []
             total_qty = 0
@@ -564,7 +579,11 @@ def add_purchase(request):
                 expiry = _parse_date(expiries[index], "Expiry date", default=None) if index < len(expiries) and expiries[index] else None
                 if expiry and expiry < purchase_date:
                     raise ValueError("Expiry date cannot be before purchase date.")
-                rows.append((product, qty, unit_cost, expiry))
+                sticker_cost = _parse_money(
+                    sticker_costs[index] if index < len(sticker_costs) and sticker_costs[index] else '0',
+                    'RayNoor sticker cost', allow_zero=True,
+                )
+                rows.append((product, qty, unit_cost, expiry, sticker_cost))
                 total_qty += qty
             if not rows:
                 raise ValueError("Add at least one purchase item.")
@@ -584,14 +603,16 @@ def add_purchase(request):
                     notes=(request.POST.get("notes") or "").strip(),
                     created_by=request.user,
                 )
-                for number, (product, qty, unit_cost, expiry) in enumerate(rows, start=1):
+                for number, (product, qty, unit_cost, expiry, sticker_cost) in enumerate(rows, start=1):
                     item = EggPOSPurchaseItem.objects.create(
                         purchase=purchase,
                         product=product,
                         quantity=qty,
                         unit_cost=unit_cost,
+                        sticker_cost_total=sticker_cost,
                     )
-                    landed_unit_cost = (Decimal(unit_cost) + transport_per_egg).quantize(UNIT_COST_QUANT)
+                    sticker_per_unit = (Decimal(sticker_cost) / Decimal(qty)).quantize(UNIT_COST_QUANT)
+                    landed_unit_cost = (Decimal(unit_cost) + transport_per_egg + sticker_per_unit).quantize(UNIT_COST_QUANT)
                     lot = EggPOSInventoryLot.objects.create(
                         product=product,
                         source_type="purchase",
@@ -605,7 +626,9 @@ def add_purchase(request):
                         unit_cost=landed_unit_cost,
                         notes=(
                             f"Purchase #{purchase.id} {purchase.reference} | "
-                            f"Base Rs {unit_cost:.4f}/egg + transport Rs {transport_per_egg:.4f}/egg"
+                            f"Base Rs {unit_cost:.4f}/{product.stock_unit} + "
+                            f"transport Rs {transport_per_egg:.4f}/{product.stock_unit} + "
+                            f"RayNoor sticker Rs {sticker_per_unit:.4f}/{product.stock_unit}"
                         ).strip(),
                     )
                     item.lot = lot
@@ -742,7 +765,7 @@ def edit_purchase(request, purchase_id):
             old_transport = money(purchase.transport_cost)
             old_landed = money(purchase.landed_total)
             new_base = money(sum((new_line_totals[item.id] for item in items), ZERO))
-            new_landed = money(new_base + transport_cost)
+            new_landed = money(new_base + transport_cost + purchase.sticker_total)
 
             with transaction.atomic():
                 purchase.supplier = supplier
@@ -775,13 +798,15 @@ def edit_purchase(request, purchase_id):
                     if not item.lot_id:
                         continue
                     lot = item.lot
-                    landed_unit_cost = (base_unit_cost + transport_per_egg).quantize(UNIT_COST_QUANT)
+                    sticker_per_unit = (Decimal(item.sticker_cost_total or 0) / Decimal(item.quantity)).quantize(UNIT_COST_QUANT)
+                    landed_unit_cost = (base_unit_cost + transport_per_egg + sticker_per_unit).quantize(UNIT_COST_QUANT)
                     lot.supplier = supplier
                     lot.unit_cost = landed_unit_cost
                     lot.notes = (
                         f"Purchase #{purchase.id} {purchase.reference} | "
                         f"Base Rs {base_unit_cost:.6f}/egg + "
-                        f"transport Rs {transport_per_egg:.6f}/egg | corrected {stamp}"
+                        f"transport Rs {transport_per_egg:.6f}/unit + "
+                        f"stickers Rs {sticker_per_unit:.6f}/unit | corrected {stamp}"
                     ).strip()
                     lot.save(update_fields=["supplier", "unit_cost", "notes"])
 
@@ -879,6 +904,8 @@ def farm_transfer(request):
                 if not product_id:
                     continue
                 product = get_object_or_404(EggPOSProduct, pk=product_id, is_active=True)
+                if not product.is_egg:
+                    raise ValueError('Farm Egg Management transfers are for eggs only.')
                 qty = _parse_positive_int(
                     quantities[index] if index < len(quantities) else None,
                     "Quantity",
@@ -1144,7 +1171,7 @@ def new_sale(request):
             unit_rates = request.POST.getlist("unit_rate")
             source_allocations = request.POST.getlist("source_allocations")
 
-            unit_sizes = {"egg": 1, "dozen": 12, "tray": 30, "crate": 360}
+            unit_sizes = {"egg": 1, "jar": 1, "dozen": 12, "tray": 30, "crate": 360}
             rows = []
             requested_by_product = {}
 
@@ -1158,6 +1185,10 @@ def new_sale(request):
                 # while the entered pack rate is preserved exactly for the invoice.
                 sale_unit = (sale_units[index] if index < len(sale_units) else "").strip().lower()
                 if sale_unit in unit_sizes:
+                    if product.is_egg and sale_unit == 'jar':
+                        raise ValueError(f'{product.name} is sold in eggs, not jars.')
+                    if not product.is_egg and sale_unit != 'jar':
+                        raise ValueError(f'{product.name} must be sold by sealed jar.')
                     unit_size = unit_sizes[sale_unit]
                     unit_count = _parse_positive_int(
                         unit_counts[index] if index < len(unit_counts) else None,
@@ -1187,6 +1218,8 @@ def new_sale(request):
                     unit_rate = unit_price
                     line_total = money(Decimal(qty) * unit_price)
 
+                if not product.is_egg and sale_unit != 'jar':
+                    raise ValueError(f'{product.name} must be sold by jar.')
                 from api.services.egg_pos_mixed_sources import source_ids
                 sku_ids = source_ids(product.pk)
                 if len(sku_ids) > 1:
@@ -1734,7 +1767,7 @@ def edit_pos_sale(request, sale_id):
             messages.error(request, str(error))
     # Legacy invoices stored loose-egg quantities before unit_count was introduced.
     # Show the actual original quantity/rate instead of its old default of 1.
-    size_by_unit = {"egg": 1, "dozen": 12, "tray": 30, "crate": 360}
+    size_by_unit = {"egg": 1, "jar": 1, "dozen": 12, "tray": 30, "crate": 360}
     for item in sale.items.all():
         unit_size = size_by_unit.get(item.sale_unit, 1)
         count = int(item.unit_count or 0)

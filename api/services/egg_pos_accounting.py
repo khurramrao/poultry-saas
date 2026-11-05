@@ -86,10 +86,11 @@ def _incoming_payment_debit(payment):
 def sync_purchase(purchase):
     base_total = money(purchase.total_amount)
     transport = money(purchase.transport_cost)
-    landed = money(base_total + transport)
+    stickers = money(purchase.sticker_total)
+    landed = money(base_total + transport + stickers)
     supplier_party = _supplier_party(purchase.supplier)
     lines = [
-        line("1200", debit=landed, description="Egg inventory received"),
+        line("1200", debit=landed, description="Retail inventory received (including landed costs)"),
         line("2000", credit=base_total, description="Supplier invoice", **supplier_party),
     ]
     if transport > ZERO:
@@ -103,6 +104,8 @@ def sync_purchase(purchase):
                     description="Inbound transport capitalized into inventory",
                 )
             )
+    if stickers > ZERO:
+        lines.append(line("1000", credit=stickers, description="RayNoor stickers / labels paid from company cash"))
     return post_entry(
         source_key=f"egg_pos:purchase:{purchase.id}",
         entry_date=purchase.purchase_date,
@@ -186,19 +189,19 @@ def sync_sale_invoice(sale):
     egg_revenue = money(sale.net_total - delivery_fee)
     lines = [
         line("1100", debit=sale.net_total, description="Customer invoice", **customer_party),
-        line("4000", credit=egg_revenue, description="Egg sales revenue"),
+        line("4000", credit=egg_revenue, description="RayNoor retail sales revenue"),
     ]
     if delivery_fee > ZERO:
         lines.append(line("4010", credit=delivery_fee, description="Online delivery charge"))
     lines.extend([
-        line("5000", debit=sale.cogs_total, description="FIFO egg cost of goods sold"),
+        line("5000", debit=sale.cogs_total, description="FIFO retail cost of goods sold"),
         line("1200", credit=sale.cogs_total, description="FIFO inventory consumed"),
     ])
     return post_entry(
         source_key=f"egg_pos:sale:{sale.id}",
         entry_date=sale.sale_date,
         reference=sale.sale_number or f"RNE-{sale.id:05d}",
-        memo=f"Egg sale by {_user_name(sale.created_by)}",
+        memo=f"Retail sale by {_user_name(sale.created_by)}",
         source_type="egg_pos_sale",
         source_id=sale.id,
         created_by=sale.created_by,

@@ -62,7 +62,7 @@ def checkout_order(cart, *, account, name, phone, address, zone, note):
     if not zone.is_active or not (zone.own_rider_allowed or zone.third_party_allowed):
         raise ValueError('Delivery is not available in this area yet.')
     if not cart or len(cart) > 20:
-        raise ValueError('Add at least one egg product to your cart.')
+        raise ValueError('Add at least one RayNoor product to your cart.')
     requests = []
     by_product = defaultdict(int)
     subtotal = Decimal('0.00')
@@ -89,6 +89,9 @@ def checkout_order(cart, *, account, name, phone, address, zone, note):
         offer = offers[offer_id]
         if offer.price_per_pack <= 0:
             raise ValueError(f'{offer} is not yet available for purchase.')
+        if (offer.product.is_egg and offer.pack_size not in (6, 12, 30)) or (
+                not offer.product.is_egg and offer.pack_size != 1):
+            raise ValueError(f'{offer.product.name} has an invalid online pack configuration.')
         eggs = int(offer.pack_size) * count
         line_total = cash(offer.price_per_pack * count)
         by_product[primary_id(offer.product_id)] += eggs
@@ -96,20 +99,20 @@ def checkout_order(cart, *, account, name, phone, address, zone, note):
         clean.append((offer, count, eggs, line_total))
     subtotal = cash(subtotal)
     # Apply both the RayNoor-wide floor and any higher area-specific minimum.
-    # Do not count the delivery fee toward the egg merchandise minimum.
+    # Do not count delivery toward the merchandise minimum.
     minimum = max(MIN_EGGS_SUBTOTAL, cash(zone.minimum_order))
     if subtotal < minimum:
         missing = cash(minimum - subtotal)
         raise ValueError(
-            f'Minimum egg order for {zone.name} is Rs {minimum:,.0f} before delivery. '
-            f'Add Rs {missing:,.0f} more in egg packs to checkout.'
+            f'Minimum retail order for {zone.name} is Rs {minimum:,.0f} before delivery. '
+            f'Add Rs {missing:,.0f} more in products to checkout.'
         )
     # Lock in a deterministic product order, matching POS stock locks.
     for product_id, needed in sorted(by_product.items()):
         free = free_available(product_id, lock=True)
         if needed > free:
             product = offers[next(k for k in offer_ids if offers[k].product_id == product_id)].product
-            raise ValueError(f'Only {free} {product.name} eggs are available right now.')
+            raise ValueError(f'Only {free} {product.name} units are available right now.')
     order = OnlineOrder.objects.create(
         account=account, customer_name=name, customer_phone=phone, address=address,
         zone=zone, note=note, subtotal=subtotal,
@@ -282,7 +285,7 @@ def action_order(order_id, actor, action, *, delivery_method='', rider_name='', 
         for item in order.items.all():
             pos_item = EggPOSSaleItem.objects.create(
                 sale=sale, product=item.product, quantity=item.egg_quantity,
-                sale_unit='egg', unit_count=item.egg_quantity, unit_size=1,
+                sale_unit=('egg' if item.product.is_egg else 'jar'), unit_count=item.egg_quantity, unit_size=1,
                 unit_rate=cash(item.line_total / item.egg_quantity),
                 unit_price=cash(item.line_total / item.egg_quantity),
                 line_total=item.line_total,

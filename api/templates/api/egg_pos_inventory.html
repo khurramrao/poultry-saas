@@ -11,15 +11,15 @@
 </style>
 
 <div class="inv-hero">
-  <div><h2><i class="fa-solid fa-boxes-stacked"></i> Egg Inventory</h2><p>Live sellable stock in individual eggs. Pack equivalents are shown only for convenience.</p></div>
+  <div><h2><i class="fa-solid fa-boxes-stacked"></i> RayNoor Retail Inventory</h2><p>Eggs are counted individually; desi ghee and honey are counted as sealed jars. Every SKU has its own FIFO purchase lots.</p></div>
   {% if can_manage_pos %}<div class="inv-actions"><a class="ep-btn primary" href="{% url 'egg_pos_add_purchase' %}"><i class="fa-solid fa-plus"></i> Stock In</a><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-receipt"></i> Purchase History</a></div>{% endif %}
 </div>
 
 <div class="inv-kpis">
-  <div class="inv-kpi"><div class="lbl">Sellable Stock</div><div class="num">{{ total_stock|intcomma }}</div><div class="sub">individual eggs</div></div>
-  <div class="inv-kpi"><div class="lbl">Products In Stock</div><div class="num">{{ products_in_stock }}</div><div class="sub">active egg grades</div></div>
+  <div class="inv-kpi"><div class="lbl">Sellable Stock</div><div class="num">{{ total_stock|intcomma }}</div><div class="sub">physical units: eggs and sealed jars</div></div>
+  <div class="inv-kpi"><div class="lbl">Products In Stock</div><div class="num">{{ products_in_stock }}</div><div class="sub">active eggs, ghee and honey</div></div>
   {% if can_manage_pos %}<div class="inv-kpi money"><div class="lbl">FIFO Stock Value</div><div class="num">Rs {{ total_stock_value|floatformat:0|intcomma }}</div><div class="sub">remaining inventory at landed cost</div></div>{% endif %}
-  <div class="inv-kpi {% if low_stock_count or expired_stock_total %}warn{% endif %}"><div class="lbl">Attention</div><div class="num">{{ low_stock_count }}</div><div class="sub">low-stock product{{ low_stock_count|pluralize }}{% if expired_stock_total %} · {{ expired_stock_total|intcomma }} expired eggs{% endif %}</div></div>
+  <div class="inv-kpi {% if low_stock_count or expired_stock_total %}warn{% endif %}"><div class="lbl">Attention</div><div class="num">{{ low_stock_count }}</div><div class="sub">low-stock product{{ low_stock_count|pluralize }}{% if expired_stock_total %} · {{ expired_stock_total|intcomma }} expired units{% endif %}</div></div>
 </div>
 
 {% if grouped_stock %}
@@ -37,23 +37,25 @@
 {% for row in stock_rows %}
 <section class="inv-product">
   <div class="inv-product-head">
-    <div class="inv-product-title"><div class="inv-icon"><i class="fa-solid fa-egg"></i></div><div><div class="inv-name">{{ row.product.name }}</div><div class="inv-meta">{{ row.product.sku }}{% if row.product.weight_grams %} · {{ row.product.weight_grams|floatformat:0 }}g{% endif %}{% if row.low_stock %} · <span style="color:#d97706;font-weight:900">LOW STOCK</span>{% endif %}</div></div></div>
-    <div class="inv-stock"><strong>{{ row.stock|intcomma }}</strong><span>eggs currently sellable</span></div>
+    <div class="inv-product-title"><div class="inv-icon"><i class="fa-solid fa-{% if row.product.is_egg %}egg{% else %}jar{% endif %}"></i></div><div><div class="inv-name">{{ row.product.name }}</div><div class="inv-meta">{{ row.product.sku }}{% if row.product.weight_grams %} · {{ row.product.weight_grams|floatformat:0 }}g{% endif %}{% if row.low_stock %} · <span style="color:#d97706;font-weight:900">LOW STOCK</span>{% endif %}</div></div></div>
+    <div class="inv-stock"><strong>{{ row.stock|intcomma }}</strong><span>{{ row.product.stock_unit_plural }} currently sellable</span></div>
   </div>
+  {% if row.product.is_egg %}
   <div class="inv-units">
     <div class="inv-unit"><strong>{{ row.stock|intcomma }}</strong><span>Loose Eggs</span></div>
     <div class="inv-unit"><strong>{{ row.dozens|intcomma }}</strong><span>Full Dozen</span></div>
     <div class="inv-unit"><strong>{{ row.trays|intcomma }}</strong><span>Full Trays</span></div>
     <div class="inv-unit"><strong>{{ row.crates|intcomma }}</strong><span>Full Crates</span></div>
   </div>
-  <div class="inv-note">{% if row.source_reservation %}Packed-order SKU holds{% else %}Online orders reserved{% endif %}: <strong>{{ row.online_reserved|intcomma }}</strong> eggs · {% if row.source_reservation %}Remaining after fixed SKU holds{% else %}Available to sell now{% endif %}: <strong>{{ row.free_stock|intcomma }}</strong> eggs. {% if row.source_reservation %}Unpacked online orders additionally reserve quantity at the combined selling-product level shown above.{% endif %} Physical stock is not deducted until delivery.</div>
-  <div class="inv-note">Dozen, tray and crate are alternative views of the same physical stock (12 / 30 / 360 eggs). They are not additional stock.</div>
-  <div class="inv-note" style="color:#9b551c">Expiry-held stock: <strong>{{ row.expired_stock|intcomma }} eggs</strong> · Not included in sellable stock. Review recorded dates and physical egg condition before sale.</div>
+  {% else %}<div class="inv-units"><div class="inv-unit"><strong>{{ row.stock|intcomma }}</strong><span>Sealed jars</span></div><div class="inv-unit"><strong>{{ row.product.size_label }}</strong><span>Net content / jar</span></div><div class="inv-unit"><strong>{{ row.online_reserved|intcomma }}</strong><span>Online reserved</span></div><div class="inv-unit"><strong>{{ row.free_stock|intcomma }}</strong><span>Available</span></div></div>{% endif %}
+  <div class="inv-note">{% if row.source_reservation %}Packed-order SKU holds{% else %}Online orders reserved{% endif %}: <strong>{{ row.online_reserved|intcomma }}</strong> {{ row.product.stock_unit_plural }} · {% if row.source_reservation %}Remaining after fixed SKU holds{% else %}Available to sell now{% endif %}: <strong>{{ row.free_stock|intcomma }}</strong> {{ row.product.stock_unit_plural }}. {% if row.source_reservation %}Unpacked online orders additionally reserve quantity at the combined selling-product level shown above.{% endif %} Physical stock is not deducted until delivery.</div>
+  {% if row.product.is_egg %}<div class="inv-note">Dozen, tray and crate are alternative views of the same physical egg stock (12 / 30 / 360 eggs). They are not additional stock.</div>{% endif %}
+  <div class="inv-note" style="color:#9b551c">Expiry-held stock: <strong>{{ row.expired_stock|intcomma }} {{ row.product.stock_unit_plural }}</strong> · Not included in sellable stock. Check expiry and physical condition before sale.</div>
 
   <div class="inv-split">
-    <div><small>RayNoor Farm</small><strong>{{ row.farm_stock|intcomma }} eggs</strong></div>
-    <div><small>Purchased</small><strong>{{ row.purchase_stock|intcomma }} eggs</strong></div>
-    <div><small>Low Stock At</small><strong>{{ row.product.low_stock_eggs|intcomma }} eggs</strong></div>
+    <div><small>RayNoor Farm</small><strong>{{ row.farm_stock|intcomma }} {{ row.product.stock_unit_plural }}</strong></div>
+    <div><small>Purchased</small><strong>{{ row.purchase_stock|intcomma }} {{ row.product.stock_unit_plural }}</strong></div>
+    <div><small>Low Stock At</small><strong>{{ row.product.low_stock_eggs|intcomma }} {{ row.product.stock_unit_plural }}</strong></div>
   </div>
   {% if can_manage_pos %}
   <div class="inv-lots">
@@ -61,8 +63,8 @@
     {% for lot in row.lots %}
       <div class="lot-row">
         <div><span class="lot-code">{{ lot.lot_code }}</span><br><span class="lot-source">{{ lot.get_source_type_display }} · {{ lot.received_date|date:"d M Y" }}</span></div>
-        <div><strong>{{ lot.quantity_remaining|intcomma }}</strong> / {{ lot.quantity_received|intcomma }} eggs</div>
-        <div>Rs <span class="lot-money">{{ lot.unit_cost|floatformat:4 }}</span> / egg</div>
+        <div><strong>{{ lot.quantity_remaining|intcomma }}</strong> / {{ lot.quantity_received|intcomma }} {{ row.product.stock_unit_plural }}</div>
+        <div>Rs <span class="lot-money">{{ lot.unit_cost|floatformat:4 }}</span> / {{ row.product.stock_unit }}</div>
         <div>Value<br><span class="lot-money">Rs {{ lot.stock_value|floatformat:0|intcomma }}</span></div>
         <div>{% if lot.supplier %}{{ lot.supplier.name }}{% elif lot.farm_batch %}RayNoor Farm{% else %}—{% endif %}</div>
         <div class="lot-edit">{% if lot.purchase_id %}<a class="ep-btn" href="{% url 'egg_pos_edit_purchase' lot.purchase_id %}"><i class="fa-solid fa-pen"></i> Correct Purchase</a>{% elif lot.farm_transfer_id %}<a class="ep-btn" href="{% url 'egg_pos_farm_transfer_detail' lot.farm_transfer_id %}">View Transfer</a>{% endif %}{% if user.is_superuser or user.is_staff %} <a class="ep-btn" href="{% url 'egg_pos_lot_expiry' lot.id %}" title="Correct recorded expiry date, with admin password and audit">Correct Expiry</a>{% endif %}</div>
