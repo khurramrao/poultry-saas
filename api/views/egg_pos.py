@@ -1567,6 +1567,7 @@ def customers(request):
 
 
 @login_required
+@require_http_methods(["GET", "POST"])
 def customer_detail(request, customer_id):
     if not can_sell(request.user):
         return _deny(request)
@@ -1581,6 +1582,38 @@ def customer_detail(request, customer_id):
     )
 
     manage = can_manage(request.user)
+    can_create_prebooking = bool(request.user.is_superuser or (request.user.is_staff and manage))
+
+    if request.method == "POST":
+        if not manage:
+            return _deny(request, "Only POS management can update customer details.")
+        try:
+            name = (request.POST.get("name") or "").strip()
+            phone = (request.POST.get("phone") or "").strip()
+            company_name = (request.POST.get("company_name") or "").strip()
+            address = (request.POST.get("address") or "").strip()
+            notes = (request.POST.get("notes") or "").strip()
+            if not name or len(name) > 150:
+                raise ValueError("Enter a customer name (maximum 150 characters).")
+            if len(company_name) > 150 or len(phone) > 40:
+                raise ValueError("Company name or phone number is too long.")
+            if phone:
+                digits = ''.join(c for c in phone if c.isdigit())
+                if not (10 <= len(digits) <= 15) or not all(c.isdigit() or c in '+ -()' for c in phone):
+                    raise ValueError("Enter a valid customer phone number, for example 03001234567.")
+            if len(address) > 2000 or len(notes) > 2000:
+                raise ValueError("Address or notes must be at most 2,000 characters.")
+            with transaction.atomic():
+                locked = EggPOSCustomer.objects.select_for_update().get(pk=customer.pk, is_active=True)
+                locked.name, locked.phone, locked.company_name = name, phone, company_name
+                locked.address, locked.notes = address, notes
+                locked.save(update_fields=["name", "phone", "company_name", "address", "notes", "updated_at"])
+            messages.success(request, "Customer details updated; existing invoices and ledger are unchanged.")
+            return redirect("egg_pos_customer_detail", customer_id=customer.id)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("egg_pos_customer_detail", customer_id=customer.id)
+
     all_sales = list(customer.sales.filter(is_reversed=False))
     overall = _customer_sales_totals(all_sales)
 
@@ -1605,6 +1638,8 @@ def customer_detail(request, customer_id):
         "visible": visible,
         "sales": visible_sales,
         "can_manage_pos": manage,
+        "can_create_prebooking": can_create_prebooking,
+        "customer_bookings": list(customer.manual_prebookings.order_by("-created_at")[:10]),
     })
 
 

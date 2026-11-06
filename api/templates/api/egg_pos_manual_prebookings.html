@@ -29,11 +29,14 @@
     <tr><td>Total</td><td>{{ channel_total.leads }}</td><td>{{ channel_total.reconfirmed }}</td><td>{{ channel_total.invoiced }}</td><td>{{ channel_total.cancelled }}</td><td>{{ channel_total.conversion|floatformat:1 }}%</td><td>Rs {{ channel_total.invoiced_value|floatformat:0|intcomma }}</td></tr>
     </tbody></table></div><div class="pb-section pb-verification">Counts by the platform selected when the enquiry was entered. POS invoices and values are counted only for linked, existing, non-reversed invoices. Invoice value includes unpaid/credit amounts; it is not cash collected. Website orders are excluded.</div>
   </section>
-  <details class="pb-card pb-entry" id="entry" {% if edit_booking or request.method == 'POST' %}open{% endif %}><summary class="pb-card-head"><h3>{% if edit_booking %}Correct {{ edit_booking.booking_number }}{% else %}<i class="fa-solid fa-plus-circle"></i> New Manual Pre-Booking{% endif %}</h3>{% if edit_booking %}<a href="{% url 'egg_pos_manual_prebookings' %}" class="pb-button alt" style="text-decoration:none;display:inline-flex;align-items:center" onclick="event.stopPropagation()">Cancel Editing</a>{% endif %}</summary><div class="pb-card-body">
+  <details class="pb-card pb-entry" id="entry" {% if edit_booking or selected_customer or request.method == 'POST' %}open{% endif %}><summary class="pb-card-head"><h3>{% if edit_booking %}Correct {{ edit_booking.booking_number }}{% else %}<i class="fa-solid fa-plus-circle"></i> New Manual Pre-Booking{% endif %}</h3>{% if edit_booking %}<a href="{% url 'egg_pos_manual_prebookings' %}" class="pb-button alt" style="text-decoration:none;display:inline-flex;align-items:center" onclick="event.stopPropagation()">Cancel Editing</a>{% endif %}</summary><div class="pb-card-body">
     <form method="post" autocomplete="off">{% csrf_token %}
       <input type="hidden" name="action" value="{% if edit_booking %}update{% else %}create{% endif %}">
       {% if edit_booking %}<input type="hidden" name="booking_id" value="{{ edit_booking.id }}">{% endif %}
       <input type="hidden" name="request_token" value="{{ request_token }}">
+       {% if selected_customer %}<input type="hidden" name="customer_id" value="{{ selected_customer.id }}">
+       <div class="pb-note" style="margin-bottom:12px">Linked customer: <strong>{{ selected_customer.display_label }}</strong>. Phone and name are taken from the saved customer record. <a href="{% url 'egg_pos_customer_detail' selected_customer.id %}">View / update customer</a>.</div>
+       {% endif %}
       <div class="pb-grid">
         <div class="pb-field"><label for="pb-name">Customer Name *</label><input id="pb-name" class="pb-input" name="customer_name" maxlength="150" value="{{ form.customer_name }}" required autocomplete="off"></div>
         <div class="pb-field"><label for="pb-phone">Customer Mobile / WhatsApp *</label><input id="pb-phone" type="tel" class="pb-input" name="customer_phone" maxlength="40" placeholder="0300 1234567" value="{{ form.customer_phone }}" required autocomplete="off"></div>

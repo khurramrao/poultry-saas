@@ -3,7 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
-from .egg_pos import EggPOSProduct
+from .egg_pos import EggPOSProduct, EggPOSCustomer
 
 
 CHANNELS = (
@@ -24,6 +24,9 @@ STATUSES = (
 
 
 class EggPOSManualPrebooking(models.Model):
+    # Optional customer link: existing free-text bookings remain valid after migration.
+    customer = models.ForeignKey(EggPOSCustomer, on_delete=models.SET_NULL, null=True,
+                                 blank=True, related_name="manual_prebookings")
     customer_name = models.CharField(max_length=150)
     customer_phone = models.CharField(max_length=40)
     channel = models.CharField(max_length=20, choices=CHANNELS)

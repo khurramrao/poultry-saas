@@ -54,9 +54,13 @@ def prefill_for_sale(user, raw_id, customers):
             item["unit"] = "egg"
             item["unit_count"] = item["eggs"]
 
-    matching_customer_id = None
+    # Prefer the explicit saved customer link; phone matching is fallback only
+    # for historical pre-bookings created before the customer-link feature.
+    matching_customer_id = booking.customer_id if any(
+        customer.id == booking.customer_id for customer in customers
+    ) else None
     target = digits(booking.customer_phone)
-    if target:
+    if matching_customer_id is None and target:
         for customer in customers:
             if digits(customer.phone) == target:
                 matching_customer_id = customer.id

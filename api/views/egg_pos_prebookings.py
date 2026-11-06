@@ -12,7 +12,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from api.models.egg_pos import EggPOSProduct, EggPOSSale
+from api.models.egg_pos import EggPOSProduct, EggPOSSale, EggPOSCustomer
 from api.models.egg_pos_prebooking import (
     CHANNELS, STATUSES, UNITS, UNIT_MULTIPLIER,
     EggPOSManualPrebooking as Booking,
@@ -82,10 +82,33 @@ def _log(booking, action, user, details=""):
     Event.objects.create(booking=booking, action=action, actor=user, details=details[:2000])
 
 
+def _linked_customer(request, existing=None):
+    raw = (request.POST.get("customer_id") or "").strip()
+    if not raw and existing is not None and existing.customer_id:
+        raw = str(existing.customer_id)
+    if not raw:
+        return None
+    try:
+        customer_id = int(raw)
+    except (TypeError, ValueError):
+        raise ValueError("Invalid saved customer selection.")
+    customer = EggPOSCustomer.objects.filter(pk=customer_id, is_active=True).first()
+    if not customer:
+        raise ValueError("Saved customer not found or is inactive.")
+    if existing is not None and existing.customer_id and existing.customer_id != customer.id:
+        raise ValueError("Cannot change the linked customer on an existing pre-booking.")
+    if not customer.phone.strip():
+        raise ValueError("Add the saved customer's phone number before recording this pre-booking.")
+    return customer
+
+
 def _record(request):
     action = (request.POST.get("action") or "create").strip()
     if action == "create":
+        customer = _linked_customer(request)
         fields, lines = _validate(request.POST)
+        if customer:
+            fields.update(customer=customer, customer_name=customer.name, customer_phone=customer.phone)
         try:
             token = uuid.UUID(request.POST.get("request_token") or "")
         except (TypeError, ValueError, AttributeError):
@@ -117,7 +140,10 @@ def _record(request):
         if action == "update":
             if booking.status not in ("awaiting_stock", "contact_customer"):
                 raise ValueError("Only bookings not yet reconfirmed can be edited.")
+            customer = _linked_customer(request, existing=booking)
             fields, lines = _validate(request.POST)
+            if customer:
+                fields.update(customer=customer, customer_name=customer.name, customer_phone=customer.phone)
             previous = (f"Name: {booking.customer_name}; phone: {booking.customer_phone}; "
                         f"channel: {booking.channel}; items: " +
                         "; ".join(f"{l.product_id} x{l.quantity} {l.unit}" for l in booking.lines.all()))
@@ -281,10 +307,22 @@ def _context(request, edit_id=None):
         form = dict(customer_name='', customer_phone='', channel='', delivery_area='', expected_date='', notes='')
         lines = [dict(product_id=0, quantity='', unit='tray') for _ in range(5)]
         token = str(uuid.uuid4())
+    selected_customer = None
+    if edit_booking and edit_booking.customer_id:
+        selected_customer = edit_booking.customer
+    elif request.method == 'POST' and request.POST.get('customer_id'):
+        selected_customer = EggPOSCustomer.objects.filter(pk=request.POST.get('customer_id'), is_active=True).first() if request.POST.get('customer_id', '').isdigit() else None
+    elif request.method == 'GET' and not edit_booking and request.GET.get('customer', '').isdigit():
+        selected_customer = EggPOSCustomer.objects.filter(pk=request.GET['customer'], is_active=True).first()
+        if selected_customer:
+            form['customer_name'] = selected_customer.name
+            form['customer_phone'] = selected_customer.phone
+            form['delivery_area'] = (selected_customer.address or '')[:180]
     report_month, channel_rows, channel_total = _channel_performance(request)
     return dict(bookings=bookings, products=products, channels=CHANNELS, units=UNITS,
                 statuses=STATUSES, active_status=status, search=search, today=timezone.localdate(),
                 form=form, line_rows=lines, request_token=token, edit_booking=edit_booking,
+                selected_customer=selected_customer,
                 report_month=report_month, channel_rows=channel_rows, channel_total=channel_total,
                 counts={s: Booking.objects.filter(status=s).count() for s, _ in STATUSES})
 
