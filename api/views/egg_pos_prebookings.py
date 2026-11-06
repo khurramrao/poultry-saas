@@ -265,16 +265,27 @@ def _context(request, edit_id=None):
     status = (request.GET.get("status") or "active").strip()
     search = (request.GET.get("q") or "").strip()[:80]
     qs = Booking.objects.prefetch_related("lines__product", "events__actor").select_related("created_by")
+    today = timezone.localdate()
     if status == "active":
         qs = qs.exclude(status__in=["completed", "cancelled"])
+    elif status == "due_today":
+        qs = qs.exclude(status__in=["completed", "cancelled"]).filter(expected_date=today)
+    elif status == "overdue":
+        qs = qs.exclude(status__in=["completed", "cancelled"]).filter(expected_date__lt=today)
     elif status in dict(STATUSES):
         qs = qs.filter(status=status)
     elif status != "all":
         status = "active"
         qs = qs.exclude(status__in=["completed", "cancelled"])
     if search:
-        qs = qs.filter(Q(customer_name__icontains=search) | Q(customer_phone__icontains=search) |
-                       Q(delivery_area__icontains=search))
+        matches = (Q(customer_name__icontains=search) |
+                   Q(customer_phone__icontains=search) |
+                   Q(delivery_area__icontains=search))
+        # RNPRE-000007 is a displayed booking number, generated from the primary key.
+        normalized = search.upper().replace(" ", "")
+        if normalized.startswith("RNPRE-") and normalized[6:].isdigit():
+            matches |= Q(pk=int(normalized[6:]))
+        qs = qs.filter(matches)
     bookings = list(qs[:200])
     edit_booking = None
     if edit_id:
@@ -319,12 +330,25 @@ def _context(request, edit_id=None):
             form['customer_phone'] = selected_customer.phone
             form['delivery_area'] = (selected_customer.address or '')[:180]
     report_month, channel_rows, channel_total = _channel_performance(request)
+    counts = {s: Booking.objects.filter(status=s).count() for s, _ in STATUSES}
+    active_qs = Booking.objects.exclude(status__in=["completed", "cancelled"])
+    counts.update(
+        active=active_qs.count(),
+        due_today=active_qs.filter(expected_date=today).count(),
+        overdue=active_qs.filter(expected_date__lt=today).count(),
+    )
+    # Dates and badges are computed from real booking due dates, not assumed stock availability.
+    for booking in bookings:
+        booking.is_due_today = bool(booking.expected_date == today and
+                                    booking.status not in ("completed", "cancelled"))
+        booking.is_overdue = bool(booking.expected_date and booking.expected_date < today and
+                                  booking.status not in ("completed", "cancelled"))
     return dict(bookings=bookings, products=products, channels=CHANNELS, units=UNITS,
-                statuses=STATUSES, active_status=status, search=search, today=timezone.localdate(),
+                statuses=STATUSES, active_status=status, search=search, today=today,
                 form=form, line_rows=lines, request_token=token, edit_booking=edit_booking,
                 selected_customer=selected_customer,
                 report_month=report_month, channel_rows=channel_rows, channel_total=channel_total,
-                counts={s: Booking.objects.filter(status=s).count() for s, _ in STATUSES})
+                counts=counts)
 
 
 @login_required

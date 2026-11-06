@@ -1,35 +1,173 @@
-{% extends "api/egg_pos_base.html" %}{% load humanize %}
+
+{% extends "api/egg_pos_base.html" %}
+{% load humanize %}
 {% block egg_pos_css %}
 <style>
-.pb-wrap{max-width:1300px;margin:auto}.pb-note{padding:13px 16px;border:1px solid #c9e2f4;background:#edf7ff;color:#284d6d;border-radius:12px;font-size:12px;line-height:1.65;margin:12px 0 16px}
-.pb-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:13px 0 18px}.pb-stat{border:1px solid #dce8f4;border-radius:13px;background:#fff;padding:17px}.pb-stat small{font-weight:850;color:#607b95;display:block;font-size:10px;text-transform:uppercase}.pb-stat strong{font-size:24px;color:#153a61;display:block;margin-top:5px}
-.pb-card{background:white;border:1px solid #dfe8f2;border-radius:15px;margin:14px 0;box-shadow:0 3px 10px rgba(23,56,87,.03)}.pb-card-head{padding:16px 19px;border-bottom:1px solid #ecf1f6;display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.pb-card-head h3{margin:0;color:#133c66;font-size:16px}.pb-card-body{padding:18px}.pb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.pb-field label{display:block;font-weight:850;font-size:10px;color:#425b77;text-transform:uppercase;margin-bottom:5px}.pb-input{box-sizing:border-box;width:100%;height:43px;border:1px solid #cddceb;border-radius:10px;background:white;padding:9px 11px;font-size:13px;color:#153a60}.pb-input:focus{outline:2px solid #adceec}.pb-area{height:85px;resize:vertical}.pb-full{grid-column:1/-1}.pb-items{border:1px solid #e4ecf4;border-radius:12px;overflow:hidden;margin:16px 0}.pb-item{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;padding:10px 12px;border-bottom:1px solid #eef2f6}.pb-item:last-child{border-bottom:0}.pb-item-head{font-size:10px;text-transform:uppercase;font-weight:850;color:#56708a;background:#f6f9fc}.pb-button{border:0;border-radius:10px;min-height:39px;padding:0 15px;background:#1769b6;color:white;font-size:12px;font-weight:850;cursor:pointer}.pb-button.alt{background:#edf4fb;color:#235a88;border:1px solid #d5e3ef}.pb-button.good{background:#159354}.pb-button.bad{background:#fff0ef;color:#b42f31;border:1px solid #f0cbcb}.pb-button:disabled{opacity:.5;cursor:not-allowed}.pb-muted{color:#6c7e90;font-size:11px}.pb-pill{display:inline-flex;padding:5px 9px;border-radius:999px;font-size:10px;font-weight:900;background:#edf3fb;color:#275f99}.pb-pill.awaiting_stock{background:#fff5df;color:#9d6104}.pb-pill.contact_customer{background:#e8f5ff;color:#155e91}.pb-pill.confirmed{background:#e8f8ed;color:#147846}.pb-pill.completed{background:#e9f8ee;color:#126f40}.pb-pill.cancelled{background:#f8e8ea;color:#a6383a}.pb-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.pb-detail{margin-top:10px;background:#f8fbff;border:1px solid #e1eaf3;border-radius:10px;padding:10px 13px;font-size:12px}.pb-detail summary{font-weight:850;color:#28567e;cursor:pointer}.pb-rows{display:grid;grid-template-columns:1.2fr 1fr 1fr auto;gap:12px}.pb-rows span{font-size:12px}.pb-filter{display:flex;flex-wrap:wrap;gap:10px;align-items:end}.pb-filter>*{flex:1;min-width:150px}.pb-events{max-height:140px;overflow-y:auto;color:#586f86;font-size:11px}.pb-events p{margin:8px 0}.pb-section{padding:18px 19px}.pb-card .pb-cust{font-weight:900;color:#0e375e}.pb-links a{margin-right:10px;color:#166eb3;font-weight:800;font-size:11px;text-decoration:none}
-@media(max-width:720px){.pb-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.pb-grid{grid-template-columns:1fr}.pb-full{grid-column:auto}.pb-item{grid-template-columns:1fr 75px 95px;gap:5px;padding:7px}.pb-input{font-size:12px}.pb-rows{grid-template-columns:1fr 1fr}.pb-section{padding:13px}.pb-card-body{padding:13px}}
-
-/* Compact entry + clear, verifiable social-channel conversion report */
-.pb-entry>summary{list-style:none;cursor:pointer;background:#fafdff}.pb-entry>summary::-webkit-details-marker{display:none}.pb-entry>summary::after{content:"+ Open form";font-size:12px;color:#1266ad;font-weight:850}.pb-entry[open]>summary::after{content:"− Hide form"}.pb-entry>summary:hover{background:#eef6fd}
-.pb-item[hidden]{display:none}.pb-add-item{border:1px dashed #a7c5df;background:#f4f9fe;color:#1a639d;cursor:pointer;border-radius:9px;padding:8px 12px;font-size:12px;font-weight:850;margin-bottom:14px}.pb-add-item[hidden]{display:none}
-.pb-platform-report{overflow:auto}.pb-platform-table{width:100%;border-collapse:collapse;min-width:660px;font-size:12px}.pb-platform-table th{color:#657c92;background:#f6f9fd;font-size:10px;text-transform:uppercase;letter-spacing:.02em;text-align:right;padding:11px 13px;white-space:nowrap}.pb-platform-table td{padding:11px 13px;border-top:1px solid #ecf1f6;text-align:right;white-space:nowrap}.pb-platform-table th:first-child,.pb-platform-table td:first-child{text-align:left}.pb-platform-table tr:last-child{background:#f3f8fe;font-weight:900}.pb-platform-source{font-weight:850;color:#174d7d}.pb-report-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.pb-report-top label{font-size:11px;font-weight:800;color:#45637d}.pb-report-top select{margin-left:8px;min-width:135px}.pb-verification{color:#456985;font-size:11px;line-height:1.5;margin:10px 0 0}.pb-button.start-sale{text-decoration:none;display:inline-flex;align-items:center;background:#147d56}
+/* RayNoor pre-booking workspace: all inventory, status transitions and audit rules remain server-owned. */
+.pb-wrap{max-width:1420px;margin:0 auto;color:#183b55}
+.pb-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:14px 0 18px}
+.pb-head h2{margin:0;color:#143a55;font-size:24px;font-weight:850;letter-spacing:-.5px}
+.pb-subtitle{margin:5px 0 0;color:#6e8192;font-size:12px}
+.pb-head-actions,.pb-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.pb-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #d5e1eb;border-radius:10px;background:#fff;color:#28506d;min-height:40px;padding:8px 14px;font:750 12px/1.3 inherit;text-decoration:none;cursor:pointer;transition:background .15s,border-color .15s}
+.pb-button:hover{background:#f0f6fb;border-color:#a9c8e0;text-decoration:none}
+.pb-button.primary{background:#087c4a;border-color:#087c4a;color:#fff}.pb-button.primary:hover{background:#066b3e}
+.pb-button.blue{background:#1769aa;border-color:#1769aa;color:#fff}.pb-button.blue:hover{background:#0c588f}
+.pb-button.alt{background:#f5f9fc;color:#235777}.pb-button.bad{background:#fff5f4;color:#ac3c3b;border-color:#f3d6d3}
+.pb-button:focus-visible,.pb-input:focus-visible,.pb-toggle:focus-visible,.pb-record summary:focus-visible{outline:3px solid #9ccde9;outline-offset:2px}
+.pb-button:disabled{opacity:.45;cursor:not-allowed}.pb-btn-sm{min-height:36px;padding:7px 12px;font-size:11px}
+.pb-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0 0 18px}
+.pb-stat{display:block;background:#fff;border:1px solid #e0e9f0;border-radius:15px;padding:16px;box-shadow:0 3px 15px rgba(19,51,70,.025);text-decoration:none;color:inherit}
+.pb-stat:hover{border-color:#9fc8df;background:#fbfdff;text-decoration:none}.pb-stat.is-active{border-color:#0a8b52;box-shadow:0 0 0 1px #0a8b52}
+.pb-stat-top{display:flex;align-items:center;gap:9px}.pb-stat-icon{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:#edf5fc;color:#2b6891;border-radius:9px;font-size:13px}
+.pb-stat small{color:#697f90;font-size:11px;font-weight:750}.pb-stat strong{display:block;font-size:26px;line-height:1.2;margin:12px 0 2px;color:#143a55}.pb-stat em{color:#8193a0;font:normal 10px/1.5 inherit}
+.pb-stat[data-tone="warning"] .pb-stat-icon{background:#fff5e2;color:#a66e0a}.pb-stat[data-tone="success"] .pb-stat-icon{background:#eaf7ef;color:#16814c}
+.pb-info{display:flex;align-items:flex-start;gap:11px;margin:14px 0 16px;padding:12px 15px;border-radius:12px;background:#f0f7fd;color:#42617c;border:1px solid #dcecf7;font-size:11px;line-height:1.6}
+.pb-panel{background:#fff;border:1px solid #e0e9f1;border-radius:16px;margin:15px 0;box-shadow:0 3px 15px rgba(20,56,79,.025);overflow:hidden}
+.pb-panel-top{padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:1px solid #ecf1f5}
+.pb-panel-top h3{margin:0;color:#153e5d;font-size:15px}.pb-panel-top p{color:#8393a1;font-size:11px;margin:4px 0 0}
+.pb-filter{padding:15px 18px;display:grid;grid-template-columns:minmax(180px,1fr) minmax(240px,1.8fr) auto;gap:10px;align-items:end}
+.pb-field label{display:block;font-weight:800;color:#536c80;font-size:10px;letter-spacing:.02em;text-transform:uppercase;margin-bottom:6px}
+.pb-input{box-sizing:border-box;border:1px solid #d1dfeb;border-radius:10px;width:100%;min-height:41px;padding:9px 11px;font-size:13px;background:#fff;color:#193f5c;font-family:inherit}
+.pb-input:focus{border-color:#6aa6d4;outline:none;box-shadow:0 0 0 3px rgba(58,141,199,.12)}
+.pb-area{height:88px;resize:vertical}.pb-filter-submit{display:flex;gap:8px;align-items:center}
+.pb-tabs{display:flex;flex-wrap:wrap;gap:6px;padding:0 18px 14px}
+.pb-tab{display:inline-flex;align-items:center;gap:7px;text-decoration:none;padding:8px 11px;border-radius:9px;background:#f4f7fa;color:#526e82;border:1px solid transparent;font-size:11px;font-weight:750}
+.pb-tab:hover{background:#eaf3fa;text-decoration:none}.pb-tab.on{background:#e8f6ee;color:#087345;border-color:#bce5ce}
+.pb-tab .count{background:#fff;border-radius:99px;padding:1px 6px;font-size:10px}
+.pb-viewtools{display:flex;gap:6px}.pb-toggle{display:inline-flex;align-items:center;gap:6px;background:#fff;color:#526e82;border:1px solid #dbe6ef;padding:8px 12px;border-radius:9px;cursor:pointer;font-size:11px;font-weight:800}
+.pb-toggle[aria-pressed="true"]{background:#eaf6ef;color:#087649;border-color:#b5dfc5}
+.pb-column-head,.pb-record>summary{display:grid;grid-template-columns:minmax(180px,2fr) minmax(180px,2fr) minmax(100px,.9fr) minmax(120px,1fr) minmax(110px,1.1fr);gap:16px;align-items:center}
+.pb-column-head{background:#f6f9fc;border-top:1px solid #e8eef4;border-bottom:1px solid #e8eef4;padding:10px 18px;font-size:10px;color:#71889a;text-transform:uppercase;font-weight:850}
+.pb-record{margin:0;border-bottom:1px solid #edf1f5}.pb-record:last-of-type{border-bottom:0}
+.pb-record>summary{list-style:none;padding:15px 18px;cursor:pointer;background:#fff;transition:background .15s}
+.pb-record>summary::-webkit-details-marker{display:none}.pb-record>summary:hover,.pb-record[open]>summary{background:#fafcfe}
+.pb-name{font-size:13px;color:#123c5b;font-weight:850}.pb-id{font-size:10px;color:#5f8ca8;margin-top:4px}.pb-small{font-size:11px;color:#7b8c99;line-height:1.5;margin-top:3px}
+.pb-itemline{color:#314d65;font-size:12px;line-height:1.55}.pb-itemline strong{color:#123c5b}.pb-quantity{color:#74899a;font-size:11px;margin-top:3px}
+.pb-date{font-size:12px;font-weight:750;color:#244a65}.pb-date-warning{color:#b47b0b}.pb-date-overdue{color:#c34b42}
+.pb-pill{display:inline-flex;align-items:center;border-radius:999px;padding:5px 10px;font-size:10px;line-height:1.3;font-weight:850;background:#eef3fa;color:#3b6280}
+.pb-pill.awaiting_stock{background:#fff3df;color:#9b6411}.pb-pill.contact_customer{background:#e8f5ff;color:#165d91}.pb-pill.confirmed{background:#e8f7ed;color:#117345}.pb-pill.completed{background:#e8f7ed;color:#117345}.pb-pill.cancelled{background:#fff0f0;color:#ab4544}
+.pb-next{display:flex;justify-content:space-between;gap:8px;align-items:center;color:#496e84;font-size:11px;font-weight:800}.pb-next i{color:#7b91a0;transition:transform .15s}.pb-record[open] .pb-next i{transform:rotate(180deg)}
+.pb-record-panel{padding:4px 18px 18px;background:#fcfdfe;border-top:1px solid #eff2f5}
+.pb-detail-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
+.pb-detail-box{border:1px solid #e4ebf1;background:#fff;padding:12px 13px;border-radius:11px;min-width:0}.pb-detail-box small{display:block;color:#758b9d;text-transform:uppercase;font-size:10px;font-weight:800;margin-bottom:6px}
+.pb-detail-box div{font-size:12px;overflow-wrap:anywhere}.pb-detail-box a{color:#116ba7;text-decoration:none;font-weight:800}
+.pb-detail-extra{border:1px solid #e4ecf4;background:#f6f9fc;border-radius:10px;padding:11px 13px;margin:10px 0;color:#526c82;font-size:11px;line-height:1.6}
+.pb-actions{margin-top:14px}.pb-actions form{margin:0}.pb-subdetails{margin-top:12px;border:1px solid #e2eaf1;border-radius:10px;background:#fff;max-width:650px}
+.pb-subdetails summary{list-style:none;padding:12px 14px;cursor:pointer;color:#2a5d7f;font-size:11px;font-weight:850}.pb-subdetails summary::-webkit-details-marker{display:none}.pb-subdetails>div,.pb-subdetails>form{padding:0 14px 14px}.pb-subdetails summary:hover{background:#f6f9fc}
+.pb-subdetails label{font-size:11px;color:#4d6c7f}.pb-muted{font-size:11px;color:#74899a;line-height:1.6}.pb-inline-links{display:flex;flex-wrap:wrap;gap:12px}.pb-inline-links a{font-size:12px;color:#176aa4;font-weight:800;text-decoration:none}
+.pb-inline-links a:hover{text-decoration:underline}.pb-events{max-height:180px;overflow-y:auto}.pb-events p{margin:8px 0;font-size:11px;color:#5e7687}
+.pb-empty{padding:44px 16px;text-align:center;color:#7b8e9f}.pb-empty i{font-size:24px;color:#a6b7c6;margin-bottom:12px}.pb-empty strong{display:block;color:#36546b;margin-bottom:6px}
+.pb-list[data-view="cards"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:15px}.pb-list[data-view="cards"] .pb-column-head{display:none}
+.pb-list[data-view="cards"] .pb-record{border:1px solid #e2eaf0;border-radius:12px;overflow:hidden;align-self:start}
+.pb-list[data-view="cards"] .pb-record>summary{grid-template-columns:1fr auto;gap:12px}.pb-list[data-view="cards"] .pb-record>summary>.pb-cell{min-width:0}
+.pb-list[data-view="cards"] .pb-record>summary>.pb-cell:nth-child(2){grid-column:1/-1;grid-row:2}.pb-list[data-view="cards"] .pb-record>summary>.pb-cell:nth-child(3){grid-column:1;grid-row:3}
+.pb-list[data-view="cards"] .pb-record>summary>.pb-cell:nth-child(4){grid-column:2;grid-row:1}.pb-list[data-view="cards"] .pb-record>summary>.pb-cell:nth-child(5){grid-column:2;grid-row:3}
+.pb-list[data-view="cards"] .pb-detail-grid{grid-template-columns:1fr}.pb-list[data-view="cards"] .pb-record-panel{padding:8px 14px 15px}
+.pb-entry>summary,.pb-analytics>summary{list-style:none;cursor:pointer;padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;font-weight:850;color:#184864}
+.pb-entry>summary::-webkit-details-marker,.pb-analytics>summary::-webkit-details-marker{display:none}
+.pb-entry>summary:hover,.pb-analytics>summary:hover{background:#f6f9fc}
+.pb-entry>summary span:last-child,.pb-analytics>summary span:last-child{font-size:11px;color:#487a9a}.pb-entry-body{padding:16px 18px}
+.pb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.pb-full{grid-column:1/-1}
+.pb-items{border:1px solid #e4ecf4;border-radius:12px;overflow:hidden;margin:16px 0}.pb-item{display:grid;grid-template-columns:minmax(0,2fr) minmax(70px,1fr) minmax(100px,1fr);gap:10px;padding:10px 12px;border-bottom:1px solid #eef2f6}.pb-item:last-child{border-bottom:0}.pb-item-head{background:#f6f9fc;font-size:10px;color:#607c93;font-weight:850;text-transform:uppercase}
+.pb-entry-line[hidden],.pb-add-item[hidden]{display:none}
+.pb-note{padding:11px 13px;background:#eff8ff;border:1px solid #d2e9f9;color:#315a78;font-size:11px;line-height:1.6;border-radius:10px}.pb-add-item{border:1px dashed #a7c5df;background:#f4f9fe;color:#1a639d;cursor:pointer;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:850;margin-bottom:14px}
+.pb-platform-report{overflow-x:auto}.pb-platform-table{border-collapse:collapse;width:100%;min-width:670px;font-size:12px}.pb-platform-table th{background:#f6f9fc;font-size:10px;color:#657c92;text-transform:uppercase;padding:12px;text-align:right;white-space:nowrap}.pb-platform-table td{padding:12px;border-top:1px solid #edf1f5;text-align:right}.pb-platform-table th:first-child,.pb-platform-table td:first-child{text-align:left}.pb-platform-table tr:last-child{background:#f4f9ff;font-weight:850}.pb-platform-source{font-weight:800;color:#245978}.pb-report-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:0 18px 14px}.pb-report-top label{font-size:11px;color:#56728b;font-weight:850}.pb-report-top select{margin-left:6px}.pb-verification{color:#638098;font-size:11px;line-height:1.6;padding:0 18px 17px}
+@media(max-width:1100px){.pb-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.pb-column-head,.pb-record>summary{grid-template-columns:minmax(160px,1.6fr) minmax(160px,1.7fr) minmax(95px,1fr) minmax(110px,1.1fr)}.pb-column-head span:last-child,.pb-record>summary>.pb-cell:nth-child(5){display:none}}
+@media(max-width:760px){.pb-head h2{font-size:20px}.pb-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.pb-stat{padding:13px}.pb-stat strong{font-size:22px}.pb-filter{grid-template-columns:1fr}.pb-filter-submit{justify-content:flex-start}.pb-grid{grid-template-columns:1fr}.pb-full{grid-column:auto}.pb-item{grid-template-columns:1.35fr .7fr 1fr;gap:5px;padding:8px}.pb-detail-grid{grid-template-columns:1fr}.pb-list .pb-column-head{display:none}.pb-list:not([data-view="cards"]){display:block}.pb-record>summary{grid-template-columns:1fr auto!important;gap:8px 14px}.pb-record>summary>.pb-cell:nth-child(1){grid-column:1;grid-row:1}.pb-record>summary>.pb-cell:nth-child(4){grid-column:2;grid-row:1}.pb-record>summary>.pb-cell:nth-child(2){grid-column:1/-1;grid-row:2}.pb-record>summary>.pb-cell:nth-child(3){grid-column:1;grid-row:3}.pb-record>summary>.pb-cell:nth-child(5){grid-column:2;grid-row:3;display:block}.pb-list[data-view="cards"]{display:block;padding:0}.pb-list[data-view="cards"] .pb-record{margin:10px;border:1px solid #e2eaf0}.pb-head-actions{width:100%}.pb-head-actions .pb-button{flex:1}.pb-panel-top{align-items:flex-start}}
+@media(max-width:450px){.pb-stats{grid-template-columns:repeat(2,1fr)}.pb-stat-top{gap:5px}.pb-stat small{font-size:10px}.pb-record>summary{padding:14px}.pb-filter{padding:12px}.pb-tabs{padding:0 12px 13px}.pb-panel-top{padding:14px}.pb-entry-body{padding:12px}.pb-item .pb-input{padding:6px;font-size:11px}}
 </style>
 {% endblock %}
 {% block egg_pos_content %}
 <div class="pb-wrap">
-  <div class="ep-section-title"><div><h3><i class="fa-solid fa-clipboard-list"></i> Manual Pre-Bookings</h3><p>TikTok, Facebook, Instagram, WhatsApp and phone enquiries · independent from the online shop.</p></div><a class="ep-btn" href="{% url 'egg_pos_new_sale' %}"><i class="fa-solid fa-cart-plus"></i> Open New POS Sale</a></div>
-  <div class="pb-note"><strong>How it works:</strong> Record an enquiry, even without eggs. When stock arrives, contact the customer and save reconfirmation. Then choose <strong>Review & Create POS Invoice</strong> to open the existing POS screen with their details and eggs filled in. <strong>You</strong> check stock, rate and whether money was actually received before saving. The pre-booking itself never affects stock, sales or website orders.</div>
-  <div class="pb-stats">
-    <div class="pb-stat"><small>Awaiting Stock</small><strong>{{ counts.awaiting_stock }}</strong></div>
-    <div class="pb-stat"><small>Reconfirm Customer</small><strong>{{ counts.contact_customer }}</strong></div>
-    <div class="pb-stat"><small>Customer Confirmed</small><strong>{{ counts.confirmed }}</strong></div>
-    <div class="pb-stat"><small>Completed</small><strong>{{ counts.completed }}</strong></div>
+  <header class="pb-head">
+    <div>
+      <h2><i class="fa-solid fa-clipboard-list" aria-hidden="true"></i> Manual Pre-Bookings</h2>
+      <p class="pb-subtitle">Manage enquiries, customer confirmations and POS handoff in one place.</p>
+    </div>
+    <div class="pb-head-actions">
+      <a class="pb-button" href="{% url 'egg_pos_customers' %}"><i class="fa-solid fa-users" aria-hidden="true"></i> Customers</a>
+      <a class="pb-button primary" href="#entry" data-open-entry><i class="fa-solid fa-plus" aria-hidden="true"></i> New Pre-Booking</a>
+    </div>
+  </header>
+  <div class="pb-stats" aria-label="All-time pre-booking summary">
+    <a class="pb-stat{% if active_status == 'awaiting_stock' %} is-active{% endif %}" href="?status=awaiting_stock#prebook-list" data-tone="warning"><div class="pb-stat-top"><span class="pb-stat-icon"><i class="fa-solid fa-hourglass-half"></i></span><small>Awaiting Stock</small></div><strong>{{ counts.awaiting_stock }}</strong><em>Waiting for stock arrival</em></a>
+    <a class="pb-stat{% if active_status == 'contact_customer' %} is-active{% endif %}" href="?status=contact_customer#prebook-list"><div class="pb-stat-top"><span class="pb-stat-icon"><i class="fa-solid fa-phone"></i></span><small>Ready to Contact</small></div><strong>{{ counts.contact_customer }}</strong><em>Stock marked arrived</em></a>
+    <a class="pb-stat{% if active_status == 'due_today' %} is-active{% endif %}" href="?status=due_today#prebook-list" data-tone="warning"><div class="pb-stat-top"><span class="pb-stat-icon"><i class="fa-regular fa-calendar-check"></i></span><small>Due Today</small></div><strong>{{ counts.due_today }}</strong><em>Active bookings expected today</em></a>
+    <a class="pb-stat{% if active_status == 'confirmed' %} is-active{% endif %}" href="?status=confirmed#prebook-list" data-tone="success"><div class="pb-stat-top"><span class="pb-stat-icon"><i class="fa-solid fa-circle-check"></i></span><small>Confirmed</small></div><strong>{{ counts.confirmed }}</strong><em>Ready for POS invoice</em></a>
+    <a class="pb-stat{% if active_status == 'completed' %} is-active{% endif %}" href="?status=completed#prebook-list" data-tone="success"><div class="pb-stat-top"><span class="pb-stat-icon"><i class="fa-solid fa-check-double"></i></span><small>Completed</small></div><strong>{{ counts.completed }}</strong><em>Invoice references recorded</em></a>
   </div>
-  <section class="pb-card" id="channel-report">
-    <div class="pb-card-head pb-report-top"><h3><i class="fa-solid fa-chart-column"></i> Which Platform Brings Sales?</h3><form method="get" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label>Booking month <input type="month" class="pb-input" style="width:155px;margin-left:6px" name="report_month" value="{% if report_month != 'all' %}{{ report_month }}{% endif %}"></label><button class="pb-button" type="submit">Apply</button><a href="?report_month=all#channel-report" class="pb-button alt" style="display:inline-flex;align-items:center;text-decoration:none">All time</a></form></div>
-    <div class="pb-platform-report"><table class="pb-platform-table"><thead><tr><th>Booking source</th><th>Enquiries</th><th>Reconfirmed</th><th>POS invoices</th><th>Declined</th><th>Conversion</th><th>Invoiced value</th></tr></thead><tbody>
-    {% for r in channel_rows %}<tr><td class="pb-platform-source">{{ r.label }}</td><td>{{ r.leads }}</td><td>{{ r.reconfirmed }}</td><td><strong>{{ r.invoiced }}</strong></td><td>{{ r.cancelled }}</td><td>{{ r.conversion|floatformat:1 }}%</td><td>Rs {{ r.invoiced_value|floatformat:0|intcomma }}</td></tr>{% endfor %}
-    <tr><td>Total</td><td>{{ channel_total.leads }}</td><td>{{ channel_total.reconfirmed }}</td><td>{{ channel_total.invoiced }}</td><td>{{ channel_total.cancelled }}</td><td>{{ channel_total.conversion|floatformat:1 }}%</td><td>Rs {{ channel_total.invoiced_value|floatformat:0|intcomma }}</td></tr>
-    </tbody></table></div><div class="pb-section pb-verification">Counts by the platform selected when the enquiry was entered. POS invoices and values are counted only for linked, existing, non-reversed invoices. Invoice value includes unpaid/credit amounts; it is not cash collected. Website orders are excluded.</div>
+  <div class="pb-info" role="note"><i class="fa-solid fa-circle-info" aria-hidden="true"></i><div><strong>Booking stages:</strong> Awaiting Stock → Stock Arrived / Contact Customer → Customer Confirmed → Create POS Invoice → Completed. A manual pre-booking is an enquiry; it does <strong>not</strong> reserve stock, take payment or create a sale.</div></div>
+  <section class="pb-panel" id="prebook-list">
+    <div class="pb-panel-top"><div><h3>Booking Register</h3><p>Showing up to 200 matching bookings · select a row for contact details and actions.</p></div>
+      <div class="pb-viewtools" role="group" aria-label="Booking layout"><button type="button" class="pb-toggle" data-set-view="list" aria-pressed="true"><i class="fa-solid fa-list"></i> Compact</button><button type="button" class="pb-toggle" data-set-view="cards" aria-pressed="false"><i class="fa-solid fa-border-all"></i> Cards</button></div>
+    </div>
+    <form method="get" class="pb-filter" action="{% url 'egg_pos_manual_prebookings' %}#prebook-list">
+      <div class="pb-field"><label for="pb-filter-status">Booking status</label><select class="pb-input" id="pb-filter-status" name="status"><option value="active" {% if active_status == 'active' %}selected{% endif %}>All Active</option><option value="due_today" {% if active_status == 'due_today' %}selected{% endif %}>Due Today</option><option value="overdue" {% if active_status == 'overdue' %}selected{% endif %}>Overdue</option><option value="all" {% if active_status == 'all' %}selected{% endif %}>All Including Closed</option>{% for key,label in statuses %}<option value="{{ key }}" {% if active_status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="pb-field"><label for="pb-filter-q">Find a customer or booking</label><input id="pb-filter-q" class="pb-input" name="q" value="{{ search }}" placeholder="Name, phone, area or RNPRE number"></div>
+      <div class="pb-filter-submit"><button class="pb-button blue" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Search</button><a href="{% url 'egg_pos_manual_prebookings' %}#prebook-list" class="pb-button">Clear</a></div>
+    </form>
+    <div class="pb-tabs" aria-label="Quick booking filters">
+      <a class="pb-tab{% if active_status == 'active' %} on{% endif %}" href="?status=active#prebook-list">Active <span class="count">{{ counts.active }}</span></a>
+      <a class="pb-tab{% if active_status == 'due_today' %} on{% endif %}" href="?status=due_today#prebook-list">Due Today <span class="count">{{ counts.due_today }}</span></a>
+      <a class="pb-tab{% if active_status == 'overdue' %} on{% endif %}" href="?status=overdue#prebook-list">Overdue <span class="count">{{ counts.overdue }}</span></a>
+      <a class="pb-tab{% if active_status == 'confirmed' %} on{% endif %}" href="?status=confirmed#prebook-list">Confirmed <span class="count">{{ counts.confirmed }}</span></a>
+      <a class="pb-tab{% if active_status == 'all' %} on{% endif %}" href="?status=all#prebook-list">All Bookings</a>
+    </div>
+    <div class="pb-list" id="pb-booking-results" data-view="list">
+      <div class="pb-column-head"><span>Customer / reference</span><span>Requested items</span><span>Expected date</span><span>Status</span><span>Next step</span></div>
+      {% for booking in bookings %}
+      <details class="pb-record" id="booking-{{ booking.id }}">
+        <summary>
+          <div class="pb-cell"><div class="pb-name">{{ booking.customer_name }}</div><div class="pb-id">{{ booking.booking_number }} · {{ booking.get_channel_display }}</div><div class="pb-small">{{ booking.created_at|date:"d M Y, h:i A" }}</div></div>
+          <div class="pb-cell"><div class="pb-itemline">{% for line in booking.lines.all %}<div>{{ line.product.name }} · <strong>{{ line.quantity }} {{ line.get_unit_display }}</strong>{% if not forloop.last %}{% endif %}</div>{% endfor %}</div><div class="pb-quantity">{{ booking.total_eggs|intcomma }} eggs in total</div></div>
+          <div class="pb-cell"><div class="pb-date{% if booking.is_overdue %} pb-date-overdue{% elif booking.is_due_today %} pb-date-warning{% endif %}">{{ booking.expected_date|date:"d M Y"|default:"Not set" }}</div>{% if booking.is_overdue %}<div class="pb-small" style="color:#bd534a">Overdue</div>{% elif booking.is_due_today %}<div class="pb-small" style="color:#a97611">Due today</div>{% endif %}</div>
+          <div class="pb-cell"><span class="pb-pill {{ booking.status }}">{{ booking.get_status_display }}</span></div>
+          <div class="pb-cell pb-next"><span>{% if booking.status == 'awaiting_stock' %}Mark stock arrived{% elif booking.status == 'contact_customer' %}Reconfirm customer{% elif booking.status == 'confirmed' %}Create POS invoice{% elif booking.status == 'completed' %}View completion{% else %}View details{% endif %}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></div>
+        </summary>
+        <div class="pb-record-panel">
+          <div class="pb-detail-grid">
+            <div class="pb-detail-box"><small>Customer contact</small><div class="pb-inline-links"><a href="tel:{{ booking.customer_phone }}"><i class="fa-solid fa-phone"></i> {{ booking.customer_phone }}</a><a href="https://wa.me/{{ booking.whatsapp_number }}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></div>{% if booking.customer_id %}<div style="margin-top:8px"><a href="{% url 'egg_pos_customer_detail' booking.customer_id %}">View customer account</a></div>{% endif %}</div>
+            <div class="pb-detail-box"><small>Delivery location</small><div>{{ booking.delivery_area|default:"Not set" }}</div><div class="pb-small">Recorded by {{ booking.created_by.username }}</div></div>
+            <div class="pb-detail-box"><small>Expected date</small><div>{{ booking.expected_date|date:"d M Y"|default:"Not set" }}</div><div class="pb-small">{{ booking.get_channel_display }} enquiry</div></div>
+          </div>
+          {% if booking.notes %}<div class="pb-detail-extra"><strong>Delivery / customer notes:</strong> {{ booking.notes|linebreaksbr }}</div>{% endif %}
+          {% if booking.invoice_reference %}<div class="pb-detail-extra">POS invoice reference: <strong>{{ booking.invoice_reference }}</strong> (recorded manually).</div>{% endif %}
+          {% if booking.cancellation_reason %}<div class="pb-detail-extra">Cancellation reason: {{ booking.cancellation_reason }}</div>{% endif %}
+          <div class="pb-actions">
+            {% if booking.status == 'awaiting_stock' or booking.status == 'contact_customer' %}<a class="pb-button alt" href="?edit={{ booking.id }}#entry"><i class="fa-solid fa-pen"></i> Edit Details</a>{% endif %}
+            {% if booking.status == 'awaiting_stock' %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="stock_arrived"><button class="pb-button blue" type="submit"><i class="fa-solid fa-box-open"></i> Mark Stock Arrived</button></form>
+            {% endif %}
+            {% if booking.status == 'contact_customer' %}
+            <details class="pb-subdetails"><summary><i class="fa-solid fa-phone-volume"></i> Customer contacted? Reconfirm booking</summary>
+              <form method="post">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="reconfirmed">
+                <div class="pb-field"><label>Customer reconfirmed through</label><select class="pb-input" name="reconfirmation_channel" required><option value="">Select channel</option>{% for key,label in channels %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+                <label style="display:block;margin:12px 0"><input type="checkbox" name="customer_said_yes" value="yes" required> Customer accepted the booking after being contacted.</label>
+                <button class="pb-button primary" type="submit">Save Customer Confirmation</button>
+              </form>
+            </details>
+            {% endif %}
+            {% if booking.status == 'confirmed' %}
+            <a class="pb-button primary" href="{% url 'egg_pos_new_sale' %}?prebooking={{ booking.id }}"><i class="fa-solid fa-file-invoice"></i> Review &amp; Create POS Invoice</a>
+            <details class="pb-subdetails"><summary>Already invoiced? Link existing POS invoice</summary><form method="post">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="completed"><div class="pb-field"><label>Existing POS invoice / sale reference</label><input class="pb-input" name="invoice_reference" maxlength="80" placeholder="e.g. RNE-00095" required></div><p class="pb-muted">Only valid non-reversed invoice references count as converted sales. This does not post another sale or reduce stock.</p><button class="pb-button primary" type="submit">Mark Completed</button></form></details>
+            {% endif %}
+            {% if booking.status != 'completed' and booking.status != 'cancelled' %}
+            <details class="pb-subdetails"><summary>Cancel / Customer Declined</summary><form method="post">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="cancelled"><div class="pb-field"><label>Reason for cancellation</label><input class="pb-input" name="cancellation_reason" minlength="5" maxlength="255" required placeholder="Customer no longer needs the order"></div><button class="pb-button bad" style="margin-top:10px" type="submit">Cancel Booking</button></form></details>
+            {% endif %}
+          </div>
+          <details class="pb-subdetails" style="max-width:100%"><summary><i class="fa-solid fa-clock-rotate-left"></i> History &amp; Audit Trail</summary><div class="pb-events">{% for event in booking.events.all %}<p>{{ event.created_at|date:"d M Y H:i" }} · <strong>{{ event.action }}</strong> by {{ event.actor.username }} — {{ event.details }}</p>{% empty %}<p>No history yet.</p>{% endfor %}</div></details>
+        </div>
+      </details>
+      {% empty %}
+      <div class="pb-empty"><i class="fa-solid fa-magnifying-glass"></i><strong>No matching pre-bookings</strong><div>Try a different status or clear your search.</div></div>
+      {% endfor %}
+    </div>
   </section>
-  <details class="pb-card pb-entry" id="entry" {% if edit_booking or selected_customer or request.method == 'POST' %}open{% endif %}><summary class="pb-card-head"><h3>{% if edit_booking %}Correct {{ edit_booking.booking_number }}{% else %}<i class="fa-solid fa-plus-circle"></i> New Manual Pre-Booking{% endif %}</h3>{% if edit_booking %}<a href="{% url 'egg_pos_manual_prebookings' %}" class="pb-button alt" style="text-decoration:none;display:inline-flex;align-items:center" onclick="event.stopPropagation()">Cancel Editing</a>{% endif %}</summary><div class="pb-card-body">
+  <details class="pb-panel pb-entry" id="entry" {% if edit_booking or selected_customer or request.method == 'POST' %}open{% endif %}>
+    <summary><span>{% if edit_booking %}<i class="fa-solid fa-pen"></i> Correct {{ edit_booking.booking_number }}{% else %}<i class="fa-solid fa-plus-circle"></i> New Manual Pre-Booking{% endif %}</span><span>{% if edit_booking %}Edit selected booking{% else %}Open booking form{% endif %} <i class="fa-solid fa-chevron-down"></i></span></summary>
+    <div class="pb-entry-body">
+      <p class="pb-muted" style="margin:0 0 16px">Choose the products and quantities requested. This saves the enquiry only; stock and payment stay unchanged.</p>
     <form method="post" autocomplete="off">{% csrf_token %}
       <input type="hidden" name="action" value="{% if edit_booking %}update{% else %}create{% endif %}">
       {% if edit_booking %}<input type="hidden" name="booking_id" value="{{ edit_booking.id }}">{% endif %}
@@ -49,40 +187,40 @@
       </div>
       <button type="button" class="pb-add-item" id="pb-add-item">+ Add another egg product</button>
       <div class="pb-field"><label for="pb-notes">Customer Notes / Preference (optional)</label><textarea class="pb-input pb-area" id="pb-notes" name="notes" maxlength="2000" placeholder="Requested quantity, price discussion, preferred delivery time…">{{ form.notes }}</textarea></div>
-      <div class="pb-actions" style="margin-top:14px"><button class="pb-button good" type="submit"><i class="fa-solid fa-floppy-disk"></i> {% if edit_booking %}Save Booking Correction{% else %}Save Pre-Booking{% endif %}</button><span class="pb-muted">This is an enquiry record, not an invoice or stock reservation.</span></div>
+      <div class="pb-actions" style="margin-top:14px"><button class="pb-button primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> {% if edit_booking %}Save Booking Correction{% else %}Save Pre-Booking{% endif %}</button><span class="pb-muted">This is an enquiry record, not an invoice or stock reservation.</span></div>
     </form>
-  </div></details>
-  <section class="pb-card"><div class="pb-card-head"><h3>Pre-Booking Register</h3><span class="pb-muted">Latest 200 matching records</span></div><div class="pb-section"><form method="get" class="pb-filter"><div class="pb-field"><label for="pb-filter-status">Status</label><select class="pb-input" id="pb-filter-status" name="status"><option value="active" {% if active_status == 'active' %}selected{% endif %}>All Active</option><option value="all" {% if active_status == 'all' %}selected{% endif %}>All Including Closed</option>{% for key,label in statuses %}<option value="{{ key }}" {% if active_status == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div><div class="pb-field"><label for="pb-filter-q">Name / Mobile / Area</label><input id="pb-filter-q" class="pb-input" name="q" value="{{ search }}" placeholder="Search customer"></div><div><button type="submit" class="pb-button">Filter</button></div></form></div></section>
-  {% for booking in bookings %}
-  <section class="pb-card" id="booking-{{ booking.id }}"><div class="pb-card-head"><div><h3>{{ booking.booking_number }} · <span class="pb-cust">{{ booking.customer_name }}</span></h3><div class="pb-muted">{{ booking.created_at|date:"d M Y, h:i A" }} · {{ booking.get_channel_display }} · Recorded by {{ booking.created_by.username }}</div></div><span class="pb-pill {{ booking.status }}">{{ booking.get_status_display }}</span></div>
-    <div class="pb-section">
-    <div class="pb-rows"><div><strong>Customer contact</strong><div class="pb-links"><a href="tel:{{ booking.customer_phone }}">{{ booking.customer_phone }}</a><a href="https://wa.me/{{ booking.whatsapp_number }}" target="_blank" rel="noopener noreferrer">WhatsApp</a></div></div><div><strong>Total eggs requested</strong><div>{{ booking.total_eggs|intcomma }} eggs</div></div><div><strong>Expected date</strong><div>{{ booking.expected_date|date:"d M Y"|default:"Not set" }}</div></div><div><strong>Area</strong><div>{{ booking.delivery_area|default:"Not set" }}</div></div></div>
-    <p class="pb-muted" style="margin:14px 0 9px">{% for line in booking.lines.all %}{{ line.product.name }}: <strong>{{ line.quantity }} {{ line.get_unit_display }}</strong> ({{ line.eggs_count }} eggs){% if not forloop.last %} · {% endif %}{% endfor %}</p>
-    {% if booking.notes %}<p class="pb-muted">Notes: {{ booking.notes|linebreaksbr }}</p>{% endif %}
-    <div class="pb-actions">
-      {% if booking.status == 'awaiting_stock' or booking.status == 'contact_customer' %}<a class="pb-button alt" href="?edit={{ booking.id }}#entry" style="display:inline-flex;align-items:center;text-decoration:none">Edit Details</a>{% endif %}
-      {% if booking.status == 'awaiting_stock' %}<form method="post">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="stock_arrived"><button class="pb-button" type="submit">Stock Arrived — Contact Customer</button></form>{% endif %}
-      {% if booking.status == 'contact_customer' %}<details class="pb-detail"><summary>Customer Reconfirmed?</summary><form method="post" style="margin-top:10px">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="reconfirmed"><div class="pb-field"><label>How customer reconfirmed</label><select class="pb-input" name="reconfirmation_channel" required><option value="">Select</option>{% for key,label in channels %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div><label style="display:block;font-size:12px;margin:10px 0"><input type="checkbox" name="customer_said_yes" value="yes" required> I contacted the customer and they accepted the order.</label><button type="submit" class="pb-button good">Save Customer Confirmation</button></form></details>{% endif %}
-      {% if booking.status == 'confirmed' %}<a class="pb-button start-sale" href="{% url 'egg_pos_new_sale' %}?prebooking={{ booking.id }}"><i class="fa-solid fa-file-invoice"></i> Review & Create POS Invoice</a><details class="pb-detail"><summary>Already made an invoice? Link it here</summary><form method="post" style="margin-top:10px">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="completed"><div class="pb-field"><label>Existing POS invoice / sale reference</label><input type="text" class="pb-input" name="invoice_reference" maxlength="80" required placeholder="e.g. RNE-00095"></div><p class="pb-muted">Type the actual POS invoice number. Only valid, non-reversed invoices count in platform conversions. This action does not create another sale or deduct stock.</p><button class="pb-button good" style="margin-top:8px" type="submit">Mark Booking Completed</button></form></details>{% endif %}
-      {% if booking.status != 'completed' and booking.status != 'cancelled' %}<details class="pb-detail"><summary>Cancel / Customer Declined</summary><form method="post" style="margin-top:10px">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="cancelled"><div class="pb-field"><label>Reason</label><input class="pb-input" name="cancellation_reason" minlength="5" maxlength="255" placeholder="Customer declined / no longer needs eggs" required></div><button class="pb-button bad" style="margin-top:8px" type="submit">Cancel Booking</button></form></details>{% endif %}
     </div>
-    {% if booking.invoice_reference %}<p class="pb-muted">POS reference (manually entered): <strong>{{ booking.invoice_reference }}</strong></p>{% endif %}
-    {% if booking.cancellation_reason %}<p class="pb-muted">Cancellation reason: {{ booking.cancellation_reason }}</p>{% endif %}
-    <details class="pb-detail"><summary>History / audit trail</summary><div class="pb-events">{% for event in booking.events.all %}<p>{{ event.created_at|date:"d M Y H:i" }} · <strong>{{ event.action }}</strong> by {{ event.actor.username }} — {{ event.details }}</p>{% empty %}No history yet.{% endfor %}</div></details>
-  </div></section>
-  {% empty %}<div class="pb-card"><div class="pb-section pb-muted">No pre-bookings match the current filter.</div></div>{% endfor %}
+  </details>
+  <details class="pb-panel pb-analytics" id="channel-report" {% if request.GET.report_month %}open{% endif %}>
+    <summary><span><i class="fa-solid fa-chart-column"></i> Which Platform Brings Sales? · Marketing Report</span><span>Expand report <i class="fa-solid fa-chevron-down"></i></span></summary>
+    <div class="pb-report-top"><p class="pb-muted" style="margin:0">Channel performance counts actual linked, non-reversed POS invoices.</p><form method="get" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><label for="pb-report-month">Booking month</label><input id="pb-report-month" type="month" name="report_month" class="pb-input" style="width:auto" value="{% if report_month != 'all' %}{{ report_month }}{% endif %}"><button class="pb-button" type="submit">Apply</button><a class="pb-button" href="?report_month=all#channel-report">All Time</a></form></div>
+    <div class="pb-platform-report"><table class="pb-platform-table"><thead><tr><th>Booking source</th><th>Enquiries</th><th>Reconfirmed</th><th>POS invoices</th><th>Declined</th><th>Conversion</th><th>Invoiced value</th></tr></thead><tbody>
+    {% for r in channel_rows %}<tr><td class="pb-platform-source">{{ r.label }}</td><td>{{ r.leads }}</td><td>{{ r.reconfirmed }}</td><td><strong>{{ r.invoiced }}</strong></td><td>{{ r.cancelled }}</td><td>{{ r.conversion|floatformat:1 }}%</td><td>Rs {{ r.invoiced_value|floatformat:0|intcomma }}</td></tr>{% endfor %}
+    <tr><td>Total</td><td>{{ channel_total.leads }}</td><td>{{ channel_total.reconfirmed }}</td><td>{{ channel_total.invoiced }}</td><td>{{ channel_total.cancelled }}</td><td>{{ channel_total.conversion|floatformat:1 }}%</td><td>Rs {{ channel_total.invoiced_value|floatformat:0|intcomma }}</td></tr>
+    </tbody></table></div><div class="pb-section pb-verification">Counts by the platform selected when the enquiry was entered. POS invoices and values are counted only for linked, existing, non-reversed invoices. Invoice value includes unpaid/credit amounts; it is not cash collected. Website orders are excluded.</div>
+
+  </details>
 </div>
 <script>
 (function(){
-  const button = document.getElementById('pb-add-item');
-  if (!button) return;
-  function update(){ button.hidden = !document.querySelector('.pb-entry-line[hidden]'); }
-  button.addEventListener('click', function(){
-    const next = document.querySelector('.pb-entry-line[hidden]');
-    if (next) { next.hidden = false; next.querySelector('select')?.focus(); }
-    update();
-  });
-  update();
+  'use strict';
+  const entry = document.getElementById('entry');
+  document.querySelectorAll('[data-open-entry]').forEach(link=>link.addEventListener('click',()=>{if(entry) entry.open=true;}));
+  const add = document.getElementById('pb-add-item');
+  function update(){if(add) add.hidden = !document.querySelector('.pb-entry-line[hidden]');}
+  if(add){add.addEventListener('click',()=>{const next=document.querySelector('.pb-entry-line[hidden]');if(next){next.hidden=false;next.querySelector('select')?.focus();}update();});update();}
+  const list = document.getElementById('pb-booking-results');
+  document.querySelectorAll('[data-set-view]').forEach(button=>button.addEventListener('click',()=>{
+    if(!list) return;
+    list.dataset.view = button.dataset.setView;
+    document.querySelectorAll('[data-set-view]').forEach(b=>b.setAttribute('aria-pressed', String(b===button)));
+  }));
+  // Reopen a selected booking after following an anchored link from a status action.
+  const hash = window.location.hash;
+  if(hash && /^#booking-\d+$/.test(hash)){
+    const target=document.getElementById(hash.slice(1));
+    if(target && target.tagName==='DETAILS') target.open=true;
+  }
 })();
 </script>
 {% endblock %}
