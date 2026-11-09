@@ -20,6 +20,7 @@ from api.models.egg_pos_prebooking import (
     EggPOSManualPrebookingEvent as Event,
 )
 from api.services.egg_pos import can_manage
+from api.services.egg_pos_prebooking_whatsapp import build_prebooking_whatsapp
 
 
 def _is_admin(user):
@@ -339,6 +340,7 @@ def _context(request, edit_id=None):
     )
     # Dates and badges are computed from real booking due dates, not assumed stock availability.
     for booking in bookings:
+        booking.whatsapp_confirmation = build_prebooking_whatsapp(booking)
         booking.is_due_today = bool(booking.expected_date == today and
                                     booking.status not in ("completed", "cancelled"))
         booking.is_overdue = bool(booking.expected_date and booking.expected_date < today and

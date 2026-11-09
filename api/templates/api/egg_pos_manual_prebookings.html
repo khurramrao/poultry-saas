@@ -14,6 +14,7 @@
 .pb-button.primary{background:#087c4a;border-color:#087c4a;color:#fff}.pb-button.primary:hover{background:#066b3e}
 .pb-button.blue{background:#1769aa;border-color:#1769aa;color:#fff}.pb-button.blue:hover{background:#0c588f}
 .pb-button.alt{background:#f5f9fc;color:#235777}.pb-button.bad{background:#fff5f4;color:#ac3c3b;border-color:#f3d6d3}
+.pb-button.whatsapp-action{background:#11865b;border-color:#11865b;color:#fff}.pb-button.whatsapp-action:hover{background:#0c704c;border-color:#0c704c}.pb-wa-hint{margin:7px 0 0 2px}
 .pb-button:focus-visible,.pb-input:focus-visible,.pb-toggle:focus-visible,.pb-record summary:focus-visible{outline:3px solid #9ccde9;outline-offset:2px}
 .pb-button:disabled{opacity:.45;cursor:not-allowed}.pb-btn-sm{min-height:36px;padding:7px 12px;font-size:11px}
 .pb-stats{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:0 0 18px}
@@ -135,6 +136,13 @@
           {% if booking.invoice_reference %}<div class="pb-detail-extra">POS invoice reference: <strong>{{ booking.invoice_reference }}</strong> (recorded manually).</div>{% endif %}
           {% if booking.cancellation_reason %}<div class="pb-detail-extra">Cancellation reason: {{ booking.cancellation_reason }}</div>{% endif %}
           <div class="pb-actions">
+            {% if booking.whatsapp_confirmation %}
+            <a class="pb-button whatsapp-action" href="{{ booking.whatsapp_confirmation.url }}" target="_blank" rel="noopener noreferrer" aria-label="{{ booking.whatsapp_confirmation.label }} to {{ booking.customer_name }} via WhatsApp">
+              <i class="fa-brands fa-whatsapp" aria-hidden="true"></i> {{ booking.whatsapp_confirmation.label }}
+            </a>
+            {% elif booking.status != 'cancelled' %}
+            <span class="pb-muted">Add or correct the customer's WhatsApp phone number to send a booking receipt.</span>
+            {% endif %}
             {% if booking.status == 'awaiting_stock' or booking.status == 'contact_customer' %}<a class="pb-button alt" href="?edit={{ booking.id }}#entry"><i class="fa-solid fa-pen"></i> Edit Details</a>{% endif %}
             {% if booking.status == 'awaiting_stock' %}
             <form method="post">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="stock_arrived"><button class="pb-button blue" type="submit"><i class="fa-solid fa-box-open"></i> Mark Stock Arrived</button></form>
@@ -156,6 +164,7 @@
             <details class="pb-subdetails"><summary>Cancel / Customer Declined</summary><form method="post">{% csrf_token %}<input type="hidden" name="booking_id" value="{{ booking.id }}"><input type="hidden" name="action" value="cancelled"><div class="pb-field"><label>Reason for cancellation</label><input class="pb-input" name="cancellation_reason" minlength="5" maxlength="255" required placeholder="Customer no longer needs the order"></div><button class="pb-button bad" style="margin-top:10px" type="submit">Cancel Booking</button></form></details>
             {% endif %}
           </div>
+          {% if booking.whatsapp_confirmation %}<p class="pb-muted pb-wa-hint">WhatsApp opens with a prepared message. Please review it and tap Send. This does not automatically change the booking status.</p>{% endif %}
           <details class="pb-subdetails" style="max-width:100%"><summary><i class="fa-solid fa-clock-rotate-left"></i> History &amp; Audit Trail</summary><div class="pb-events">{% for event in booking.events.all %}<p>{{ event.created_at|date:"d M Y H:i" }} · <strong>{{ event.action }}</strong> by {{ event.actor.username }} — {{ event.details }}</p>{% empty %}<p>No history yet.</p>{% endfor %}</div></details>
         </div>
       </details>
