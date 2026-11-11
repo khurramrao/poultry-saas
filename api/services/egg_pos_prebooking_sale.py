@@ -12,7 +12,7 @@ from django.utils import timezone
 from api.models.egg_pos_prebooking import (
     EggPOSManualPrebooking as Booking,
     EggPOSManualPrebookingEvent as Event,
-    UNIT_MULTIPLIER,
+    UNIT_MULTIPLIER, EGG_UNITS,
 )
 from api.services.egg_pos import can_manage
 
@@ -39,19 +39,35 @@ def prefill_for_sale(user, raw_id, customers):
     )
     grouped = OrderedDict()
     for line in booking.lines.all():
-        key = line.product_id
-        eggs = int(line.quantity) * UNIT_MULTIPLIER.get(line.unit, 0)
-        if key not in grouped:
-            grouped[key] = {"product_id": key, "eggs": 0, "unit": line.unit,
-                            "unit_count": line.quantity}
+        # This pre-fill uses physical units (eggs for eggs, jars for ghee/honey).
+        # The existing JS cart field named `eggs` is a legacy stock-quantity key.
+        if line.product.is_egg:
+            if line.unit not in EGG_UNITS:
+                raise ValidationError("An egg pre-booking has an invalid unit; edit the booking first.")
+            stock_quantity = int(line.quantity) * UNIT_MULTIPLIER[line.unit]
+            wanted_unit = line.unit
         else:
-            # POS supports only one cart row per product. Combine repeated
-            # product rows as loose eggs, never silently drop an item.
-            grouped[key]["unit"] = "egg"
-        grouped[key]["eggs"] += eggs
+            if line.unit != "jar":
+                raise ValidationError(
+                    f"{line.product.name} was booked with an egg unit. "
+                    "Edit the pre-booking and select Sealed Jars before invoicing."
+                )
+            stock_quantity = int(line.quantity)
+            wanted_unit = "jar"
+        key = line.product_id
+        if key not in grouped:
+            grouped[key] = {"product_id": key, "eggs": stock_quantity,
+                            "unit": wanted_unit, "unit_count": line.quantity,
+                            "stock_unit": "egg" if line.product.is_egg else "jar"}
+        else:
+            # The POS supports one cart row per product. Combine repeated rows
+            # as loose eggs or jars, never as a tray of jars.
+            grouped[key]["eggs"] += stock_quantity
+            grouped[key]["unit"] = "egg" if line.product.is_egg else "jar"
+            grouped[key]["unit_count"] = grouped[key]["eggs"]
     for item in grouped.values():
-        if item["unit"] == "pack6" or item["unit"] == "egg":
-            item["unit"] = "egg"
+        if item["unit"] in ("egg", "pack6", "jar"):
+            item["unit"] = "egg" if item["stock_unit"] == "egg" else "jar"
             item["unit_count"] = item["eggs"]
 
     # Prefer the explicit saved customer link; phone matching is fallback only

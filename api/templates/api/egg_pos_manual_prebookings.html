@@ -126,7 +126,7 @@
       <details class="pb-record" id="booking-{{ booking.id }}">
         <summary>
           <div class="pb-cell"><div class="pb-name">{{ booking.customer_name }}</div><div class="pb-id">{{ booking.booking_number }} · {{ booking.get_channel_display }}</div><div class="pb-small">{{ booking.created_at|date:"d M Y, h:i A" }}</div></div>
-          <div class="pb-cell"><div class="pb-itemline">{% for line in booking.lines.all %}<div>{{ line.product.name }} · <strong>{{ line.quantity }} {{ line.get_unit_display }}</strong>{% if line.quoted_unit_price != None %} <span class="pb-small">· Rs {{ line.quoted_unit_price|floatformat:2|intcomma }} / {{ line.quoted_rate_unit }}</span>{% endif %}</div>{% endfor %}</div><div class="pb-quantity">{{ booking.total_eggs|intcomma }} eggs in total{% if booking.quoted_items_total != None %} · <strong>Quoted Rs {{ booking.quoted_items_total|floatformat:2|intcomma }}</strong>{% endif %}</div></div>
+          <div class="pb-cell"><div class="pb-itemline">{% for line in booking.lines.all %}<div>{{ line.product.name }} · <strong>{{ line.quantity }} {{ line.get_unit_display }}</strong>{% if line.quoted_unit_price != None %} <span class="pb-small">· Rs {{ line.quoted_unit_price|floatformat:2|intcomma }} / {{ line.quoted_rate_unit }}</span>{% endif %}</div>{% endfor %}</div><div class="pb-quantity">{{ booking.total_items_display }} in total{% if booking.quoted_items_total != None %} · <strong>Quoted Rs {{ booking.quoted_items_total|floatformat:2|intcomma }}</strong>{% endif %}</div></div>
           <div class="pb-cell"><div class="pb-date{% if booking.is_overdue %} pb-date-overdue{% elif booking.is_due_today %} pb-date-warning{% endif %}">{{ booking.expected_date|date:"d M Y"|default:"Not set" }}</div>{% if booking.delivery_window_display %}<div class="pb-small"><i class="fa-regular fa-clock"></i> {{ booking.delivery_window_display }}</div>{% endif %}{% if booking.is_overdue %}<div class="pb-small" style="color:#bd534a">Overdue</div>{% elif booking.is_due_today %}<div class="pb-small" style="color:#a97611">Due today</div>{% endif %}</div>
           <div class="pb-cell"><span class="pb-pill {{ booking.status }}">{{ booking.get_status_display }}</span></div>
           <div class="pb-cell pb-next"><span>{% if booking.status == 'awaiting_stock' %}Mark stock arrived{% elif booking.status == 'contact_customer' %}Reconfirm customer{% elif booking.status == 'confirmed' %}Create POS invoice{% elif booking.status == 'completed' %}View completion{% else %}View details{% endif %}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></div>
@@ -212,10 +212,10 @@
         <div class="pb-field"><label for="pb-time-to">Delivery Window Until (optional)</label><input id="pb-time-to" class="pb-input" type="time" name="delivery_time_to" value="{{ form.delivery_time_to }}"></div>
         <div class="pb-field pb-full"><label for="pb-area">Delivery Area / Address (optional)</label><input id="pb-area" class="pb-input" name="delivery_area" maxlength="180" placeholder="e.g. DHA Phase 6, Lahore" value="{{ form.delivery_area }}"></div>
       </div>
-      <div class="pb-items"><div class="pb-item pb-item-head"><span>Egg Product</span><span>Quantity</span><span>Unit</span><span>Agreed Rate (Rs / unit)</span></div>
-      {% for line in line_rows %}<div class="pb-item pb-entry-line" {% if not forloop.first and not line.product_id and not line.quantity %}hidden{% endif %}><select class="pb-input" name="product_{{ forloop.counter }}"><option value="">{% if forloop.first %}Select egg product *{% else %}Optional item{% endif %}</option>{% for product in products %}<option value="{{ product.id }}" {% if line.product_id == product.id %}selected{% endif %}>{{ product.name }}{% if not product.is_active %} (inactive){% endif %}</option>{% endfor %}</select><input class="pb-input" type="number" min="1" max="10000" name="quantity_{{ forloop.counter }}" placeholder="Qty" value="{{ line.quantity }}"><select class="pb-input" name="unit_{{ forloop.counter }}">{% for key,label in units %}<option value="{{ key }}" {% if line.unit == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><input class="pb-input pb-quoted-rate" type="number" min="0" max="99999999.99" step="0.01" name="quoted_unit_price_{{ forloop.counter }}" placeholder="e.g. 1050" value="{{ line.quoted_unit_price }}" aria-label="Agreed rate in rupees for item {{ forloop.counter }} per selected unit"></div>{% endfor %}
+      <div class="pb-items"><div class="pb-item pb-item-head"><span>Product</span><span>Quantity</span><span>Unit</span><span>Agreed Rate (Rs / unit)</span></div>
+      {% for line in line_rows %}<div class="pb-item pb-entry-line" {% if not forloop.first and not line.product_id and not line.quantity %}hidden{% endif %}><select class="pb-input" name="product_{{ forloop.counter }}"><option value="">{% if forloop.first %}Select product *{% else %}Optional item{% endif %}</option>{% for product in products %}<option value="{{ product.id }}" data-category="{{ product.category }}" {% if line.product_id == product.id %}selected{% endif %}>{{ product.name }}{% if not product.is_active %} (inactive){% endif %}</option>{% endfor %}</select><input class="pb-input" type="number" min="1" max="10000" name="quantity_{{ forloop.counter }}" placeholder="Qty" value="{{ line.quantity }}"><select class="pb-input" name="unit_{{ forloop.counter }}">{% for key,label in units %}<option value="{{ key }}" data-kind="{% if key == 'jar' %}jar{% else %}egg{% endif %}" {% if line.unit == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><input class="pb-input pb-quoted-rate" type="number" min="0" max="99999999.99" step="0.01" name="quoted_unit_price_{{ forloop.counter }}" placeholder="e.g. 1050" value="{{ line.quoted_unit_price }}" aria-label="Agreed rate in rupees for item {{ forloop.counter }} per selected unit"></div>{% endfor %}
       </div>
-      <button type="button" class="pb-add-item" id="pb-add-item">+ Add another egg product</button>
+      <button type="button" class="pb-add-item" id="pb-add-item">+ Add another product</button>
       <div class="pb-quote-summary" id="pb-quote-preview" aria-live="polite">Enter a rate per selected unit to calculate the quoted items total. Prices are not charged until a POS sale is created.</div>
       <div class="pb-field"><label for="pb-notes">Customer Notes / Preference (optional)</label><textarea class="pb-input pb-area" id="pb-notes" name="notes" maxlength="2000" placeholder="Rider instructions, gate number, customer preferences…">{{ form.notes }}</textarea></div>
       <div class="pb-actions" style="margin-top:14px"><button class="pb-button primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> {% if edit_booking %}Save Booking Correction{% else %}Save Pre-Booking{% endif %}</button><span class="pb-muted">This is an enquiry record, not an invoice or stock reservation.</span></div>
@@ -239,7 +239,28 @@
   document.querySelectorAll('[data-open-entry]').forEach(link=>link.addEventListener('click',()=>{if(entry) entry.open=true;}));
   const add = document.getElementById('pb-add-item');
   function update(){if(add) add.hidden = !document.querySelector('.pb-entry-line[hidden]');}
-  if(add){add.addEventListener('click',()=>{const next=document.querySelector('.pb-entry-line[hidden]');if(next){next.hidden=false;next.querySelector('select')?.focus();}update();updateQuote();});update();}
+  function syncProductUnit(row){
+    const product = row.querySelector('select[name^="product_"]');
+    const units = row.querySelector('select[name^="unit_"]');
+    if(!product || !units) return;
+    const selected = product.options[product.selectedIndex];
+    const kind = selected?.dataset.category && selected.dataset.category !== 'egg' ? 'jar' : 'egg';
+    Array.from(units.options).forEach(option=>{
+      const compatible = option.dataset.kind === kind;
+      option.disabled = !compatible;
+      option.hidden = !compatible;
+    });
+    if(units.selectedOptions[0]?.disabled || !units.value){
+      units.value = kind === 'jar' ? 'jar' : 'tray';
+    }
+  }
+  document.querySelectorAll('.pb-entry-line').forEach(row=>{
+    syncProductUnit(row);
+    row.querySelector('select[name^="product_"]')?.addEventListener('change',()=>{
+      syncProductUnit(row); updateQuote();
+    });
+  });
+  if(add){add.addEventListener('click',()=>{const next=document.querySelector('.pb-entry-line[hidden]');if(next){next.hidden=false;syncProductUnit(next);next.querySelector('select')?.focus();}update();updateQuote();});update();}
   function updateQuote(){
     const preview=document.getElementById('pb-quote-preview');if(!preview)return;
     let total=0,missing=false,any=false;

@@ -37,10 +37,15 @@ def _line_label(line):
     units = {
         "egg": ("egg", "eggs"), "pack6": ("6-egg pack", "6-egg packs"),
         "dozen": ("dozen", "dozen"), "tray": ("tray", "trays"),
+        "jar": ("jar", "jars"),
     }
     singular, plural = units.get(line.unit, (line.unit, line.unit))
     product_name = _single_line(getattr(line.product, "name", "Eggs"))
-    text = f"- {product_name}: {qty} {singular if qty == 1 else plural} ({line.eggs_count} eggs)"
+    text = f"- {product_name}: {qty} {singular if qty == 1 else plural}"
+    if getattr(line.product, "is_egg", line.unit != "jar"):
+        text += f" ({line.eggs_count} eggs)"
+    elif line.unit != "jar":
+        text += " (please reconfirm unit)"
     amount = getattr(line, "quoted_unit_price", None)
     if amount is not None:
         rate = _money(amount)
@@ -77,6 +82,14 @@ def build_prebooking_whatsapp(booking):
     prices = [getattr(line, "quoted_unit_price", None) for line in lines]
     partially_priced = any(price is not None for price in prices) and any(price is None for price in prices)
 
+    total_label = getattr(booking, "total_items_display", None)
+    if not total_label:
+        egg_count = sum(getattr(line, "eggs_count", 0) for line in lines)
+        jar_count = sum(int(line.quantity) for line in lines if line.unit == "jar")
+        summary = ([f"{egg_count} eggs"] if egg_count else [])
+        if jar_count:
+            summary.append(f"{jar_count} {'jar' if jar_count == 1 else 'jars'}")
+        total_label = " · ".join(summary) or "Please verify items"
     content = [
         "*RayNoor Organic Farms*",
         f"*{heading}*",
@@ -87,7 +100,7 @@ def build_prebooking_whatsapp(booking):
         "*Items:*",
         *[_line_label(line) + (" | Rate not set" if partially_priced and price is None else "")
           for line, price in zip(lines, prices)],
-        f"*Total:* {sum(line.eggs_count for line in lines)} eggs",
+        f"*Total:* {total_label}",
     ]
 
     # Only display a quote if saved in structured price fields, never inferred

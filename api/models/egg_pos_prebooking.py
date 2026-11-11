@@ -1,4 +1,4 @@
-"""Manually recorded social-media egg pre-bookings; no sale, stock or GL postings."""
+"""Manual retail pre-bookings; no sale, stock or general-ledger postings."""
 import uuid
 from decimal import Decimal
 from django.conf import settings
@@ -13,8 +13,10 @@ CHANNELS = (
     ("phone", "Phone Call"), ("other", "Other"),
 )
 UNITS = (("egg", "Eggs"), ("pack6", "6-Egg Packs"),
-         ("dozen", "Dozens (12)"), ("tray", "Trays (30)"))
-UNIT_MULTIPLIER = {"egg": 1, "pack6": 6, "dozen": 12, "tray": 30}
+         ("dozen", "Dozens (12)"), ("tray", "Trays (30)"),
+         ("jar", "Sealed Jars"))
+UNIT_MULTIPLIER = {"egg": 1, "pack6": 6, "dozen": 12, "tray": 30, "jar": 1}
+EGG_UNITS = frozenset({"egg", "pack6", "dozen", "tray"})
 STATUSES = (
     ("awaiting_stock", "Awaiting Stock"),
     ("contact_customer", "Stock Arrived — Reconfirm"),
@@ -66,6 +68,21 @@ class EggPOSManualPrebooking(models.Model):
         return sum(item.eggs_count for item in self.lines.all())
 
     @property
+    def total_jars(self):
+        return sum(item.jars_count for item in self.lines.all())
+
+    @property
+    def total_items_display(self):
+        """Do not count retail jars as eggs or mix unlike units."""
+        eggs, jars = self.total_eggs, self.total_jars
+        sections = []
+        if eggs:
+            sections.append(f"{eggs:,} eggs")
+        if jars:
+            sections.append(f"{jars:,} {'jar' if jars == 1 else 'jars'}")
+        return " · ".join(sections) or "Check product units"
+
+    @property
     def delivery_window_display(self):
         if not (self.delivery_time_from and self.delivery_time_to):
             return ""
@@ -109,7 +126,13 @@ class EggPOSManualPrebookingLine(models.Model):
 
     @property
     def eggs_count(self):
-        return self.quantity * UNIT_MULTIPLIER.get(self.unit, 0)
+        if not self.product.is_egg or self.unit not in EGG_UNITS:
+            return 0
+        return self.quantity * UNIT_MULTIPLIER[self.unit]
+
+    @property
+    def jars_count(self):
+        return self.quantity if not self.product.is_egg and self.unit == "jar" else 0
 
     @property
     def quoted_line_total(self):
@@ -119,7 +142,7 @@ class EggPOSManualPrebookingLine(models.Model):
 
     @property
     def quoted_rate_unit(self):
-        return {"egg": "egg", "pack6": "6-egg pack", "dozen": "dozen", "tray": "tray"}.get(self.unit, self.unit)
+        return {"egg": "egg", "pack6": "6-egg pack", "dozen": "dozen", "tray": "tray", "jar": "jar"}.get(self.unit, self.unit)
 
     def __str__(self):
         return f"{self.product.name}: {self.quantity} {self.get_unit_display()}"

@@ -15,7 +15,7 @@ from django.views.decorators.http import require_http_methods
 
 from api.models.egg_pos import EggPOSProduct, EggPOSSale, EggPOSCustomer
 from api.models.egg_pos_prebooking import (
-    CHANNELS, STATUSES, UNITS, UNIT_MULTIPLIER,
+    CHANNELS, STATUSES, UNITS, UNIT_MULTIPLIER, EGG_UNITS,
     EggPOSManualPrebooking as Booking,
     EggPOSManualPrebookingLine as Line,
     EggPOSManualPrebookingEvent as Event,
@@ -85,8 +85,13 @@ def _validate(data):
             raise ValueError(f"Item {i} quantity must be between 1 and 10,000.")
         if unit not in UNIT_MULTIPLIER:
             raise ValueError(f"Invalid unit for item {i}.")
-        if not EggPOSProduct.objects.filter(pk=product_id).exists():
-            raise ValueError(f"Invalid egg product in item {i}.")
+        product = EggPOSProduct.objects.filter(pk=product_id).first()
+        if not product:
+            raise ValueError(f"Invalid product in item {i}.")
+        if product.is_egg and unit not in EGG_UNITS:
+            raise ValueError(f"Item {i}: Eggs must use Eggs, 6-Egg Packs, Dozens or Trays.")
+        if not product.is_egg and unit != "jar":
+            raise ValueError(f"Item {i}: Ghee and honey are sold as sealed jars, not eggs or trays.")
         unit_rate = None
         if rate_raw:
             try:
@@ -99,7 +104,7 @@ def _validate(data):
         lines.append((product_id, quantity, unit, unit_rate))
         total += quantity * UNIT_MULTIPLIER[unit]
     if not lines:
-        raise ValueError("Add at least one egg product and quantity.")
+        raise ValueError("Add at least one product and quantity.")
     if total > 300000:
         raise ValueError("This booking is too large; record smaller bookings.")
     return dict(customer_name=name, customer_phone=phone, channel=channel,
