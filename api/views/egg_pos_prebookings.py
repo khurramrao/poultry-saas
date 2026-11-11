@@ -1,6 +1,7 @@
 """Private, manual social pre-bookings. Never reserves stock or posts sales/accounts."""
 import uuid
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal, InvalidOperation
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -49,13 +50,30 @@ def _validate(data):
             expected_date = date.fromisoformat(data["expected_date"])
         except (ValueError, TypeError):
             raise ValueError("Enter a valid expected delivery date.")
+    # Require both ends of the time window, and a delivery date for scheduling.
+    time_from_raw = (data.get("delivery_time_from") or "").strip()
+    time_to_raw = (data.get("delivery_time_to") or "").strip()
+    time_from = time_to = None
+    if bool(time_from_raw) != bool(time_to_raw):
+        raise ValueError("Enter both the delivery start and end time, or leave both blank.")
+    if time_from_raw:
+        if not expected_date:
+            raise ValueError("Set the expected delivery date when entering a delivery time window.")
+        try:
+            time_from = datetime.strptime(time_from_raw, "%H:%M").time()
+            time_to = datetime.strptime(time_to_raw, "%H:%M").time()
+        except ValueError:
+            raise ValueError("Use valid 24-hour times such as 15:00 and 17:00.")
+        if time_from >= time_to:
+            raise ValueError("Delivery end time must be later than the start time.")
     lines = []
     total = 0
     for i in range(1, 6):
         product_raw = (data.get(f"product_{i}") or "").strip()
         quantity_raw = (data.get(f"quantity_{i}") or "").strip()
         unit = (data.get(f"unit_{i}") or "tray").strip()
-        if not product_raw and not quantity_raw:
+        rate_raw = (data.get(f"quoted_unit_price_{i}") or "").strip()
+        if not product_raw and not quantity_raw and not rate_raw:
             continue
         if not product_raw or not quantity_raw:
             raise ValueError(f"Complete both product and quantity in item {i}.")
@@ -69,14 +87,24 @@ def _validate(data):
             raise ValueError(f"Invalid unit for item {i}.")
         if not EggPOSProduct.objects.filter(pk=product_id).exists():
             raise ValueError(f"Invalid egg product in item {i}.")
-        lines.append((product_id, quantity, unit))
+        unit_rate = None
+        if rate_raw:
+            try:
+                unit_rate = Decimal(rate_raw)
+            except InvalidOperation:
+                raise ValueError(f"Enter a valid quoted rate for item {i}.")
+            if (not unit_rate.is_finite() or unit_rate < 0 or unit_rate > Decimal("99999999.99")
+                    or unit_rate.as_tuple().exponent < -2):
+                raise ValueError(f"Item {i} rate must be a non-negative amount with at most two decimal places.")
+        lines.append((product_id, quantity, unit, unit_rate))
         total += quantity * UNIT_MULTIPLIER[unit]
     if not lines:
         raise ValueError("Add at least one egg product and quantity.")
     if total > 300000:
         raise ValueError("This booking is too large; record smaller bookings.")
     return dict(customer_name=name, customer_phone=phone, channel=channel,
-                delivery_area=area, notes=notes, expected_date=expected_date), lines
+                delivery_area=area, notes=notes, expected_date=expected_date,
+                delivery_time_from=time_from, delivery_time_to=time_to), lines
 
 
 def _log(booking, action, user, details=""):
@@ -127,7 +155,8 @@ def _record(request):
                 messages.info(request, f"{booking.booking_number} was already saved.")
                 return
             Line.objects.bulk_create([Line(booking=booking, product_id=pid,
-                                           quantity=q, unit=unit) for pid, q, unit in lines])
+                                           quantity=q, unit=unit, quoted_unit_price=rate)
+                                           for pid, q, unit, rate in lines])
             _log(booking, "created", request.user, "Manually entered social-channel pre-booking")
         messages.success(request, f"Saved {booking.booking_number}. No stock, sale or cash entry was created.")
         return
@@ -146,14 +175,18 @@ def _record(request):
             if customer:
                 fields.update(customer=customer, customer_name=customer.name, customer_phone=customer.phone)
             previous = (f"Name: {booking.customer_name}; phone: {booking.customer_phone}; "
-                        f"channel: {booking.channel}; items: " +
-                        "; ".join(f"{l.product_id} x{l.quantity} {l.unit}" for l in booking.lines.all()))
+                        f"channel: {booking.channel}; date: {booking.expected_date}; "
+                        f"time: {booking.delivery_window_display or 'not set'}; items: " +
+                        "; ".join(f"{l.product_id} x{l.quantity} {l.unit} "
+                                  f"@ {l.quoted_unit_price if l.quoted_unit_price is not None else 'unpriced'}"
+                                  for l in booking.lines.all()))
             for field, value in fields.items():
                 setattr(booking, field, value)
             booking.save(update_fields=[*fields, "updated_at"])
             booking.lines.all().delete()
             Line.objects.bulk_create([Line(booking=booking, product_id=pid,
-                                           quantity=q, unit=unit) for pid, q, unit in lines])
+                                           quantity=q, unit=unit, quoted_unit_price=rate)
+                                           for pid, q, unit, rate in lines])
             _log(booking, "edited", request.user, "Earlier details: " + previous)
             messages.success(request, f"Updated {booking.booking_number}; edit saved to audit history.")
         elif action == "stock_arrived":
@@ -302,22 +335,31 @@ def _context(request, edit_id=None):
     if request.method == 'POST' and request.POST.get('action') in ('create', 'update'):
         entry = request.POST
         lines = [dict(product_id=int(entry.get(f"product_{i}") or 0) if str(entry.get(f"product_{i}") or '0').isdigit() else 0,
-                      quantity=entry.get(f"quantity_{i}") or "", unit=entry.get(f"unit_{i}") or "tray") for i in range(1,6)]
+                      quantity=entry.get(f"quantity_{i}") or "", unit=entry.get(f"unit_{i}") or "tray",
+                      quoted_unit_price=entry.get(f"quoted_unit_price_{i}") or "") for i in range(1,6)]
         form = dict(customer_name=entry.get('customer_name') or '',customer_phone=entry.get('customer_phone') or '',
                     channel=entry.get('channel') or '', delivery_area=entry.get('delivery_area') or '',
-                    expected_date=entry.get('expected_date') or '',notes=entry.get('notes') or '')
+                    expected_date=entry.get('expected_date') or '',
+                    delivery_time_from=entry.get('delivery_time_from') or '',
+                    delivery_time_to=entry.get('delivery_time_to') or '',
+                    notes=entry.get('notes') or '')
         token = entry.get('request_token') or str(uuid.uuid4())
     elif edit_booking:
         form = dict(customer_name=edit_booking.customer_name, customer_phone=edit_booking.customer_phone,
                     channel=edit_booking.channel, delivery_area=edit_booking.delivery_area,
                     expected_date=edit_booking.expected_date.isoformat() if edit_booking.expected_date else '',
+                    delivery_time_from=edit_booking.delivery_time_from.strftime('%H:%M') if edit_booking.delivery_time_from else '',
+                    delivery_time_to=edit_booking.delivery_time_to.strftime('%H:%M') if edit_booking.delivery_time_to else '',
                     notes=edit_booking.notes)
-        lines = [dict(product_id=l.product_id, quantity=l.quantity, unit=l.unit) for l in edit_booking.lines.all()]
-        lines += [dict(product_id=0, quantity='',unit='tray')] * max(0, 5-len(lines))
+        lines = [dict(product_id=l.product_id, quantity=l.quantity, unit=l.unit,
+                      quoted_unit_price=l.quoted_unit_price if l.quoted_unit_price is not None else '')
+                 for l in edit_booking.lines.all()]
+        lines += [dict(product_id=0, quantity='', unit='tray', quoted_unit_price='')] * max(0, 5-len(lines))
         token = str(uuid.uuid4())
     else:
-        form = dict(customer_name='', customer_phone='', channel='', delivery_area='', expected_date='', notes='')
-        lines = [dict(product_id=0, quantity='', unit='tray') for _ in range(5)]
+        form = dict(customer_name='', customer_phone='', channel='', delivery_area='', expected_date='',
+                    delivery_time_from='', delivery_time_to='', notes='')
+        lines = [dict(product_id=0, quantity='', unit='tray', quoted_unit_price='') for _ in range(5)]
         token = str(uuid.uuid4())
     selected_customer = None
     if edit_booking and edit_booking.customer_id:

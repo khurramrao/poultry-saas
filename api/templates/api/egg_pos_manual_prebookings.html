@@ -70,12 +70,17 @@
 .pb-entry>summary:hover,.pb-analytics>summary:hover{background:#f6f9fc}
 .pb-entry>summary span:last-child,.pb-analytics>summary span:last-child{font-size:11px;color:#487a9a}.pb-entry-body{padding:16px 18px}
 .pb-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.pb-full{grid-column:1/-1}
-.pb-items{border:1px solid #e4ecf4;border-radius:12px;overflow:hidden;margin:16px 0}.pb-item{display:grid;grid-template-columns:minmax(0,2fr) minmax(70px,1fr) minmax(100px,1fr);gap:10px;padding:10px 12px;border-bottom:1px solid #eef2f6}.pb-item:last-child{border-bottom:0}.pb-item-head{background:#f6f9fc;font-size:10px;color:#607c93;font-weight:850;text-transform:uppercase}
+.pb-items{border:1px solid #e4ecf4;border-radius:12px;overflow:hidden;margin:16px 0}.pb-item{display:grid;grid-template-columns:minmax(0,2fr) minmax(70px,.65fr) minmax(100px,1fr) minmax(110px,.95fr);gap:10px;padding:10px 12px;border-bottom:1px solid #eef2f6}.pb-item:last-child{border-bottom:0}.pb-item-head{background:#f6f9fc;font-size:10px;color:#607c93;font-weight:850;text-transform:uppercase}
 .pb-entry-line[hidden],.pb-add-item[hidden]{display:none}
+.pb-quote-summary{background:#f0f8f3;border:1px solid #cce8d6;border-radius:10px;color:#235943;padding:11px 14px;margin:0 0 14px;font-size:12px}
+.pb-quote-total{font-weight:850;color:#116a45}.pb-price-list{display:flex;flex-direction:column;gap:6px;margin-top:7px}
+.pb-price-line{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.pb-price-line strong{color:#135d43}.pb-time-note{color:#638198;font-size:11px;margin-top:6px}
+
 .pb-note{padding:11px 13px;background:#eff8ff;border:1px solid #d2e9f9;color:#315a78;font-size:11px;line-height:1.6;border-radius:10px}.pb-add-item{border:1px dashed #a7c5df;background:#f4f9fe;color:#1a639d;cursor:pointer;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:850;margin-bottom:14px}
 .pb-platform-report{overflow-x:auto}.pb-platform-table{border-collapse:collapse;width:100%;min-width:670px;font-size:12px}.pb-platform-table th{background:#f6f9fc;font-size:10px;color:#657c92;text-transform:uppercase;padding:12px;text-align:right;white-space:nowrap}.pb-platform-table td{padding:12px;border-top:1px solid #edf1f5;text-align:right}.pb-platform-table th:first-child,.pb-platform-table td:first-child{text-align:left}.pb-platform-table tr:last-child{background:#f4f9ff;font-weight:850}.pb-platform-source{font-weight:800;color:#245978}.pb-report-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:0 18px 14px}.pb-report-top label{font-size:11px;color:#56728b;font-weight:850}.pb-report-top select{margin-left:6px}.pb-verification{color:#638098;font-size:11px;line-height:1.6;padding:0 18px 17px}
 @media(max-width:1100px){.pb-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.pb-column-head,.pb-record>summary{grid-template-columns:minmax(160px,1.6fr) minmax(160px,1.7fr) minmax(95px,1fr) minmax(110px,1.1fr)}.pb-column-head span:last-child,.pb-record>summary>.pb-cell:nth-child(5){display:none}}
-@media(max-width:760px){.pb-head h2{font-size:20px}.pb-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.pb-stat{padding:13px}.pb-stat strong{font-size:22px}.pb-filter{grid-template-columns:1fr}.pb-filter-submit{justify-content:flex-start}.pb-grid{grid-template-columns:1fr}.pb-full{grid-column:auto}.pb-item{grid-template-columns:1.35fr .7fr 1fr;gap:5px;padding:8px}.pb-detail-grid{grid-template-columns:1fr}.pb-list .pb-column-head{display:none}.pb-list:not([data-view="cards"]){display:block}.pb-record>summary{grid-template-columns:1fr auto!important;gap:8px 14px}.pb-record>summary>.pb-cell:nth-child(1){grid-column:1;grid-row:1}.pb-record>summary>.pb-cell:nth-child(4){grid-column:2;grid-row:1}.pb-record>summary>.pb-cell:nth-child(2){grid-column:1/-1;grid-row:2}.pb-record>summary>.pb-cell:nth-child(3){grid-column:1;grid-row:3}.pb-record>summary>.pb-cell:nth-child(5){grid-column:2;grid-row:3;display:block}.pb-list[data-view="cards"]{display:block;padding:0}.pb-list[data-view="cards"] .pb-record{margin:10px;border:1px solid #e2eaf0}.pb-head-actions{width:100%}.pb-head-actions .pb-button{flex:1}.pb-panel-top{align-items:flex-start}}
+@media(max-width:760px){.pb-head h2{font-size:20px}.pb-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.pb-stat{padding:13px}.pb-stat strong{font-size:22px}.pb-filter{grid-template-columns:1fr}.pb-filter-submit{justify-content:flex-start}.pb-grid{grid-template-columns:1fr}.pb-full{grid-column:auto}.pb-item{grid-template-columns:1.25fr .7fr .95fr 1fr;gap:5px;padding:8px}.pb-detail-grid{grid-template-columns:1fr}.pb-list .pb-column-head{display:none}.pb-list:not([data-view="cards"]){display:block}.pb-record>summary{grid-template-columns:1fr auto!important;gap:8px 14px}.pb-record>summary>.pb-cell:nth-child(1){grid-column:1;grid-row:1}.pb-record>summary>.pb-cell:nth-child(4){grid-column:2;grid-row:1}.pb-record>summary>.pb-cell:nth-child(2){grid-column:1/-1;grid-row:2}.pb-record>summary>.pb-cell:nth-child(3){grid-column:1;grid-row:3}.pb-record>summary>.pb-cell:nth-child(5){grid-column:2;grid-row:3;display:block}.pb-list[data-view="cards"]{display:block;padding:0}.pb-list[data-view="cards"] .pb-record{margin:10px;border:1px solid #e2eaf0}.pb-head-actions{width:100%}.pb-head-actions .pb-button{flex:1}.pb-panel-top{align-items:flex-start}}
 @media(max-width:450px){.pb-stats{grid-template-columns:repeat(2,1fr)}.pb-stat-top{gap:5px}.pb-stat small{font-size:10px}.pb-record>summary{padding:14px}.pb-filter{padding:12px}.pb-tabs{padding:0 12px 13px}.pb-panel-top{padding:14px}.pb-entry-body{padding:12px}.pb-item .pb-input{padding:6px;font-size:11px}}
 </style>
 {% endblock %}
@@ -121,8 +126,8 @@
       <details class="pb-record" id="booking-{{ booking.id }}">
         <summary>
           <div class="pb-cell"><div class="pb-name">{{ booking.customer_name }}</div><div class="pb-id">{{ booking.booking_number }} · {{ booking.get_channel_display }}</div><div class="pb-small">{{ booking.created_at|date:"d M Y, h:i A" }}</div></div>
-          <div class="pb-cell"><div class="pb-itemline">{% for line in booking.lines.all %}<div>{{ line.product.name }} · <strong>{{ line.quantity }} {{ line.get_unit_display }}</strong>{% if not forloop.last %}{% endif %}</div>{% endfor %}</div><div class="pb-quantity">{{ booking.total_eggs|intcomma }} eggs in total</div></div>
-          <div class="pb-cell"><div class="pb-date{% if booking.is_overdue %} pb-date-overdue{% elif booking.is_due_today %} pb-date-warning{% endif %}">{{ booking.expected_date|date:"d M Y"|default:"Not set" }}</div>{% if booking.is_overdue %}<div class="pb-small" style="color:#bd534a">Overdue</div>{% elif booking.is_due_today %}<div class="pb-small" style="color:#a97611">Due today</div>{% endif %}</div>
+          <div class="pb-cell"><div class="pb-itemline">{% for line in booking.lines.all %}<div>{{ line.product.name }} · <strong>{{ line.quantity }} {{ line.get_unit_display }}</strong>{% if line.quoted_unit_price != None %} <span class="pb-small">· Rs {{ line.quoted_unit_price|floatformat:2|intcomma }} / {{ line.quoted_rate_unit }}</span>{% endif %}</div>{% endfor %}</div><div class="pb-quantity">{{ booking.total_eggs|intcomma }} eggs in total{% if booking.quoted_items_total != None %} · <strong>Quoted Rs {{ booking.quoted_items_total|floatformat:2|intcomma }}</strong>{% endif %}</div></div>
+          <div class="pb-cell"><div class="pb-date{% if booking.is_overdue %} pb-date-overdue{% elif booking.is_due_today %} pb-date-warning{% endif %}">{{ booking.expected_date|date:"d M Y"|default:"Not set" }}</div>{% if booking.delivery_window_display %}<div class="pb-small"><i class="fa-regular fa-clock"></i> {{ booking.delivery_window_display }}</div>{% endif %}{% if booking.is_overdue %}<div class="pb-small" style="color:#bd534a">Overdue</div>{% elif booking.is_due_today %}<div class="pb-small" style="color:#a97611">Due today</div>{% endif %}</div>
           <div class="pb-cell"><span class="pb-pill {{ booking.status }}">{{ booking.get_status_display }}</span></div>
           <div class="pb-cell pb-next"><span>{% if booking.status == 'awaiting_stock' %}Mark stock arrived{% elif booking.status == 'contact_customer' %}Reconfirm customer{% elif booking.status == 'confirmed' %}Create POS invoice{% elif booking.status == 'completed' %}View completion{% else %}View details{% endif %}</span><i class="fa-solid fa-chevron-down" aria-hidden="true"></i></div>
         </summary>
@@ -130,7 +135,21 @@
           <div class="pb-detail-grid">
             <div class="pb-detail-box"><small>Customer contact</small><div class="pb-inline-links"><a href="tel:{{ booking.customer_phone }}"><i class="fa-solid fa-phone"></i> {{ booking.customer_phone }}</a><a href="https://wa.me/{{ booking.whatsapp_number }}" target="_blank" rel="noopener noreferrer"><i class="fa-brands fa-whatsapp"></i> WhatsApp</a></div>{% if booking.customer_id %}<div style="margin-top:8px"><a href="{% url 'egg_pos_customer_detail' booking.customer_id %}">View customer account</a></div>{% endif %}</div>
             <div class="pb-detail-box"><small>Delivery location</small><div>{{ booking.delivery_area|default:"Not set" }}</div><div class="pb-small">Recorded by {{ booking.created_by.username }}</div></div>
-            <div class="pb-detail-box"><small>Expected date</small><div>{{ booking.expected_date|date:"d M Y"|default:"Not set" }}</div><div class="pb-small">{{ booking.get_channel_display }} enquiry</div></div>
+            <div class="pb-detail-box"><small>Expected delivery</small><div>{{ booking.expected_date|date:"d M Y"|default:"Not set" }}</div><div class="pb-small"><strong>Time:</strong> {{ booking.delivery_window_display|default:"Not set" }}</div><div class="pb-small">{{ booking.get_channel_display }} enquiry · preferred window, subject to confirmation</div></div>
+          </div>
+          <div class="pb-detail-extra" aria-label="Pre-booking quoted rates">
+            <strong>Agreed / quoted item rates</strong>
+            <div class="pb-price-list">
+            {% for line in booking.lines.all %}
+              <div class="pb-price-line"><span>{{ line.product.name }} · {{ line.quantity }} {{ line.get_unit_display }}</span>
+                <span>{% if line.quoted_unit_price != None %}Rs {{ line.quoted_unit_price|floatformat:2|intcomma }} / {{ line.quoted_rate_unit }} → <strong>Rs {{ line.quoted_line_total|floatformat:2|intcomma }}</strong>{% else %}Rate not entered{% endif %}</span>
+              </div>
+            {% endfor %}
+            </div>
+            <div style="margin-top:9px;border-top:1px solid #dce7ef;padding-top:9px"><strong>Quoted items total:</strong>
+              {% if booking.quoted_items_total != None %}<strong class="pb-quote-total">Rs {{ booking.quoted_items_total|floatformat:2|intcomma }}</strong>{% else %}<span>Not finalized — one or more rates missing</span>{% endif %}
+            </div>
+            <div class="pb-time-note">Booking quote only, excluding any delivery charges. Final POS invoice is authoritative.</div>
           </div>
           {% if booking.notes %}<div class="pb-detail-extra"><strong>Delivery / customer notes:</strong> {{ booking.notes|linebreaksbr }}</div>{% endif %}
           {% if booking.invoice_reference %}<div class="pb-detail-extra">POS invoice reference: <strong>{{ booking.invoice_reference }}</strong> (recorded manually).</div>{% endif %}
@@ -188,14 +207,17 @@
         <div class="pb-field"><label for="pb-name">Customer Name *</label><input id="pb-name" class="pb-input" name="customer_name" maxlength="150" value="{{ form.customer_name }}" required autocomplete="off"></div>
         <div class="pb-field"><label for="pb-phone">Customer Mobile / WhatsApp *</label><input id="pb-phone" type="tel" class="pb-input" name="customer_phone" maxlength="40" placeholder="0300 1234567" value="{{ form.customer_phone }}" required autocomplete="off"></div>
         <div class="pb-field"><label for="pb-channel">Booking Received Through *</label><select id="pb-channel" class="pb-input" name="channel" required><option value="">Choose platform</option>{% for key,label in channels %}<option value="{{ key }}" {% if form.channel == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
-        <div class="pb-field"><label for="pb-date">Expected Delivery / Stock Date (optional)</label><input id="pb-date" class="pb-input" type="date" name="expected_date" value="{{ form.expected_date }}"></div>
+        <div class="pb-field"><label for="pb-date">Preferred Delivery Date (optional)</label><input id="pb-date" class="pb-input" type="date" name="expected_date" value="{{ form.expected_date }}"></div>
+        <div class="pb-field"><label for="pb-time-from">Delivery Window From (optional)</label><input id="pb-time-from" class="pb-input" type="time" name="delivery_time_from" value="{{ form.delivery_time_from }}"></div>
+        <div class="pb-field"><label for="pb-time-to">Delivery Window Until (optional)</label><input id="pb-time-to" class="pb-input" type="time" name="delivery_time_to" value="{{ form.delivery_time_to }}"></div>
         <div class="pb-field pb-full"><label for="pb-area">Delivery Area / Address (optional)</label><input id="pb-area" class="pb-input" name="delivery_area" maxlength="180" placeholder="e.g. DHA Phase 6, Lahore" value="{{ form.delivery_area }}"></div>
       </div>
-      <div class="pb-items"><div class="pb-item pb-item-head"><span>Egg Product</span><span>Quantity</span><span>Unit</span></div>
-      {% for line in line_rows %}<div class="pb-item pb-entry-line" {% if not forloop.first and not line.product_id and not line.quantity %}hidden{% endif %}><select class="pb-input" name="product_{{ forloop.counter }}"><option value="">{% if forloop.first %}Select egg product *{% else %}Optional item{% endif %}</option>{% for product in products %}<option value="{{ product.id }}" {% if line.product_id == product.id %}selected{% endif %}>{{ product.name }}{% if not product.is_active %} (inactive){% endif %}</option>{% endfor %}</select><input class="pb-input" type="number" min="1" max="10000" name="quantity_{{ forloop.counter }}" placeholder="Qty" value="{{ line.quantity }}"><select class="pb-input" name="unit_{{ forloop.counter }}">{% for key,label in units %}<option value="{{ key }}" {% if line.unit == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>{% endfor %}
+      <div class="pb-items"><div class="pb-item pb-item-head"><span>Egg Product</span><span>Quantity</span><span>Unit</span><span>Agreed Rate (Rs / unit)</span></div>
+      {% for line in line_rows %}<div class="pb-item pb-entry-line" {% if not forloop.first and not line.product_id and not line.quantity %}hidden{% endif %}><select class="pb-input" name="product_{{ forloop.counter }}"><option value="">{% if forloop.first %}Select egg product *{% else %}Optional item{% endif %}</option>{% for product in products %}<option value="{{ product.id }}" {% if line.product_id == product.id %}selected{% endif %}>{{ product.name }}{% if not product.is_active %} (inactive){% endif %}</option>{% endfor %}</select><input class="pb-input" type="number" min="1" max="10000" name="quantity_{{ forloop.counter }}" placeholder="Qty" value="{{ line.quantity }}"><select class="pb-input" name="unit_{{ forloop.counter }}">{% for key,label in units %}<option value="{{ key }}" {% if line.unit == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><input class="pb-input pb-quoted-rate" type="number" min="0" max="99999999.99" step="0.01" name="quoted_unit_price_{{ forloop.counter }}" placeholder="e.g. 1050" value="{{ line.quoted_unit_price }}" aria-label="Agreed rate in rupees for item {{ forloop.counter }} per selected unit"></div>{% endfor %}
       </div>
       <button type="button" class="pb-add-item" id="pb-add-item">+ Add another egg product</button>
-      <div class="pb-field"><label for="pb-notes">Customer Notes / Preference (optional)</label><textarea class="pb-input pb-area" id="pb-notes" name="notes" maxlength="2000" placeholder="Requested quantity, price discussion, preferred delivery time…">{{ form.notes }}</textarea></div>
+      <div class="pb-quote-summary" id="pb-quote-preview" aria-live="polite">Enter a rate per selected unit to calculate the quoted items total. Prices are not charged until a POS sale is created.</div>
+      <div class="pb-field"><label for="pb-notes">Customer Notes / Preference (optional)</label><textarea class="pb-input pb-area" id="pb-notes" name="notes" maxlength="2000" placeholder="Rider instructions, gate number, customer preferences…">{{ form.notes }}</textarea></div>
       <div class="pb-actions" style="margin-top:14px"><button class="pb-button primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> {% if edit_booking %}Save Booking Correction{% else %}Save Pre-Booking{% endif %}</button><span class="pb-muted">This is an enquiry record, not an invoice or stock reservation.</span></div>
     </form>
     </div>
@@ -217,7 +239,28 @@
   document.querySelectorAll('[data-open-entry]').forEach(link=>link.addEventListener('click',()=>{if(entry) entry.open=true;}));
   const add = document.getElementById('pb-add-item');
   function update(){if(add) add.hidden = !document.querySelector('.pb-entry-line[hidden]');}
-  if(add){add.addEventListener('click',()=>{const next=document.querySelector('.pb-entry-line[hidden]');if(next){next.hidden=false;next.querySelector('select')?.focus();}update();});update();}
+  if(add){add.addEventListener('click',()=>{const next=document.querySelector('.pb-entry-line[hidden]');if(next){next.hidden=false;next.querySelector('select')?.focus();}update();updateQuote();});update();}
+  function updateQuote(){
+    const preview=document.getElementById('pb-quote-preview');if(!preview)return;
+    let total=0,missing=false,any=false;
+    document.querySelectorAll('.pb-entry-line:not([hidden])').forEach(row=>{
+      const product=row.querySelector('[name^="product_"]')?.value;
+      const qtyInput=row.querySelector('[name^="quantity_"]');
+      const rateInput=row.querySelector('[name^="quoted_unit_price_"]');
+      if(!product || !qtyInput?.value)return;
+      any=true;
+      if(!rateInput?.value){missing=true;return;}
+      const qty=Number(qtyInput.value),rate=Number(rateInput.value);
+      if(!Number.isFinite(qty)||!Number.isFinite(rate)||qty<=0||rate<0){missing=true;return;}
+      total+=Math.round(qty*rate*100);
+    });
+    if(!any)preview.textContent='Add products and enter rates to see the quoted items total.';
+    else if(missing)preview.textContent='Some items are missing a rate. The quoted total is not yet finalized.';
+    else preview.textContent='Quoted items total: Rs '+(total/100).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2})+' (delivery charges excluded).';
+  }
+  document.querySelectorAll('.pb-entry-line select,.pb-entry-line input').forEach(el=>{
+    el.addEventListener('input',updateQuote);el.addEventListener('change',updateQuote);
+  });updateQuote();
   const list = document.getElementById('pb-booking-results');
   document.querySelectorAll('[data-set-view]').forEach(button=>button.addEventListener('click',()=>{
     if(!list) return;

@@ -1,5 +1,6 @@
 """Manually recorded social-media egg pre-bookings; no sale, stock or GL postings."""
 import uuid
+from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
@@ -32,6 +33,9 @@ class EggPOSManualPrebooking(models.Model):
     channel = models.CharField(max_length=20, choices=CHANNELS)
     delivery_area = models.CharField(max_length=180, blank=True)
     expected_date = models.DateField(null=True, blank=True)
+    # Local delivery-window times; never imply stock or delivery confirmation.
+    delivery_time_from = models.TimeField(null=True, blank=True)
+    delivery_time_to = models.TimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
     status = models.CharField(max_length=24, choices=STATUSES, default="awaiting_stock", db_index=True)
     stock_arrived_at = models.DateTimeField(null=True, blank=True)
@@ -62,6 +66,22 @@ class EggPOSManualPrebooking(models.Model):
         return sum(item.eggs_count for item in self.lines.all())
 
     @property
+    def delivery_window_display(self):
+        if not (self.delivery_time_from and self.delivery_time_to):
+            return ""
+        start = self.delivery_time_from.strftime("%I:%M %p").lstrip("0")
+        end = self.delivery_time_to.strftime("%I:%M %p").lstrip("0")
+        return f"{start} – {end}"
+
+    @property
+    def quoted_items_total(self):
+        """None for unpriced/partially priced bookings; never treat missing as Rs 0."""
+        lines = list(self.lines.all())
+        if not lines or any(line.quoted_unit_price is None for line in lines):
+            return None
+        return sum((line.quoted_line_total for line in lines), Decimal("0.00"))
+
+    @property
     def whatsapp_number(self):
         raw = "".join(c for c in (self.customer_phone or "") if c.isdigit())
         if raw.startswith("03") and len(raw) == 11:
@@ -80,6 +100,9 @@ class EggPOSManualPrebookingLine(models.Model):
                                 related_name="manual_prebooking_lines")
     quantity = models.PositiveIntegerField()
     unit = models.CharField(max_length=12, choices=UNITS, default="tray")
+    # The agreed/quoted unit rate is a snapshot, NOT a POS invoice selling price.
+    quoted_unit_price = models.DecimalField(max_digits=10, decimal_places=2,
+                                            null=True, blank=True)
 
     class Meta:
         ordering = ("id",)
@@ -87,6 +110,16 @@ class EggPOSManualPrebookingLine(models.Model):
     @property
     def eggs_count(self):
         return self.quantity * UNIT_MULTIPLIER.get(self.unit, 0)
+
+    @property
+    def quoted_line_total(self):
+        if self.quoted_unit_price is None:
+            return None
+        return self.quoted_unit_price * self.quantity
+
+    @property
+    def quoted_rate_unit(self):
+        return {"egg": "egg", "pack6": "6-egg pack", "dozen": "dozen", "tray": "tray"}.get(self.unit, self.unit)
 
     def __str__(self):
         return f"{self.product.name}: {self.quantity} {self.get_unit_display()}"
