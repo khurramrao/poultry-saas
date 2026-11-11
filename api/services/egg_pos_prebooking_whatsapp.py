@@ -112,28 +112,45 @@ def build_prebooking_whatsapp(booking):
         *[_line_label(line) for line in lines],
         f"*Total:* {sum(line.eggs_count for line in lines)} eggs",
     ]
-    # Only include entered prices; a partially priced booking has no quoted total.
-    if any(line.quoted_unit_price is not None for line in lines):
+    # Compatibility with pre-0091 bookings/models: quote and delivery-window
+    # fields may not exist on Railway if the optional earlier patch was omitted.
+    # Missing rates must NEVER be represented as Rs 0 or guessed from product prices.
+    priced_lines = [(line, getattr(line, "quoted_unit_price", None)) for line in lines]
+    if any(price is not None for _, price in priced_lines):
         content.append("*Quoted Rates (not an invoice):*")
-        for line in lines:
-            if line.quoted_unit_price is not None:
+        for line, price in priced_lines:
+            if price is not None:
+                line_total = getattr(line, "quoted_line_total", None)
+                if line_total is None:
+                    line_total = price * line.quantity
+                unit_name = getattr(line, "quoted_rate_unit", None) or {
+                    "egg": "egg", "pack6": "6-egg pack",
+                    "dozen": "dozen", "tray": "tray",
+                }.get(line.unit, line.unit)
                 content.append(
-                    f"- {_single_line(line.product.name)}: Rs {line.quoted_unit_price:,.2f} "
-                    f"per {line.quoted_rate_unit} = Rs {line.quoted_line_total:,.2f}"
+                    f"- {_single_line(line.product.name)}: Rs {price:,.2f} "
+                    f"per {unit_name} = Rs {line_total:,.2f}"
                 )
             else:
                 content.append(f"- {_single_line(line.product.name)}: Rate not set")
-        if booking.quoted_items_total is not None:
-            content.append(f"*Quoted Items Total:* Rs {booking.quoted_items_total:,.2f}")
+        quoted_total = getattr(booking, "quoted_items_total", None)
+        if quoted_total is None and all(price is not None for _, price in priced_lines):
+            quoted_total = sum(price * line.quantity for line, price in priced_lines)
+        if quoted_total is not None:
+            content.append(f"*Quoted Items Total:* Rs {quoted_total:,.2f}")
         else:
             content.append("*Quoted Items Total:* Not finalized (some rates missing)")
         content.append("Delivery charges, if applicable, are not included.")
-    if booking.expected_date or booking.delivery_window_display or booking.delivery_area:
+
+    # The legacy pre-booking model has expected_date and delivery_area but no
+    # delivery_window_display property. Both render safely in either version.
+    delivery_window = getattr(booking, "delivery_window_display", "") or ""
+    if booking.expected_date or delivery_window or booking.delivery_area:
         content.extend(["", "*DELIVERY PREFERENCES*"])
     if booking.expected_date:
         content.append(f"*Requested Date:* {booking.expected_date.strftime('%d %b %Y')} (tentative)")
-    if booking.delivery_window_display:
-        content.append(f"*Preferred Delivery Time:* {booking.delivery_window_display} (tentative)")
+    if delivery_window:
+        content.append(f"*Preferred Delivery Time:* {delivery_window} (tentative)")
     if booking.delivery_area:
         content.append(f"*Delivery Location:* {_single_line(booking.delivery_area)}")
     content += [
