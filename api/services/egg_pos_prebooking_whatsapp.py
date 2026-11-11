@@ -57,25 +57,27 @@ def build_prebooking_whatsapp(booking):
         return None
 
     if booking.status == "awaiting_stock":
-        heading = "Pre-Booking Received"
+        heading = "Your Pre-Booking Confirmation"
+        opening = "This is your pre-booking confirmation of receipt. We have received your request."
         status = "Awaiting stock"
         explanation = (
-            "Thank you for your pre-booking. We will contact you to confirm "
-            "availability and delivery. This message acknowledges your request; "
-            "your order is not yet confirmed."
+            "This confirms receipt of your booking request only. Stock availability "
+            "and the requested delivery schedule are not yet confirmed; "
+            "your order is not yet confirmed. We will contact you with an update."
         )
         label = "Send Booking Receipt"
     elif booking.status == "contact_customer":
         heading = "Pre-Booking Stock Update"
+        opening = "We have an update regarding your pre-booking."
         status = "Stock reported available - awaiting your reply"
         explanation = (
-            "We are following up on your pre-booking. Please reply to confirm "
-            "you still require these items. We will finalize the order after "
-            "your confirmation."
+            "Please reply to confirm you still require these items. "
+            "We will finalize the order after your confirmation."
         )
         label = "Request Confirmation"
     elif booking.status == "confirmed":
-        heading = "Pre-Booking Confirmation"
+        heading = "Your Pre-Booking Is Confirmed"
+        opening = "Your pre-booking has been confirmed."
         status = "Customer reconfirmed"
         explanation = (
             "Thank you for confirming your pre-booking. Our team will "
@@ -83,7 +85,8 @@ def build_prebooking_whatsapp(booking):
         )
         label = "Send Confirmation"
     else:
-        heading = "Pre-Booking Follow-Up"
+        heading = "Thank You for Your Pre-Booking"
+        opening = "We appreciate the opportunity to serve you."
         status = "Processed"
         explanation = "Thank you for choosing RayNoor Organic Farms."
         label = "Send Follow-Up"
@@ -94,25 +97,55 @@ def build_prebooking_whatsapp(booking):
         return None
     content = [
         "*RayNoor Organic Farms*",
+        "_Committed to Organic Excellence_",
+        "",
         f"*{heading}*",
         "",
         f"Assalam-o-Alaikum {name},",
         "",
-        f"*Booking No:* {booking.booking_number}",
+        "Thank you for choosing *RayNoor Organic Farms*!",
+        opening,
+        "",
+        "*BOOKING DETAILS*",
+        f"*Booking No:* {_single_line(booking.booking_number)}",
         "*Requested Items:*",
         *[_line_label(line) for line in lines],
         f"*Total:* {sum(line.eggs_count for line in lines)} eggs",
     ]
+    # Only include entered prices; a partially priced booking has no quoted total.
+    if any(line.quoted_unit_price is not None for line in lines):
+        content.append("*Quoted Rates (not an invoice):*")
+        for line in lines:
+            if line.quoted_unit_price is not None:
+                content.append(
+                    f"- {_single_line(line.product.name)}: Rs {line.quoted_unit_price:,.2f} "
+                    f"per {line.quoted_rate_unit} = Rs {line.quoted_line_total:,.2f}"
+                )
+            else:
+                content.append(f"- {_single_line(line.product.name)}: Rate not set")
+        if booking.quoted_items_total is not None:
+            content.append(f"*Quoted Items Total:* Rs {booking.quoted_items_total:,.2f}")
+        else:
+            content.append("*Quoted Items Total:* Not finalized (some rates missing)")
+        content.append("Delivery charges, if applicable, are not included.")
+    if booking.expected_date or booking.delivery_window_display or booking.delivery_area:
+        content.extend(["", "*DELIVERY PREFERENCES*"])
     if booking.expected_date:
         content.append(f"*Requested Date:* {booking.expected_date.strftime('%d %b %Y')} (tentative)")
+    if booking.delivery_window_display:
+        content.append(f"*Preferred Delivery Time:* {booking.delivery_window_display} (tentative)")
     if booking.delivery_area:
         content.append(f"*Delivery Location:* {_single_line(booking.delivery_area)}")
     content += [
-        f"*Status:* {status}",
         "",
+        "*BOOKING STATUS*",
+        f"*Status:* {status}",
         explanation,
         "",
-        "Thank you,",
+        "For any questions or changes, please reply to this WhatsApp message.",
+        "",
+        "Thank you for trusting *RayNoor Organic Farms*.",
+        "We look forward to serving you!",
         "*RayNoor Organic Farms*",
     ]
     message = "\n".join(content)
