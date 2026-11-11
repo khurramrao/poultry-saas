@@ -19,6 +19,7 @@ from api.models.egg_pos import (
     EggPOSFarmTransferPayment,
     EggPOSFarmTransferItem,
     EggPOSInventoryLot,
+    EggPOSInventoryWriteOff,
     EggPOSProduct,
     EggPOSCustomer,
     EggPOSPurchase,
@@ -269,6 +270,11 @@ def dashboard(request):
     today_sales_count = sales_qs.count()
     today_revenue = money(sales_qs.aggregate(total=Sum("net_total"))["total"] or ZERO)
     today_profit = money(sales_qs.aggregate(total=Sum("profit_total"))["total"] or ZERO)
+    # Gross sale profit is unchanged for commission calculations. Inventory
+    # losses appear as separate COGS/expense entries on the income statement.
+    today_stock_loss = money(EggPOSInventoryWriteOff.objects.filter(
+        writeoff_date=today, is_voided=False,
+    ).aggregate(total=Sum("total_cost"))["total"] or ZERO) if can_manage(request.user) else ZERO
     today_eggs_sold = int(
         EggPOSSaleItem.objects.filter(sale__in=sales_qs).filter(product__category="egg")
         .aggregate(total=Sum("quantity"))["total"] or 0
@@ -335,6 +341,7 @@ def dashboard(request):
         "today_sales_count": today_sales_count,
         "today_revenue": today_revenue,
         "today_profit": today_profit,
+        "today_stock_loss": today_stock_loss,
         "today_eggs_sold": today_eggs_sold,
         "month_revenue": month_revenue,
         "month_eggs_sold": month_eggs_sold,
@@ -684,7 +691,14 @@ def edit_purchase(request, purchase_id):
     for item in items:
         item.current_line_total = money(item.line_total)
         item.remaining_eggs = int(item.lot.quantity_remaining or 0) if item.lot_id else 0
-        item.sold_eggs = max(int(item.quantity or 0) - item.remaining_eggs, 0)
+        # Stock reductions may be from sales OR audited damage. Never label
+        # damaged eggs/jars as sold on supplier purchase corrections.
+        item.sold_eggs = int(item.lot.sale_allocations.filter(
+            sale_item__sale__is_reversed=False,
+        ).aggregate(q=Sum("quantity"))["q"] or 0) if item.lot_id else 0
+        item.damaged_units = int(item.lot.writeoffs.filter(
+            is_voided=False,
+        ).aggregate(q=Sum("quantity"))["q"] or 0) if item.lot_id else 0
 
     if request.method == "POST":
         try:
@@ -809,6 +823,12 @@ def edit_purchase(request, purchase_id):
                         f"stickers Rs {sticker_per_unit:.6f}/unit | corrected {stamp}"
                     ).strip()
                     lot.save(update_fields=["supplier", "unit_cost", "notes"])
+                    # Already-written-off units are part of this same purchased
+                    # lot. Revalue their COGS/expense journal too; otherwise
+                    # the trial balance inventory would be overstated after a
+                    # supplier cost correction.
+                    from api.services.egg_pos_wastage import revalue_writeoffs_for_lot
+                    revalue_writeoffs_for_lot(lot=lot, new_unit_cost=landed_unit_cost, actor=request.user)
 
                     for allocation in lot.sale_allocations.all():
                         allocation.unit_cost = landed_unit_cost

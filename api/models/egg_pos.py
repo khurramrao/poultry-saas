@@ -1,4 +1,5 @@
 from decimal import Decimal
+from uuid import uuid4
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -1132,3 +1133,48 @@ class EggPOSSaleAudit(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+
+
+class EggPOSInventoryWriteOff(models.Model):
+    """An auditable write-off of one physical FIFO lot, valued at its actual landed cost.
+
+    Write-offs only reduce stock; they do not record sales or cash expenditure.
+    A correction is made by a reversing journal, never by deleting this record.
+    """
+
+    REASONS = [
+        ("breakage", "Breakage / damaged packaging"),
+        ("spoilage", "Spoilage / quality failure"),
+        ("expired", "Expired stock"),
+        ("accident", "Unusual accident / loss"),
+        ("other", "Other stock loss"),
+    ]
+    CLASSES = [
+        ("routine", "Routine wastage (COGS)"),
+        ("exceptional", "Exceptional loss (expense)"),
+    ]
+    submission_token = models.UUIDField(default=uuid4, unique=True, editable=False)
+    lot = models.ForeignKey(EggPOSInventoryLot, on_delete=models.PROTECT, related_name="writeoffs")
+    writeoff_date = models.DateField(default=timezone.localdate)
+    quantity = models.PositiveIntegerField()
+    unit_cost = models.DecimalField(max_digits=14, decimal_places=6)
+    total_cost = models.DecimalField(max_digits=14, decimal_places=2)
+    classification = models.CharField(max_length=15, choices=CLASSES, default="routine")
+    reason = models.CharField(max_length=20, choices=REASONS, default="breakage")
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="retail_stock_writeoffs")
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_voided = models.BooleanField(default=False)
+    voided_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="retail_stock_writeoffs_voided", null=True, blank=True)
+    voided_at = models.DateTimeField(null=True, blank=True)
+    void_reason = models.CharField(max_length=500, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    @property
+    def reference(self):
+        return f"RNLOSS-{self.pk:06d}" if self.pk else "RNLOSS-NEW"
+
+    def __str__(self):
+        return f"{self.reference} - {self.lot.product.sku} - {self.quantity}"

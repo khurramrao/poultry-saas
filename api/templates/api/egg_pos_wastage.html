@@ -1,0 +1,82 @@
+{% extends 'api/egg_pos_base.html' %}
+{% load humanize %}
+{% block egg_pos_content %}
+<style>
+.wst-head{display:flex;justify-content:space-between;align-items:start;gap:15px;flex-wrap:wrap;margin-bottom:17px}
+.wst-head h2{margin:0;color:#153b59;font-size:22px}.wst-head p{color:#6c8397;font-size:12px;margin:5px 0 0}
+.wst-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}
+.wst-stat,.wst-pane{background:white;border:1px solid #dce7ef;border-radius:16px;box-shadow:0 3px 12px rgba(15,54,88,.04)}
+.wst-stat{padding:15px 18px}.wst-stat small{display:block;color:#62778a;font-size:11px}.wst-stat strong{display:block;color:#173d5e;font-size:23px;margin-top:5px}
+.wst-pane{padding:20px;margin-bottom:16px}.wst-pane h3{margin:0 0 10px;color:#19405f;font-size:17px}
+.wst-hint{background:#f2f8fc;border:1px solid #dbe8f1;border-radius:10px;padding:11px 13px;color:#49627a;font-size:12px;margin-bottom:14px}
+.wst-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.wst-field{display:flex;flex-direction:column;gap:5px}.wst-field label{font-size:11px;color:#4a6177;font-weight:750}
+.wst-field input,.wst-field select,.wst-field textarea{border:1px solid #cfdce7;background:#fff;border-radius:10px;padding:10px 12px;width:100%;min-height:41px;font:inherit;color:#16354e}
+.wst-field select{max-width:100%}.wst-field textarea{min-height:76px;resize:vertical}.wst-wide{grid-column:1/-1}
+.wst-btn{border:0;background:#12834d;color:white;font-weight:800;padding:11px 18px;border-radius:10px;cursor:pointer;min-height:42px}.wst-btn:hover{background:#096b3b}
+.wst-table{width:100%;border-collapse:collapse;font-size:12px}.wst-table th,.wst-table td{border-bottom:1px solid #ebf0f5;padding:10px 9px;text-align:left;vertical-align:top}.wst-table th{color:#5e7082;background:#f7fafc;font-size:10px;text-transform:uppercase;letter-spacing:.03em}.wst-table .money{text-align:right;white-space:nowrap}
+.wst-badge{display:inline-block;background:#fff3db;border-radius:9px;color:#9a570d;padding:4px 6px;font-size:10px;font-weight:800}.wst-badge.void{background:#e8eef5;color:#607287}
+.wst-void{margin-top:8px;display:grid;grid-template-columns:minmax(140px,2fr) minmax(110px,1fr) auto;gap:6px}.wst-void input{min-width:0;border:1px solid #d4dce6;border-radius:7px;padding:7px;font:inherit}.wst-void button{background:#fff5ee;color:#974a29;border:1px solid #eed4c1;border-radius:7px;cursor:pointer;padding:7px 9px;font-weight:800}
+.wst-sub{font-size:10px;color:#7c8d9d;margin-top:3px}.wst-mobile-list{overflow-x:auto}
+@media(max-width:760px){.wst-grid{grid-template-columns:1fr}.wst-summary{grid-template-columns:1fr 1fr}.wst-summary .wst-stat:first-child{grid-column:1/-1}.wst-pane{padding:15px}.wst-table{min-width:750px}.wst-head h2{font-size:19px}}
+</style>
+<div class="wst-head"><div><h2><i class="fa-solid fa-box-open"></i> Inventory Damage &amp; Wastage</h2>
+  <p>Write off broken eggs, expired stock, and damaged ghee or honey jars at actual FIFO lot cost.</p></div>
+  <a class="ep-btn" href="{% url 'egg_pos_inventory' %}"><i class="fa-solid fa-arrow-left"></i> Inventory</a>
+</div>
+<div class="wst-summary">
+  <div class="wst-stat"><small>Current recorded write-offs</small><strong>{{ record_count|intcomma }}</strong></div>
+  <div class="wst-stat"><small>Routine losses — COGS (5010)</small><strong>Rs {{ routine_loss|floatformat:2|intcomma }}</strong></div>
+  <div class="wst-stat"><small>Exceptional losses — Expense (6150)</small><strong>Rs {{ exceptional_loss|floatformat:2|intcomma }}</strong></div>
+</div>
+<section class="wst-pane"><h3>Record New Stock Damage</h3>
+  <div class="wst-hint"><strong>Retail stock only:</strong> choose the exact product lot and enter damaged eggs or damaged sealed jars. Farm eggs not yet transferred to POS should be recorded in Egg Management instead. Existing online reservations are protected. Saving this form does not create a cash expense or customer sale.</div>
+  <form method="post" id="wst-form">{% csrf_token %}
+    <input type="hidden" name="submission_token" value="{{ form.submission_token }}">
+    <div class="wst-grid">
+      <div class="wst-field wst-wide"><label for="wst-lot">Product / SKU / FIFO Lot <span style="color:#b63636">*</span></label>
+        <select id="wst-lot" name="lot_id" required>
+          <option value="">Select the actual damaged stock lot</option>
+          {% for lot in lots %}<option value="{{ lot.id }}" data-remaining="{{ lot.quantity_remaining }}" data-cost="{{ lot.unit_cost }}" {% if form.lot_id == lot.id|stringformat:'s' %}selected{% endif %}>{{ lot.product.name }} · {{ lot.product.sku }} · {{ lot.lot_code }} · {{ lot.quantity_remaining }} {{ lot.product.stock_unit_plural }} available{% if lot.expiry_date %} · Expires {{ lot.expiry_date|date:'d M Y' }}{% endif %}</option>{% endfor %}
+        </select><small id="wst-lot-meta" class="wst-sub">Select a FIFO lot to see its stock and cost.</small>
+      </div>
+      <div class="wst-field"><label for="wst-qty">Damaged quantity <span style="color:#b63636">*</span></label><input id="wst-qty" name="quantity" type="number" min="1" step="1" value="{{ form.quantity }}" placeholder="e.g. 5" required></div>
+      <div class="wst-field"><label>Estimated loss at current cost</label><div id="wst-estimate" style="background:#f6fafc;border:1px solid #dbe7ee;border-radius:10px;padding:11px 12px;color:#14533d;font-weight:900">Rs 0.00</div></div>
+      <div class="wst-field"><label for="wst-reason">Reason <span style="color:#b63636">*</span></label><select id="wst-reason" name="reason" required>{% for key,label in reasons %}<option value="{{ key }}" {% if form.reason == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="wst-field"><label for="wst-class">Accounting category <span style="color:#b63636">*</span></label><select id="wst-class" name="classification" required>{% for key,label in classifications %}<option value="{{ key }}" {% if form.classification == key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      <div class="wst-field wst-wide"><label for="wst-notes">Notes / Evidence <small>(required for exceptional losses)</small></label><textarea id="wst-notes" name="notes" maxlength="1000" placeholder="e.g. 5 farm eggs broke while preparing delivery, checked by manager">{{ form.notes }}</textarea></div>
+    </div>
+    <p class="wst-sub">Journal: Routine 5010 or Exceptional 6150 (debit), Inventory 1200 (credit). No cash transaction. Recorded date: {{ today|date:'d M Y' }}.</p>
+    <button class="wst-btn" type="submit" onclick="return confirm('Confirm these physical units are damaged and must be removed from inventory?')"><i class="fa-solid fa-check"></i> Record Damage &amp; Reduce Stock</button>
+  </form>
+</section>
+<section class="wst-pane"><h3>Stock-Loss Register &amp; Audit Trail</h3>
+  <div class="wst-hint">Records retain their original quantity, cost and reason. Only an administrator may reverse an incorrect entry, with password and written justification. Reversals preserve both journal entries.</div>
+  <div class="wst-mobile-list"><table class="wst-table"><thead><tr><th>Reference / Date</th><th>SKU / Lot</th><th>Reason</th><th>Quantity</th><th>Amount</th><th>Recorded / Correction</th></tr></thead><tbody>
+    {% for record in records %}<tr>
+      <td><strong>{{ record.reference }}</strong><div class="wst-sub">{{ record.writeoff_date|date:'d M Y' }}</div>{% if record.is_voided %}<span class="wst-badge void">REVERSED</span>{% endif %}</td>
+      <td><strong>{{ record.lot.product.name }}</strong><div class="wst-sub">{{ record.lot.product.sku }} · {{ record.lot.lot_code }}</div></td>
+      <td>{{ record.get_reason_display }}<div class="wst-sub">{{ record.get_classification_display }}</div>{% if record.notes %}<div class="wst-sub">{{ record.notes|truncatechars:100 }}</div>{% endif %}</td>
+      <td>{{ record.quantity|intcomma }} {{ record.lot.product.stock_unit_plural }}</td>
+      <td class="money">Rs {{ record.total_cost|floatformat:2|intcomma }}<div class="wst-sub">Rs {{ record.unit_cost|floatformat:4 }} / {{ record.lot.product.stock_unit }}</div></td>
+      <td>{{ record.recorded_by.get_username }}
+        {% if record.is_voided %}<div class="wst-sub">Reversed by {{ record.voided_by.get_username }} at {{ record.voided_at|date:'d M Y H:i' }}<div>{{ record.void_reason }}</div></div>
+        {% elif is_admin %}<form class="wst-void" method="post" action="{% url 'egg_pos_void_wastage' record.id %}">{% csrf_token %}<input name="void_reason" required minlength="10" maxlength="500" placeholder="Correction reason (10+ chars)" aria-label="Correction reason"><input name="admin_password" type="password" required placeholder="Admin password" autocomplete="off" aria-label="Admin password"><button type="submit" onclick="return confirm('Reverse {{ record.reference }} and restore the stock?')">Reverse</button></form>{% endif %}
+      </td>
+    </tr>{% empty %}<tr><td colspan="6">No damage entries recorded yet.</td></tr>{% endfor %}
+  </tbody></table></div>
+</section>
+<script>
+(function(){
+  const lot=document.getElementById('wst-lot'), qty=document.getElementById('wst-qty'), note=document.getElementById('wst-lot-meta'), estimate=document.getElementById('wst-estimate');
+  function refresh(){
+    const choice=lot.options[lot.selectedIndex], count=Number(qty.value)||0;
+    const remaining=Number(choice?.dataset?.remaining||0), unitCost=Number(choice?.dataset?.cost||0);
+    note.textContent=remaining ? `Physical stock: ${remaining} units · Cost: Rs ${unitCost.toFixed(4)} / unit` : 'Select a FIFO lot to see its stock and cost.';
+    qty.max=remaining||'';
+    estimate.textContent='Rs '+(Math.max(0,count)*unitCost).toLocaleString('en-PK',{minimumFractionDigits:2,maximumFractionDigits:2});
+  }
+  lot.addEventListener('change',refresh);qty.addEventListener('input',refresh);refresh();
+})();
+</script>
+{% endblock %}

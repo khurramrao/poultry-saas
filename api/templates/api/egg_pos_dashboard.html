@@ -119,6 +119,15 @@
 
 {% if can_manage_pos %}
 <div class="ep-section-title"><div><h3>Business Snapshot</h3><p>Current stock and sales position.</p></div></div>
+{% if can_manage_pos %}
+<a href="{% url 'egg_pos_wastage' %}" style="display:block;text-decoration:none;color:inherit;margin:0 0 12px">
+  <div class="ep-snapshot" style="border-left:4px solid #d97706">
+    <div class="ep-snapshot-top"><span class="ep-snapshot-label">Inventory Wastage / Loss Today</span><span class="ep-snapshot-icon"><i class="fa-solid fa-box-open"></i></span></div>
+    <strong>Rs {{ today_stock_loss|floatformat:2|intcomma }}</strong>
+    <small>Separate from sales COGS; included in Accounts &amp; Income Statement. View damage log →</small>
+  </div>
+</a>
+{% endif %}
 <section class="ep-snapshot-grid">
   <div class="ep-snapshot"><div class="ep-snapshot-top"><span class="ep-snapshot-label">Total Inventory</span><span class="ep-snapshot-icon"><i class="fa-solid fa-boxes-stacked"></i></span></div><strong>{{ total_stock|intcomma }}</strong><small>Sellable physical units (eggs and jars)</small></div>
   <div class="ep-snapshot"><div class="ep-snapshot-top"><span class="ep-snapshot-label">Active Products</span><span class="ep-snapshot-icon" style="background:#e9f8ef;color:#118b4b"><i class="fa-solid fa-egg"></i></span></div><strong>{{ active_product_count|intcomma }}</strong><small>Egg grades / jar SKUs</small></div>

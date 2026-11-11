@@ -1,0 +1,103 @@
+{% extends 'api/egg_pos_base.html' %}
+{% load humanize %}
+{% block egg_pos_content %}
+<style>
+.rn-sku-page{max-width:1450px;margin:0 auto;padding:10px 0 28px;color:#173651}
+.rn-sku-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+.rn-sku-head h2{font-size:23px;font-weight:900;margin:0 0 4px;color:#123e55}
+.rn-sku-muted{color:#678095;font-size:12px;line-height:1.55}
+.rn-sku-link{display:inline-block;padding:9px 13px;background:#fff;border:1px solid #d5e4ec;border-radius:9px;color:#205c7e;text-decoration:none;font-size:12px;font-weight:800}
+.rn-sku-panel{background:#fff;border:1px solid #dfebf0;border-radius:16px;margin-bottom:15px;padding:17px;box-shadow:0 4px 12px rgba(24,64,83,.035)}
+.rn-sku-filter{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.rn-sku-field{display:flex;flex-direction:column;gap:5px;min-width:140px}
+.rn-sku-field label{font-size:11px;font-weight:800;color:#56718b}
+.rn-sku-field input,.rn-sku-field select{border:1px solid #cfdee7;background:#fff;border-radius:9px;padding:10px;color:#123b56;font-size:13px;min-height:40px}
+.rn-sku-btn{border:0;background:#13965d;color:white;border-radius:9px;padding:11px 17px;min-height:40px;font-size:12px;font-weight:900;cursor:pointer}
+.rn-sku-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:15px}
+.rn-sku-stat{background:#fff;border:1px solid #dfeaf0;border-radius:14px;padding:14px}
+.rn-sku-stat span{display:block;color:#667d93;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.02em}
+.rn-sku-stat strong{display:block;margin-top:6px;font-size:20px;color:#123d56}
+.rn-sku-stat small{display:block;margin-top:5px;font-size:10px;color:#7d8c9c}
+.rn-sku-section-title{font-size:16px;font-weight:950;color:#173d59;margin:0 0 5px}
+.rn-sku-scroll{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.rn-sku-table{border-collapse:collapse;width:100%;min-width:960px;font-size:12px}
+.rn-sku-table thead th{padding:11px 10px;background:#f2f8fa;color:#547185;font-size:10px;font-weight:900;white-space:nowrap;text-align:right;border-bottom:1px solid #dfeaf0}
+.rn-sku-table tbody td{padding:12px 10px;text-align:right;border-bottom:1px solid #e8eff4;vertical-align:middle}
+.rn-sku-table th:first-child,.rn-sku-table td:first-child{text-align:left}
+.rn-sku-table th:nth-child(2),.rn-sku-table td:nth-child(2){text-align:left}
+.rn-sku-table tbody tr:last-child td{border-bottom:0}
+.rn-sku-table tbody tr:hover{background:#f9fcfd}
+.rn-sku-sku{display:block;font-size:11px;font-weight:850;color:#116d7b;white-space:nowrap}
+.rn-sku-item{font-weight:800;color:#25475a}
+.rn-sku-tag{display:inline-block;background:#ebf6ef;color:#157446;border-radius:6px;padding:3px 6px;font-size:10px;font-weight:850}
+.rn-sku-alert{color:#9e5e02;font-weight:850}
+.rn-sku-profit{color:#067343;font-weight:900}
+.rn-sku-negative{color:#b12a2a;font-weight:900}
+.rn-sku-note{font-size:11px;line-height:1.65;color:#657a8b;margin:11px 0 0}
+.rn-sku-error{background:#fff1f1;border:1px solid #f3caca;border-radius:8px;padding:10px;color:#b23232;font-size:12px;margin:0 0 12px}
+@media(max-width:750px){.rn-sku-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.rn-sku-stat strong{font-size:17px}.rn-sku-head h2{font-size:19px}.rn-sku-panel{padding:12px}.rn-sku-field{flex:1 1 135px}}
+</style>
+<div class="rn-sku-page">
+  <div class="rn-sku-head">
+    <div><h2><i class="fa-solid fa-boxes-stacked"></i> SKU-wise Sales &amp; Bookings</h2><div class="rn-sku-muted">Internal RayNoor Retail POS report · Eggs, Desi Ghee &amp; Honey</div></div>
+    <div><a class="rn-sku-link" href="{% url 'egg_pos_sales' %}"><i class="fa-solid fa-receipt"></i> Sales History</a> <a class="rn-sku-link" href="{% url 'egg_pos_inventory' %}"><i class="fa-solid fa-warehouse"></i> Inventory</a></div>
+  </div>
+  <section class="rn-sku-panel">
+    <h3 class="rn-sku-section-title">Filter sales &amp; profit</h3>
+    <p class="rn-sku-note" style="margin:0 0 12px">Dates filter finalized sales only. Bookings and available stock always show current balances as of {{ as_of|date:'d M Y' }}.</p>
+    {% if filter_error %}<p class="rn-sku-error" role="alert">{{ filter_error }} — showing the current month.</p>{% endif %}
+    <form method="get" class="rn-sku-filter" action="{% url 'egg_pos_sku_report' %}">
+      <div class="rn-sku-field"><label for="rnFrom">From</label><input id="rnFrom" type="date" name="from" value="{{ start|date:'Y-m-d' }}" required></div>
+      <div class="rn-sku-field"><label for="rnTo">To</label><input id="rnTo" type="date" name="to" value="{{ end|date:'Y-m-d' }}" required></div>
+      <div class="rn-sku-field"><label for="rnCategory">Category</label><select id="rnCategory" name="category"><option value="all" {% if category == 'all' %}selected{% endif %}>All products</option><option value="egg" {% if category == 'egg' %}selected{% endif %}>Eggs</option><option value="ghee" {% if category == 'ghee' %}selected{% endif %}>Desi Ghee</option><option value="honey" {% if category == 'honey' %}selected{% endif %}>Honey</option></select></div>
+      <button class="rn-sku-btn" type="submit"><i class="fa-solid fa-filter"></i> Apply Filters</button>
+    </form>
+  </section>
+  <div class="rn-sku-stats">
+    <div class="rn-sku-stat"><span>Merchandise sales</span><strong>Rs {{ report.revenue|floatformat:2|intcomma }}</strong><small>Selected sales dates, after discount</small></div>
+    <div class="rn-sku-stat"><span>Gross merchandise profit</span><strong>Rs {{ report.profit|floatformat:2|intcomma }}</strong><small>After FIFO COGS; before overheads/delivery</small></div>
+    <div class="rn-sku-stat"><span>Sold in period</span><strong>{{ report.eggs_sold|intcomma }} eggs</strong><small>{{ report.jars_sold|intcomma }} sealed jars</small></div>
+    <div class="rn-sku-stat"><span>Currently reserved online</span><strong>{{ report.eggs_booked|intcomma }} eggs</strong><small>{{ report.jars_booked|intcomma }} sealed jars</small></div>
+  </div>
+  <section class="rn-sku-panel">
+    <h3 class="rn-sku-section-title">Selling products · Combined availability</h3>
+    <p class="rn-sku-muted" style="margin:0 0 13px">These balances are at the customer-facing selling-product level. For eggs with multiple source SKUs, the system reserves a combined quantity until packing.</p>
+    <div class="rn-sku-scroll"><table class="rn-sku-table">
+      <thead><tr><th>Product / Selling SKU</th><th>Category</th><th>Sold*</th><th>On hand</th><th>Online booked</th><th>Not source-assigned</th><th>Manual requests</th><th>Available now</th><th>Gross profit*</th></tr></thead>
+      <tbody>
+      {% for group in report.groups %}
+        <tr>
+          <td><span class="rn-sku-item">{{ group.primary.name }}</span><span class="rn-sku-sku">{{ group.primary.sku }}</span></td>
+          <td>{{ group.primary.get_category_display }} · {% if group.category == 'egg' %}eggs{% else %}jars{% endif %}</td>
+          <td>{{ group.sold|intcomma }}</td><td>{{ group.on_hand|intcomma }}</td><td>{{ group.online_booked|intcomma }}</td>
+          <td>{% if group.unallocated_booked %}<span class="rn-sku-alert">{{ group.unallocated_booked|intcomma }}</span>{% else %}0{% endif %}</td>
+          <td>{{ group.manual_requests|intcomma }}</td><td><strong>{{ group.available|intcomma }}</strong></td>
+          <td class="{% if group.profit < 0 %}rn-sku-negative{% else %}rn-sku-profit{% endif %}">Rs {{ group.profit|floatformat:2|intcomma }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="9">No products in this category.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+    <p class="rn-sku-note"><strong>Online booked</strong> includes active web reservations (including unexpired checkout holds) and packed/dispatched orders, counted only once. <strong>Not source-assigned</strong> means the mix has not been finalized. <strong>Manual requests</strong> are open social prebookings and do <strong>not</strong> reduce available stock. *Sold and profit use the selected dates.</p>
+  </section>
+  <section class="rn-sku-panel">
+    <h3 class="rn-sku-section-title">SKU-by-SKU breakdown</h3>
+    <p class="rn-sku-muted" style="margin:0 0 13px">Physical source SKUs remain independent. Sold quantities and COGS follow the actual invoice lot allocations, including mixed farm/purchased dozens.</p>
+    <div class="rn-sku-scroll"><table class="rn-sku-table">
+      <thead><tr><th>SKU</th><th>Product</th><th>Sold*</th><th>Online booked (assigned)</th><th>On hand</th><th>Available after assigned holds</th><th>Revenue*</th><th>COGS*</th><th>Gross profit*</th></tr></thead>
+      <tbody>
+      {% for row in report.rows %}
+        <tr>
+          <td><span class="rn-sku-sku">{{ row.product.sku }}</span>{% if row.grouped %}<span class="rn-sku-tag">Source group</span>{% endif %}</td>
+          <td><span class="rn-sku-item">{{ row.product.name }}</span><br><span class="rn-sku-muted">{{ row.product.get_category_display }} · {% if row.product.is_egg %}eggs{% else %}jars{% endif %}</span></td>
+          <td><strong>{{ row.sold|intcomma }}</strong></td><td>{{ row.online_booked|intcomma }}</td><td>{{ row.on_hand|intcomma }}</td>
+          <td>{{ row.available|intcomma }}{% if row.grouped %}<sup title="Unallocated group bookings may also require this SKU">†</sup>{% endif %}</td>
+          <td>Rs {{ row.revenue|floatformat:2|intcomma }}</td><td>Rs {{ row.cogs|floatformat:2|intcomma }}</td>
+          <td class="{% if row.profit < 0 %}rn-sku-negative{% else %}rn-sku-profit{% endif %}">Rs {{ row.profit|floatformat:2|intcomma }}</td>
+        </tr>
+      {% empty %}<tr><td colspan="9">No SKUs in this category.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+    <p class="rn-sku-note"><strong>† Grouped-SKU balances are before unassigned online orders.</strong> For a reliable total available-to-sell quantity, use the selling-product table above. Sales profit is merchandise revenue after invoice discounts minus actual lot cost; delivery fees, commissions and other expenses are not attributed to SKUs. Reversed invoices are excluded.</p>
+  </section>
+</div>
+{% endblock %}

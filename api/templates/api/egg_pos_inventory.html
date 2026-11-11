@@ -12,7 +12,7 @@
 
 <div class="inv-hero">
   <div><h2><i class="fa-solid fa-boxes-stacked"></i> RayNoor Retail Inventory</h2><p>Eggs are counted individually; desi ghee and honey are counted as sealed jars. Every SKU has its own FIFO purchase lots.</p></div>
-  {% if can_manage_pos %}<div class="inv-actions"><a class="ep-btn primary" href="{% url 'egg_pos_add_purchase' %}"><i class="fa-solid fa-plus"></i> Stock In</a><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-receipt"></i> Purchase History</a></div>{% endif %}
+  {% if can_manage_pos %}<div class="inv-actions"><a class="ep-btn primary" href="{% url 'egg_pos_add_purchase' %}"><i class="fa-solid fa-plus"></i> Stock In</a><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-receipt"></i> Purchase History</a><a class="ep-btn" href="{% url 'egg_pos_wastage' %}"><i class="fa-solid fa-box-open"></i> Damage / Wastage</a></div>{% endif %}
 </div>
 
 <div class="inv-kpis">

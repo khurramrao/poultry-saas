@@ -7,6 +7,8 @@ from api.views import egg_pos_expiry
 
 from api.views import egg_pos_payroll
 from api.views import egg_pos_prebookings
+from api.views import egg_pos_sku_report
+from api.views import egg_pos_wastage
 urlpatterns = [
     path("egg-pos/manual-prebookings/", egg_pos_prebookings.manual_prebookings, name="egg_pos_manual_prebookings"),
 
@@ -78,6 +80,8 @@ path(
     path("eggs/damage/add/", eggs.add_egg_damage, name="add_egg_damage"),
     path("egg-pos/", egg_pos.dashboard, name="egg_pos_dashboard"),
     path("egg-pos/inventory/", egg_pos.inventory, name="egg_pos_inventory"),
+    path("egg-pos/inventory/wastage/", egg_pos_wastage.wastage, name="egg_pos_wastage"),
+    path("egg-pos/inventory/wastage/<int:writeoff_id>/void/", egg_pos_wastage.void_wastage, name="egg_pos_void_wastage"),
     path("egg-pos/inventory/lots/<int:lot_id>/expiry/", egg_pos_expiry.correct_lot_expiry, name="egg_pos_lot_expiry"),
 
     path("egg-pos/products/", egg_pos.products, name="egg_pos_products"),
@@ -93,6 +97,7 @@ path(
     path("egg-pos/farm-transfer/<int:transfer_id>/void/", egg_pos.void_farm_transfer, name="egg_pos_void_farm_transfer"),
     path("egg-pos/farm-transfer/<int:transfer_id>/payment/", egg_pos.record_farm_transfer_payment, name="egg_pos_record_farm_transfer_payment"),
     path("egg-pos/sales/", egg_pos.sales, name="egg_pos_sales"),
+    path("egg-pos/sku-report/", egg_pos_sku_report.sku_report, name="egg_pos_sku_report"),
     path("egg-pos/customers/", egg_pos.customers, name="egg_pos_customers"),
     path("egg-pos/customers/add/", egg_pos.add_customer, name="egg_pos_add_customer"),
     path("egg-pos/customers/<int:customer_id>/", egg_pos.customer_detail, name="egg_pos_customer_detail"),

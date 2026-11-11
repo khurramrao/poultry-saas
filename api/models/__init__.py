@@ -28,6 +28,7 @@ from .egg_pos import (
     EggPOSFarmTransferPayment,
     EggPOSFarmTransferItem,
     EggPOSInventoryLot,
+    EggPOSInventoryWriteOff,
     EggPOSSale,
     EggPOSSalePayment,
     EggPOSSaleItem,

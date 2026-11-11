@@ -24,7 +24,7 @@
       {% for item in items %}
       <div class="line-card" data-line>
         <input type="hidden" name="item_id" value="{{ item.id }}"><input type="hidden" class="sticker-total" value="{{ item.sticker_cost_total|floatformat:2 }}">
-        <div class="line-top"><div><div class="line-name">{{ item.product.name }}</div><div class="line-meta">{{ item.product.sku }} · {{ item.quantity|intcomma }} {{ item.product.stock_unit_plural }} · {{ item.sold_eggs|intcomma }} already sold · {{ item.remaining_eggs|intcomma }} remaining</div></div><div style="font-size:10px;color:#71869b">Current Rs {{ item.current_line_total|floatformat:2|intcomma }}</div></div>
+        <div class="line-top"><div><div class="line-name">{{ item.product.name }}</div><div class="line-meta">{{ item.product.sku }} · {{ item.quantity|intcomma }} {{ item.product.stock_unit_plural }} · {{ item.sold_eggs|intcomma }} sold · {{ item.damaged_units|intcomma }} damaged/wasted · {{ item.remaining_eggs|intcomma }} remaining</div></div><div style="font-size:10px;color:#71869b">Current Rs {{ item.current_line_total|floatformat:2|intcomma }}</div></div>
         <div class="line-grid">
           <div class="ep-field"><label>Quantity ({{ item.product.stock_unit_plural }})</label><input class="ep-input locked qty" type="number" value="{{ item.quantity }}" readonly></div>
           <div class="ep-field"><label>Correct Total Vendor Cost (Rs)</label><input class="ep-input line-total" type="number" min="0.01" step="0.01" name="line_total_cost" value="{{ item.current_line_total|floatformat:2 }}" required></div>
