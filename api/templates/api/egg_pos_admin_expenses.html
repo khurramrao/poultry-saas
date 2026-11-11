@@ -47,6 +47,16 @@
 .ep-adm-void input {font-size:12px;min-height:38px;padding:8px 10px}
 .ep-adm-void .ep-btn {justify-self:start}
 .ep-adm-void-help {font-size:11px;color:#9b6770;line-height:1.4}
+.ep-adm-transport-guide{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.ep-adm-transport-card{padding:15px;border:1px solid #d7e4f0;background:#fbfdff;border-radius:12px;font-size:12px;line-height:1.55;color:#3e5a74}
+.ep-adm-transport-card strong{color:#173e65;font-size:13px}
+.ep-adm-transport-card p{margin:8px 0}
+.ep-adm-transport-card small{display:block;color:#5d7289;line-height:1.5}
+.ep-adm-transport-links{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.ep-adm-transport-links .ep-btn{font-size:11px;padding:7px 10px}
+.ep-adm-category-help{border:1px solid #d0dff3;background:#f4f8ff;border-radius:10px;color:#345475;font-size:12px;line-height:1.45;padding:10px 12px}
+.ep-adm-category-help[hidden]{display:none}
+@media(max-width:800px){.ep-adm-transport-guide{grid-template-columns:1fr}}
 @media(max-width:800px){.ep-adm-shell .ep-panel-body{padding:15px}.ep-adm-security{flex-direction:column;align-items:stretch}.ep-adm-security .ep-field{max-width:none}.ep-adm-submit{width:100%;white-space:normal}}
 @media(max-width:580px){.ep-adm-fields{grid-template-columns:1fr}.ep-adm-wide{grid-column:auto}.ep-adm-form-section{display:block}.ep-adm-form-section small{display:block;margin-top:3px}}
 </style>
@@ -57,7 +67,7 @@
     <div class="ep-section-title">
       <div>
         <h3><i class="fa-solid fa-building-circle-check"></i> Admin &amp; Office Expenses</h3>
-        <p>Record shop rent, stationery, utilities, repairs and equipment—separately from staff selling costs.</p>
+        <p>Track courier/rider delivery paid by RayNoor, shop costs and equipment—without mixing them into inventory costs.</p>
       </div>
       <a class="ep-btn" href="{% url 'egg_pos_expenses' %}"><i class="fa-solid fa-gas-pump"></i> Fuel / Staff Expenses</a>
     </div>
@@ -73,6 +83,20 @@
     <div><strong>How this affects accounts:</strong> Payment comes from Main Cash or Bank. Ordinary expenses affect company profit; equipment is treated as a fixed asset. Neither changes sales commission, staff collections or supplier payable. Use Farm accounts for separate farm costs.</div>
   </div>
 
+  <section class="ep-adm-transport-guide" aria-label="Delivery and goods transport accounting">
+    <div class="ep-adm-transport-card">
+      <strong><i class="fa-solid fa-truck-fast" aria-hidden="true"></i> Outbound delivery: sale to customer</strong>
+      <p>When RayNoor pays a rider or courier for a completed retail sale, choose <strong>Customer Delivery / Courier Charges</strong> in the expense category below. Include the POS invoice number in Receipt / Reference. This debits <strong>Delivery / Rider Expense</strong> and credits the selected cash/bank account.</p>
+      <small>Don't enter it here again if you already posted the same delivery expense under Fuel / Staff Expenses. Fees charged <em>to</em> customers are sales/delivery income, not this expense.</small>
+    </div>
+    <div class="ep-adm-transport-card">
+      <strong><i class="fa-solid fa-boxes-packing" aria-hidden="true"></i> Inbound transportation: goods received</strong>
+      <p>Enter delivery/transport paid <em>to bring stock into RayNoor</em> in the <strong>Inbound Transport (Rs)</strong> field of the related purchase or farm transfer, not this expense form. It increases FIFO landed stock cost and posts the matching cash/bank/supplier payable entry once.</p>
+      <div class="ep-adm-transport-links"><a href="{% url 'egg_pos_add_purchase' %}" class="ep-btn">Vendor Purchase + Freight</a><a href="{% url 'egg_pos_purchase_list' %}" class="ep-btn">Correct Existing Purchase</a><a href="{% url 'egg_pos_farm_transfer' %}" class="ep-btn">Farm Transfer + Transport</a></div>
+      <small>Important: do not record the same inbound freight again under General Expenses; that would double-count it.</small>
+    </div>
+  </section>
+
   <section class="ep-panel" aria-labelledby="ae-title">
     <div class="ep-panel-head" id="ae-title">
       <div>Record an Expense or Asset Purchase<span class="ep-adm-meta">Required fields are marked with *</span></div>
@@ -86,6 +110,7 @@
         <div class="ep-adm-fields">
           <div class="ep-field"><label for="ae-date">Date *</label><input id="ae-date" class="ep-input" type="date" name="expense_date" value="{{ today|date:'Y-m-d' }}" required></div>
           <div class="ep-field"><label for="ae-category">Expense Category *</label><select id="ae-category" class="ep-select" name="category" required>{% for code,label in categories %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
+          <div class="ep-adm-category-help ep-adm-wide" id="deliveryCategoryHelp" role="note" hidden><strong>Customer delivery paid by RayNoor:</strong> Enter the courier/rider amount and reference the related sale (e.g., RNE-000135). Do not record any customer delivery fee collected here, and do not duplicate a staff expense.</div>
           <div class="ep-field"><label for="ae-amount">Amount (Rs) *</label><input id="ae-amount" class="ep-input" type="number" min="0.01" max="999999999999.99" step="0.01" name="amount" inputmode="decimal" placeholder="0.00" required></div>
           <div class="ep-field"><label for="ae-payment">Paid From *</label><select id="ae-payment" class="ep-select" name="payment_source" required>{% for code,label in payment_sources %}<option value="{{ code }}">{{ label }}</option>{% endfor %}</select></div>
           <div class="ep-field"><label for="ae-payee">Paid To</label><input id="ae-payee" class="ep-input" type="text" name="paid_to" maxlength="160" placeholder="e.g., Landlord, office supplier" autocomplete="off"></div>
@@ -138,4 +163,14 @@
     </div>
   </section>
 </div>
+<script>
+(function () {
+  const select = document.getElementById('ae-category');
+  const note = document.getElementById('deliveryCategoryHelp');
+  if (!select || !note) return;
+  function updateHelp() { note.hidden = select.value !== 'delivery'; }
+  select.addEventListener('change', updateHelp);
+  updateHelp();
+})();
+</script>
 {% endblock %}

@@ -11,6 +11,7 @@ CATEGORY_ACCOUNT = {
     "supplies": "6340",
     "repair": "6350",
     "marketing": "6360",
+    "delivery": "6110",  # Outbound delivery paid by RayNoor; selling expense (never stock cost).
     "professional": "6370",
     "other": "6380",
     "equipment": "1500",  # Capital asset, not current-period expense.

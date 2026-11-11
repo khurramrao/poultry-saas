@@ -58,3 +58,5 @@ from .egg_pos_prebooking import (EggPOSManualPrebooking, EggPOSManualPrebookingL
 
 # RAYNOOR_REPEAT_CUSTOMER_SOURCES_V1
 from .egg_pos_marketing import EggPOSMarketingCustomer, EggPOSMarketingSale
+
+from .egg_pos_supplier_payment_audit import EggPOSSupplierPaymentMethodAudit

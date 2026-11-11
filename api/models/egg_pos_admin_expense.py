@@ -17,6 +17,7 @@ class EggPOSAdminExpense(models.Model):
         ("supplies", "Office Consumables"),
         ("repair", "Repairs & Maintenance"),
         ("marketing", "Marketing / Advertising"),
+        ("delivery", "Customer Delivery / Courier Charges"),
         ("professional", "Professional / Admin Fees"),
         ("equipment", "Equipment (Fixed Asset)"),
         ("other", "Other General Expense"),

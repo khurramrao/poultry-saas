@@ -41,6 +41,7 @@ from api.models.egg_pos import (
 from api.models.sensor import Batch
 from api.models.online_shop import OnlineOrder
 from api.models.accounting import ChartOfAccount, JournalEntry, JournalLine
+from api.models.egg_pos_supplier_payment_audit import EggPOSSupplierPaymentMethodAudit
 from api.services.egg_pos import (
     ZERO,
     allocate_fifo_to_sale_item,
@@ -2061,6 +2062,28 @@ def _report_period_key(request, start_date, end_date):
     return "custom"
 
 
+def _supplier_payment_account_code(method):
+    return "1010" if method in {"bank_transfer", "easypaisa", "jazzcash"} else "1000"
+
+
+def _supplier_payment_funds_guard(method, amount, effective_date):
+    """Main Cash and Bank/Digital must not go below zero for new payments.
+
+    Use the payment date (not an unrelated current-day balance), and serialize
+    supplier-payment postings with a row lock on the affected account.
+    """
+    code = _supplier_payment_account_code(method)
+    ChartOfAccount.objects.select_for_update().get(code=code)
+    available = money(normal_account_balance(code, as_of=effective_date))
+    if available < amount:
+        label = "Main Cash" if code == "1000" else "Bank / Digital"
+        raise ValueError(
+            f"Insufficient {label} on {effective_date:%d %b %Y}: "
+            f"Rs {available:,.2f} available, Rs {amount:,.2f} requested. "
+            "Record missing receipts/deposits first or select the actual payment method."
+        )
+
+
 @login_required
 @require_http_methods(["GET", "POST"])
 def supplier_detail(request, supplier_id):
@@ -2071,32 +2094,79 @@ def supplier_detail(request, supplier_id):
     ensure_default_accounts()
 
     if request.method == "POST":
+        action = (request.POST.get("action") or "record_payment").strip()
         try:
-            balance = money(gl_supplier_balance(supplier))
-            if balance <= ZERO:
-                raise ValueError("This supplier has no outstanding payable in the ledger.")
+            if action == "correct_payment_method":
+                if not _invoice_admin(request):
+                    raise ValueError("Only authenticated POS administrators may correct supplier payments.")
+                if not _verify_invoice_admin_password(request):
+                    return redirect("egg_pos_supplier_detail", supplier_id=supplier.id)
+                reason = (request.POST.get("reason") or "").strip()
+                if len(reason) < 12:
+                    raise ValueError("Please enter a meaningful correction reason (at least 12 characters).")
+                payment_id = _parse_positive_int(request.POST.get("payment_id"), "Payment identifier")
+                new_method = (request.POST.get("new_method") or "").strip()
+                valid_correction_methods = {"cash", "bank_transfer", "easypaisa", "jazzcash"}
+                if new_method not in valid_correction_methods:
+                    raise ValueError("Select a valid replacement payment method.")
+                with transaction.atomic():
+                    # One supplier lock serializes payment/correction operations.
+                    EggPOSSupplier.objects.select_for_update().get(pk=supplier.id)
+                    payment = get_object_or_404(
+                        EggPOSSupplierPayment.objects.select_for_update(),
+                        pk=payment_id, supplier_id=supplier.id,
+                    )
+                    old_method = payment.payment_method
+                    if old_method == new_method:
+                        raise ValueError("The selected payment method is already recorded.")
+                    # Only when the correction changes the actual funding account
+                    # do we need to test additional funds in that account.
+                    if _supplier_payment_account_code(old_method) != _supplier_payment_account_code(new_method):
+                        _supplier_payment_funds_guard(new_method, money(payment.amount), payment.payment_date)
+                    payment.payment_method = new_method
+                    payment.save(update_fields=["payment_method"])
+                    sync_supplier_payment(payment)  # Resync the *same* journal source key.
+                    EggPOSSupplierPaymentMethodAudit.objects.create(
+                        payment=payment, old_method=old_method, new_method=new_method,
+                        reason=reason[:500], corrected_by=request.user,
+                    )
+                messages.success(request, f"Corrected supplier payment #{payment.pk}: {old_method} → {new_method}. Supplier payable unchanged.")
+                return redirect("egg_pos_supplier_detail", supplier_id=supplier.id)
+
+            if action != "record_payment":
+                raise ValueError("Unknown supplier payment action.")
+            payment_date = _parse_date(request.POST.get("payment_date"), "Payment date")
+            if payment_date > timezone.localdate():
+                raise ValueError("Supplier payment date cannot be in the future.")
             amount = _parse_money(request.POST.get("amount"), "Payment amount")
-            if amount > balance:
-                raise ValueError(f"Payment cannot exceed supplier payable Rs {balance:,.2f}.")
-            method = (request.POST.get("payment_method") or "cash").strip()
-            valid_methods = {value for value, _ in EggPOSSupplierPayment.PAYMENT_METHOD_CHOICES}
+            method = (request.POST.get("payment_method") or "").strip()
+            valid_methods = {"cash", "bank_transfer", "easypaisa", "jazzcash"}
             if method not in valid_methods:
-                raise ValueError("Select a valid payment method.")
+                raise ValueError("Select Cash, Bank Transfer, Easypaisa or JazzCash explicitly.")
             purchase = None
             purchase_id = (request.POST.get("purchase") or "").strip()
             if purchase_id:
                 purchase = get_object_or_404(EggPOSPurchase, pk=purchase_id, supplier=supplier, is_voided=False)
-            payment = EggPOSSupplierPayment.objects.create(
-                supplier=supplier,
-                purchase=purchase,
-                payment_date=_parse_date(request.POST.get("payment_date"), "Payment date"),
-                amount=amount,
-                payment_method=method,
-                reference=(request.POST.get("reference") or "").strip(),
-                notes=(request.POST.get("notes") or "").strip(),
-                recorded_by=request.user,
-            )
-            sync_supplier_payment(payment)
+
+            with transaction.atomic():
+                EggPOSSupplier.objects.select_for_update().get(pk=supplier.id)
+                balance = money(gl_supplier_balance(supplier))
+                if balance <= ZERO:
+                    raise ValueError("This supplier has no outstanding payable in the ledger.")
+                if amount > balance:
+                    raise ValueError(f"Payment cannot exceed supplier payable Rs {balance:,.2f}.")
+                _supplier_payment_funds_guard(method, amount, payment_date)
+                payment = EggPOSSupplierPayment.objects.create(
+                    supplier=supplier,
+                    purchase=purchase,
+                    payment_date=payment_date,
+                    amount=amount,
+                    payment_method=method,
+                    reference=(request.POST.get("reference") or "").strip(),
+                    notes=(request.POST.get("notes") or "").strip(),
+                    recorded_by=request.user,
+                )
+                sync_supplier_payment(payment)
             messages.success(request, f"Payment Rs {amount:,.2f} recorded for {supplier.name}.")
             return redirect("egg_pos_supplier_detail", supplier_id=supplier.id)
         except Exception as error:
@@ -2107,7 +2177,11 @@ def supplier_detail(request, supplier_id):
         .prefetch_related("items__product", "payments")
         .order_by("-purchase_date", "-id")
     )
-    payments = supplier.payments.select_related("purchase", "recorded_by").order_by("-payment_date", "-id")[:100]
+    payments = list(supplier.payments.select_related("purchase", "recorded_by").order_by("-payment_date", "-id")[:100])
+    corrections = list(
+        EggPOSSupplierPaymentMethodAudit.objects.filter(payment__supplier=supplier)
+        .select_related("payment", "corrected_by").order_by("-created_at", "-id")[:100]
+    )
     ledger_lines = list(
         party_activity(
             party_type="supplier",
@@ -2125,6 +2199,10 @@ def supplier_detail(request, supplier_id):
         "supplier": supplier,
         "purchases": purchases,
         "payments": payments,
+        "corrections": corrections,
+        "can_correct_payments": _invoice_admin(request),
+        "main_cash_available": money(normal_account_balance("1000")),
+        "bank_available": money(normal_account_balance("1010")),
         "ledger_rows": reversed(ledger_rows),
         "balance": money(gl_supplier_balance(supplier)),
         "payment_methods": EggPOSSupplierPayment.PAYMENT_METHOD_CHOICES,
