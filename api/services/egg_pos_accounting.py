@@ -447,6 +447,8 @@ def sync_owner_capital(transaction):
 
 def sync_all_egg_pos_books():
     """Idempotently rebuild journals from all recorded Egg POS transactions."""
+    from api.services.egg_pos_admin_loans import rebuild_admin_loans
+    rebuild_admin_loans()
     from api.services.egg_pos_admin_expenses import rebuild_admin_expenses
     rebuild_admin_expenses()
     from api.services.egg_pos_payroll import rebuild_staff_payroll

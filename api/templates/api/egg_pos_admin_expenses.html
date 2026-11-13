@@ -148,6 +148,23 @@
           <td>{% if e.is_voided %}<span class="ep-adm-badge void">Voided</span><br><small>{{ e.void_reason }}</small>{% else %}
             <span class="ep-adm-badge">Posted</span>
             <details class="ep-adm-correct">
+              <summary><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i> Correct entry</summary>
+              <form method="post" class="ep-adm-void" action="{% url 'egg_pos_correct_admin_expense' e.id %}" autocomplete="off">
+                {% csrf_token %}
+                <div><label>Date</label><input type="date" name="expense_date" value="{{ e.expense_date|date:'Y-m-d' }}" required></div>
+                <div><label>Category</label><select name="category" class="ep-select" required>{% for code,label in categories %}<option value="{{ code }}" {% if code == e.category %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                <div><label>Amount (Rs)</label><input type="number" min=".01" step=".01" name="amount" value="{{ e.amount }}" required></div>
+                <div><label>Paid from</label><select name="payment_source" class="ep-select" required>{% for code,label in payment_sources %}<option value="{{ code }}" {% if code == e.payment_source %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+                <div><label>Paid to</label><input type="text" maxlength="160" name="paid_to" value="{{ e.paid_to }}"></div>
+                <div><label>Reference</label><input type="text" maxlength="120" name="reference" value="{{ e.reference }}"></div>
+                <div><label>Description</label><input type="text" name="notes" value="{{ e.notes }}"></div>
+                <div><label>Correction reason *</label><input type="text" name="reason" minlength="12" maxlength="450" required placeholder="Explain what was entered incorrectly"></div>
+                <div><label>Admin password *</label><input type="password" name="admin_password" autocomplete="new-password" required></div>
+                <div class="ep-adm-void-help">The original entry stays in history. Its accounting is reversed on the original date and the replacement is posted on its corrected date.</div>
+                <button type="submit" class="ep-btn primary" onclick="return confirm('Correct this expense using an audited reversal and replacement?');">Save correction</button>
+              </form>
+            </details>
+            <details class="ep-adm-correct">
               <summary><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Void entry</summary>
               <form method="post" class="ep-adm-void" action="{% url 'egg_pos_void_admin_expense' e.id %}" autocomplete="off">
                 {% csrf_token %}

@@ -11,7 +11,7 @@ from django.db.models import Q, Sum
 from django.utils import timezone
 
 from api.models.egg_pos import EggPOSProduct, EggPOSInventoryLot, EggPOSSaleItem
-from api.models.egg_pos_prebooking import EggPOSManualPrebooking, EggPOSManualPrebookingLine, UNIT_MULTIPLIER
+from api.models.egg_pos_prebooking import EggPOSManualPrebooking, EggPOSManualPrebookingLine, UNIT_MULTIPLIER, EGG_UNITS
 from api.models.online_shop import OnlineOrder, OnlineOrderItem, OnlineOrderItemSource
 
 
@@ -131,10 +131,24 @@ def make_report(start_date, end_date, category='all'):
         booking__status__in=('awaiting_stock', 'contact_customer', 'confirmed'),
     ).values('product_id', 'unit').annotate(qty=Sum('quantity')):
         product_id = record['product_id']
-        if product_id in root_id and by_id[product_id].is_egg:
-            manual_by_group[root_id[product_id]] += (
-                int(record['qty'] or 0) * UNIT_MULTIPLIER.get(record['unit'], 0)
-            )
+        if product_id not in root_id:
+            continue
+        product = by_id[product_id]
+        unit = record['unit']
+        if product.is_egg:
+            # The egg units are sold in physical eggs; reject mismatched jar
+            # entries rather than counting one jar as one egg.
+            if unit not in EGG_UNITS:
+                continue
+            physical_qty = int(record['qty'] or 0) * UNIT_MULTIPLIER[unit]
+        else:
+            # Ghee/honey are finished goods: a prebooking for two jars is
+            # two manual requests, never 2 trays (60 imaginary eggs).
+            # Ignore legacy records accidentally saved with an egg unit.
+            if unit != 'jar':
+                continue
+            physical_qty = int(record['qty'] or 0)
+        manual_by_group[root_id[product_id]] += physical_qty
 
     groups_by_id = {}
     for p in products:

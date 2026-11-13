@@ -45,7 +45,7 @@ def sync_admin_expense_void(expense):
     credit = CATEGORY_ACCOUNT[expense.category]
     return post_entry(
         source_key=f"egg_pos:admin_expense_void:{expense.pk}",
-        entry_date=timezone.localdate(expense.voided_at),
+        entry_date=(expense.expense_date if expense.void_reason.startswith("[CORRECTION ") else timezone.localdate(expense.voided_at)),
         reference=f"VOID-AEXP-{expense.pk:06d}",
         memo=f"Void admin expense #{expense.pk}: {expense.void_reason}"[:255],
         source_type="egg_pos_admin_expense_void",

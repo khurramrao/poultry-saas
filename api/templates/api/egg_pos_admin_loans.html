@@ -1,0 +1,39 @@
+{% extends "api/egg_pos_base.html" %}
+{% load humanize %}
+{% block egg_pos_content %}
+<style>
+.alo-panel{background:#fff;border:1px solid #d8e4f0;border-radius:14px;padding:20px;margin:0 0 16px}
+.alo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.alo-grid label{font-weight:700;font-size:12px;color:#17416a;display:block}
+.alo-grid input,.alo-grid select{width:100%;padding:10px;margin-top:5px;border:1px solid #ccdaea;border-radius:8px;background:#fff;color:#183c5c}
+.alo-action{padding:12px 18px;border:0;border-radius:8px;background:#128c50;color:#fff;font-weight:800;cursor:pointer;margin-top:14px}
+.alo-table{width:100%;border-collapse:collapse;min-width:750px}
+.alo-table th,.alo-table td{padding:10px;text-align:left;border-bottom:1px solid #e5ebf4}
+.alo-scroll{overflow-x:auto}
+.alo-hint{font-size:13px;color:#536b83}
+</style>
+<section class="alo-panel">
+<h2>Administrator Loans &amp; Repayments</h2>
+<p class="alo-hint">Record company money temporarily taken by an administrator. This is <b>a recoverable receivable</b>, not an expense, a salary advance, or an owner loan to the company.</p>
+<p class="alo-hint">Advance: debit Due from Administrator and credit Main Cash/Bank. Repayment: reverse those accounts. Transactions are audit-recorded and cannot be edited or deleted here.</p>
+</section>
+<section class="alo-panel">
+<h3>Record Advance or Repayment</h3>
+<form method="post" autocomplete="off">{% csrf_token %}
+<input type="hidden" name="request_token" value="{{ request_token }}">
+<div class="alo-grid">
+<label>Administrator<select name="administrator" required>{% for a in admins %}<option value="{{ a.id }}">{{ a.username }}</option>{% endfor %}</select></label>
+<label>Transaction<select name="kind" required><option value="advance">Money taken by admin</option><option value="repayment">Money returned by admin</option></select></label>
+<label>Amount (Rs)<input name="amount" type="number" step=".01" min=".01" required></label>
+<label>Cash / Bank<select name="payment_source" required><option value="">Select account</option><option value="cash">Main Cash</option><option value="bank">Bank / Digital Wallet</option></select></label>
+<label>Date<input value="{{ today|date:'Y-m-d' }}" type="date" disabled></label>
+<label>Reference<input name="reference" maxlength="120" placeholder="Transfer / deposit reference"></label>
+<label>Admin password<input type="password" name="admin_password" autocomplete="new-password" required></label>
+<label>Notes<input name="notes" maxlength="500" placeholder="Reason / purpose"></label>
+</div>
+<button class="alo-action" type="submit">Save Transaction</button>
+</form>
+</section>
+<section class="alo-panel"><h3>Outstanding by Administrator</h3><div class="alo-scroll"><table class="alo-table"><tr><th>Administrator</th><th>Amount still due to RayNoor</th></tr>{% for v in summary %}<tr><td>{{ v.admin.username }}</td><td><b>Rs {{ v.balance|floatformat:2|intcomma }}</b></td></tr>{% empty %}<tr><td colspan="2">No administrators.</td></tr>{% endfor %}</table></div></section>
+<section class="alo-panel"><h3>Transactions</h3><div class="alo-scroll"><table class="alo-table"><tr><th>Date</th><th>Administrator</th><th>Type</th><th>Amount</th><th>Cash/Bank</th><th>Reference / Notes</th><th>Entered by</th></tr>{% for r in rows %}<tr><td>{{ r.transaction_date|date:'d M Y' }}</td><td>{{ r.administrator.username }}</td><td>{{ r.get_kind_display }}</td><td>Rs {{ r.amount|floatformat:2|intcomma }}</td><td>{{ r.get_payment_source_display }}</td><td>{{ r.reference }} {% if r.notes %}<small>{{ r.notes }}</small>{% endif %}</td><td>{{ r.recorded_by.username }}</td></tr>{% empty %}<tr><td colspan="7">No transactions yet.</td></tr>{% endfor %}</table></div></section>
+{% endblock %}

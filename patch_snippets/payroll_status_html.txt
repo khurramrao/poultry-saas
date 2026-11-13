@@ -1,0 +1,6 @@
+<div class="payroll-panel">
+  <h3 class="payroll-section-title">Commission close — per employee</h3>
+  <p class="payroll-hint">To start salary in {{ current_month|date:'M Y' }}, finalize the commission period through {{ cutoff_end|date:'d M Y' }}. A paid balance does not prove all dates are finalized. Unpaid older commissions remain payable.</p>
+  <div class="payroll-scroll"><table class="payroll-table"><thead><tr><th>Employee</th><th>Last Commission Closed</th><th>Commission Still Payable</th><th>Salary Switch</th></tr></thead>
+  <tbody>{% for c in commission_status %}<tr><td>{{ c.employee.username }}</td><td>{{ c.last_end|date:'d M Y'|default:'No commission history' }}</td><td>Rs {{ c.due|floatformat:2 }}</td><td>{% if c.salary_start %}Salary started {{ c.salary_start|date:'d M Y' }}{% elif c.ready %}<b style="color:green">Ready</b>{% else %}<b style="color:#b6660a">Close outstanding days</b> · <a href="{% url 'egg_pos_commissions' %}?salesperson={{ c.employee.pk }}">Commission page</a>{% endif %}</td></tr>{% empty %}<tr><td colspan="4">No staff available</td></tr>{% endfor %}</tbody></table></div>
+</div>

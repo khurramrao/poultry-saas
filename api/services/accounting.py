@@ -12,6 +12,7 @@ CENT = Decimal("0.01")
 
 ACCOUNT_SPECS = {
     "1310": ("Staff Salary Advances", "asset", "debit"),
+    "1320": ("Loans Receivable from Administrators", "asset", "debit"),
     "2050": ("Staff Salaries Payable", "liability", "credit"),
     "6390": ("Staff Salaries Expense", "expense", "debit"),
     "1500": ("Office Equipment / Fixed Assets", "asset", "debit"),

@@ -131,12 +131,31 @@ def payroll(request):
         except Exception as exc:
             messages.error(request, str(exc))
 
+    # Display per-person evidence: paying old commission is not closing the period.
+    cutoff_end = today.replace(day=1) - timedelta(days=1)
+    closed_periods = (EggPOSCommissionPeriod.objects.filter(salesperson_id__in=[u.pk for u in staff])
+                      .prefetch_related('payments', 'advance_allocations')
+                      .order_by('salesperson_id', 'period_end', 'pk'))
+    history_by_user = {}
+    for row in closed_periods:
+        history_by_user.setdefault(row.salesperson_id, []).append(row)
+    commission_status = []
+    for employee in staff:
+        history = history_by_user.get(employee.pk, [])
+        latest = history[-1] if history else None
+        commission_status.append({
+            'employee': employee, 'last_end': latest.period_end if latest else None,
+            'due': sum((p.balance_due for p in history), Decimal('0.00')),
+            'ready': latest is None or latest.period_end == cutoff_end,
+            'salary_start': salary_cutoff(employee.pk),
+        })
     plans = list(EggPOSSalaryPlan.objects.select_related('employee', 'created_by').order_by('employee__username', '-effective_month')[:150])
     periods = list(EggPOSPayrollPeriod.objects.select_related('employee', 'posted_by').prefetch_related('payments', 'advance_allocations').order_by('-month', 'employee__username')[:150])
     advances = list(EggPOSSalaryAdvance.objects.select_related('employee').prefetch_related('allocations').order_by('-paid_on', '-id')[:100])
     payments = list(EggPOSSalaryPayment.objects.select_related('payroll', 'payroll__employee').order_by('-paid_on', '-id')[:100])
     return render(request, 'api/egg_pos_payroll.html', {
         'staff': staff, 'plans': plans, 'periods': periods, 'advances': advances, 'payments': payments,
+        'commission_status': commission_status, 'cutoff_end': cutoff_end,
         'payment_sources': PAYMENT_CHOICES,
         'today': today, 'current_month': today.replace(day=1),
         'last_month': (today.replace(day=1) - timedelta(days=1)).replace(day=1),

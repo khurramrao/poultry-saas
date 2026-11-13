@@ -30,7 +30,7 @@
 <a href="{% url 'egg_pos_farm_transfer' %}" class="{% if page == 'egg_pos_farm_transfer' or page == 'egg_pos_farm_transfer_detail' or page == 'egg_pos_edit_farm_transfer' %}active{% endif %}"><i class="fa-solid fa-arrow-right-arrow-left"></i><span>Farm Transfers</span></a>
 <a href="{% url 'egg_pos_products' %}" class="{% if page == 'egg_pos_products' %}active{% endif %}"><i class="fa-solid fa-egg"></i><span>Products</span></a>
 <a href="{% url 'egg_pos_suppliers' %}" class="{% if page == 'egg_pos_suppliers' or page == 'egg_pos_supplier_detail' %}active{% endif %}"><i class="fa-solid fa-building"></i><span>Suppliers</span></a>
-<a href="{% url 'egg_pos_accounting' %}" class="{% if page == 'egg_pos_accounting' or page == 'egg_pos_general_ledger' or page == 'egg_pos_cashbook' or page == 'egg_pos_trial_balance' or page == 'egg_pos_income_statement' or page == 'egg_pos_party_ledger' or page == 'egg_pos_owner_capital' or page == 'egg_pos_transfer_funds' %}active{% endif %}"><i class="fa-solid fa-book"></i><span>Accounts & Transfers</span></a>
+<a href="{% url 'egg_pos_accounting' %}" class="{% if page == 'egg_pos_accounting' or page == 'egg_pos_general_ledger' or page == 'egg_pos_cashbook' or page == 'egg_pos_trial_balance' or page == 'egg_pos_income_statement' or page == 'egg_pos_party_ledger' or page == 'egg_pos_owner_capital' or page == 'egg_pos_transfer_funds' or page == 'egg_pos_admin_loans' %}active{% endif %}"><i class="fa-solid fa-book"></i><span>Accounts & Transfers</span></a>
 {% endif %}
 {% if request.user.is_superuser or request.user.is_staff %}
 <a href="{% url 'egg_pos_staff_access' %}" class="{% if page == 'egg_pos_staff_access' %}active{% endif %}"><i class="fa-solid fa-user-shield"></i><span>Staff Access</span></a>

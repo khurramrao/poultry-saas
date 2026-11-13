@@ -1,5 +1,6 @@
 from django.urls import path
 from api.views import egg_pos_admin_expenses
+from api.views import egg_pos_admin_loans, egg_pos_admin_expense_correction
 from api.views import sensor, camera, sales, logs, finance_tracker, investor_accounts, eggs, goats, goat_age, egg_pos
 
 
@@ -110,7 +111,9 @@ path(
     path("egg-pos/sales/<int:sale_id>/restore/", egg_pos.undo_pos_sale_reversal, name="egg_pos_restore_sale"),
     path("egg-pos/staff-access/", egg_pos.staff_access, name="egg_pos_staff_access"),
     path("egg-pos/admin-expenses/", egg_pos_admin_expenses.admin_expenses, name="egg_pos_admin_expenses"),
+    path("egg-pos/admin-loans/", egg_pos_admin_loans.admin_loans, name="egg_pos_admin_loans"),
     path("egg-pos/admin-expenses/<int:expense_id>/void/", egg_pos_admin_expenses.void_admin_expense, name="egg_pos_void_admin_expense"),
+    path("egg-pos/admin-expenses/<int:expense_id>/correct/", egg_pos_admin_expense_correction.correct_admin_expense, name="egg_pos_correct_admin_expense"),
     path("egg-pos/expenses/", egg_pos.expenses, name="egg_pos_expenses"),
     path("egg-pos/expenses/<int:expense_id>/approve/", egg_pos.approve_expense, name="egg_pos_approve_expense"),
     path("egg-pos/cash-settlements/", egg_pos.cash_settlements, name="egg_pos_cash_settlements"),

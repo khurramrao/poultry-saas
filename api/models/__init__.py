@@ -60,3 +60,4 @@ from .egg_pos_prebooking import (EggPOSManualPrebooking, EggPOSManualPrebookingL
 from .egg_pos_marketing import EggPOSMarketingCustomer, EggPOSMarketingSale
 
 from .egg_pos_supplier_payment_audit import EggPOSSupplierPaymentMethodAudit
+from .egg_pos_admin_loan import EggPOSAdminLoanTransaction
