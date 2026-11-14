@@ -16,6 +16,11 @@ class EggPOSSalaryPlan(models.Model):
     effective_month = models.DateField()
     monthly_salary = models.DecimalField(max_digits=14, decimal_places=2)
     notes = models.CharField(max_length=250, blank=True)
+    # Admin-reviewed part of historically paid, overlapping commission treated
+    # as salary already paid in the first salary month. No commission entry deleted.
+    commission_credit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=ZERO)
+    commission_credit_reason = models.CharField(max_length=500, blank=True)
+    commission_overlap_ids = models.JSONField(default=list, blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='egg_pos_salary_plans_created')
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -28,12 +33,15 @@ class EggPOSSalaryPlan(models.Model):
             raise ValidationError({'effective_month': 'Use the first day of the salary month.'})
         if self.monthly_salary is None or self.monthly_salary <= ZERO:
             raise ValidationError({'monthly_salary': 'Monthly salary must be greater than zero.'})
+        if self.commission_credit_amount < ZERO or (self.monthly_salary and self.commission_credit_amount > self.monthly_salary):
+            raise ValidationError({'commission_credit_amount': 'Commission credit must be between zero and one monthly salary.'})
 
 
 class EggPOSPayrollPeriod(models.Model):
     employee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='egg_pos_payroll_periods')
     month = models.DateField()  # First of month
     salary_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    commission_credit_amount = models.DecimalField(max_digits=14, decimal_places=2, default=ZERO)
     posted_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='egg_pos_payroll_posted')
     posted_at = models.DateTimeField(auto_now_add=True)
 
@@ -51,7 +59,7 @@ class EggPOSPayrollPeriod(models.Model):
 
     @property
     def balance_due(self):
-        return max(ZERO, self.salary_amount - self.amount_paid - self.advances_applied)
+        return max(ZERO, self.salary_amount - self.commission_credit_amount - self.amount_paid - self.advances_applied)
 
 
 class EggPOSSalaryAdvance(models.Model):

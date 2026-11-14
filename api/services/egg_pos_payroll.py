@@ -1,5 +1,5 @@
 """Double-entry staff salary ledger and oldest-first advance settlement."""
-from datetime import date
+from datetime import date, timedelta
 from calendar import monthrange
 from decimal import Decimal
 
@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.utils import timezone
 
+from api.models.egg_pos import EggPOSCommissionPeriod
 from api.models.egg_pos_payroll import (
     EggPOSSalaryPlan, EggPOSPayrollPeriod, EggPOSSalaryAdvance,
     EggPOSSalaryAdvanceAllocation, EggPOSSalaryPayment,
@@ -35,17 +36,62 @@ def _staff_line(code, *, debit=ZERO, credit=ZERO, user_id, description):
 
 def sync_salary_period(payroll):
     salary_end = date(payroll.month.year, payroll.month.month, monthrange(payroll.month.year, payroll.month.month)[1])
+    rows = [
+        _staff_line('6390', debit=payroll.salary_amount, user_id=payroll.employee_id, description='Salary expense'),
+        _staff_line('2050', credit=payroll.salary_amount, user_id=payroll.employee_id, description='Salary payable'),
+    ]
+    # A previously paid, overlapping commission is a credit against first-month
+    # salary, not new cash. Reverse just its agreed commission expense portion
+    # and reduce salary payable. Never change original commission/payment records.
+    if payroll.commission_credit_amount > ZERO:
+        rows += [
+            _staff_line('2050', debit=payroll.commission_credit_amount,
+                        user_id=payroll.employee_id, description='Historic paid commission credited against salary payable'),
+            _staff_line('6200', credit=payroll.commission_credit_amount,
+                        user_id=payroll.employee_id, description='Reclassify paid overlapping commission into salary'),
+        ]
     return post_entry(
         source_key=f'egg_pos:salary_period:{payroll.pk}',
         entry_date=salary_end,
         reference=f'SALARY-{payroll.month:%Y%m}-{payroll.employee_id}',
         memo=f'Staff salary earned for {payroll.month:%b %Y}: {payroll.employee.username}',
         source_type='egg_pos_salary_period', source_id=payroll.pk, created_by=payroll.posted_by,
-        lines=[
-            _staff_line('6390', debit=payroll.salary_amount, user_id=payroll.employee_id, description='Salary expense'),
-            _staff_line('2050', credit=payroll.salary_amount, user_id=payroll.employee_id, description='Salary payable'),
-        ],
+        lines=rows,
     )
+
+
+def verify_commission_transition(employee_id, month, salary_amount, credit_amount):
+    """Return immutable overlap evidence; never infer which days earned the amount.
+
+    Crediting is only permitted for FULLY SETTLED commission periods. It requires
+    an administrator to specify the supported November amount, not prorate a
+    spanning period (which could contain loss carry or uneven daily profit).
+    """
+    cutoff = month.replace(day=1)
+    period_end = date(month.year, month.month, monthrange(month.year, month.month)[1])
+    overlapping = list(EggPOSCommissionPeriod.objects.filter(
+        salesperson_id=employee_id, period_end__gte=cutoff,
+    ).prefetch_related('payments', 'advance_allocations').order_by('period_start', 'pk'))
+    if overlapping:
+        if any(p.period_start > period_end or p.period_end > period_end for p in overlapping):
+            raise ValueError('Commission overlaps later salary months. Reconcile that period separately before switching.')
+        if any(p.balance_due > ZERO for p in overlapping):
+            raise ValueError('Overlapping commission is not fully paid. Reconcile its payable before starting salary.')
+        total = sum((p.commission_amount for p in overlapping), ZERO)
+        if total > ZERO and credit_amount <= ZERO:
+            raise ValueError('Enter the already-paid November commission amount credited to the new salary. Do not leave it blank.')
+        if credit_amount > total:
+            raise ValueError(f'Commission credit exceeds posted overlapping commission of Rs {total:,.2f}.')
+        if credit_amount > salary_amount:
+            raise ValueError('Commission credit cannot exceed the agreed monthly salary.')
+    else:
+        if credit_amount != ZERO:
+            raise ValueError('No posted commission overlaps this salary month; leave its credit at zero.')
+        latest = (EggPOSCommissionPeriod.objects.filter(salesperson_id=employee_id)
+                  .order_by('-period_end', '-pk').first())
+        if latest is not None and latest.period_end != cutoff - timedelta(days=1):
+            raise ValueError(f'Finalize previous commission through {(cutoff - timedelta(days=1)):%d %b %Y} first. Unpaid old balances can remain payable.')
+    return overlapping
 
 
 def sync_salary_advance(advance):
@@ -109,8 +155,11 @@ def post_salary(employee_id, month, posted_by):
     plan = current_plan(employee_id, month)
     if not plan:
         raise ValueError('Configure a salary plan effective on or before this month.')
+    original_start = salary_cutoff(employee_id)
+    credit = plan.commission_credit_amount if month == original_start and month == plan.effective_month else ZERO
     payroll = EggPOSPayrollPeriod.objects.create(employee_id=employee_id, month=month,
-                                                  salary_amount=plan.monthly_salary, posted_by=posted_by)
+                                                  salary_amount=plan.monthly_salary,
+                                                  commission_credit_amount=credit, posted_by=posted_by)
     sync_salary_period(payroll)
     apply_salary_advances_locked(employee_id)
     return payroll

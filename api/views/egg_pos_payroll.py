@@ -19,7 +19,7 @@ from api.models.egg_pos_payroll import (
 )
 from api.services.egg_pos import can_manage, can_sell
 from api.services.egg_pos_payroll import (
-    post_salary, record_salary_advance, record_salary_payment, salary_cutoff,
+    post_salary, record_salary_advance, record_salary_payment, salary_cutoff, verify_commission_transition,
 )
 
 
@@ -62,6 +62,18 @@ def payroll(request):
                 employee = get_object_or_404(User, pk=request.POST.get('employee'), is_active=True)
                 month = _date(request.POST.get('effective_month'), 'salary start month')
                 salary = _amount(request.POST.get('monthly_salary'))
+                credit_str = (request.POST.get('commission_credit_amount') or '0').strip()
+                try:
+                    commission_credit = Decimal(credit_str).quantize(Decimal('0.01'))
+                except (ValueError, InvalidOperation, TypeError):
+                    raise ValueError('Enter a valid commission credit.')
+                if not commission_credit.is_finite() or commission_credit < 0:
+                    raise ValueError('Commission credit must be zero or a positive amount.')
+                credit_reason = (request.POST.get('commission_credit_reason') or '').strip()
+                if commission_credit and len(credit_reason) < 10:
+                    raise ValueError('Enter how you calculated the November commission credited to salary (minimum 10 characters).')
+                if employee.is_superuser:
+                    raise ValueError('Owner/admin withdrawals use Owner Funding → Owner Withdrawal, not fixed staff salary.')
                 if month.day != 1:
                     raise ValueError('Salary start must be the first day of a month.')
                 if month > today.replace(day=1):
@@ -74,25 +86,20 @@ def payroll(request):
                         raise ValueError('Cannot backdate a salary rate across posted payroll months.')
                     prior = salary_cutoff(employee.pk)
                     if prior is None:
-                        # Prevent cutting off unpaid or unposted October commission days.
-                        overlap = EggPOSCommissionPeriod.objects.filter(
-                            salesperson=employee, period_end__gte=month
-                        ).exists()
-                        if overlap:
-                            raise ValueError('Posted commission overlaps the salary start date. Reconcile the earlier periods first.')
-                        latest = EggPOSCommissionPeriod.objects.filter(
-                            salesperson=employee
-                        ).order_by('-period_end', '-pk').first()
-                        if latest is not None and latest.period_end != month - timedelta(days=1):
-                            raise ValueError(
-                                f'Finalize prior commission through {(month - timedelta(days=1)):%d %b %Y} '
-                                'before switching to monthly salary. Existing commission will remain payable.'
-                            )
-                    elif month <= prior:
-                        raise ValueError('A salary revision must start after the original salary start month.')
+                        overlaps = verify_commission_transition(employee.pk, month, salary, commission_credit)
+                    else:
+                        if month <= prior:
+                            raise ValueError('A salary revision must start after the original salary start month.')
+                        if commission_credit:
+                            raise ValueError('Commission transition credit applies only to the first salary month.')
+                        overlaps = []
                     EggPOSSalaryPlan.objects.create(
                         employee=employee, effective_month=month, monthly_salary=salary,
-                        notes=(request.POST.get('notes') or '').strip()[:250], created_by=request.user,
+                        notes=(request.POST.get('notes') or '').strip()[:250],
+                        commission_credit_amount=commission_credit,
+                        commission_credit_reason=credit_reason[:500] if overlaps else '',
+                        commission_overlap_ids=[p.pk for p in overlaps],
+                        created_by=request.user,
                     )
                 messages.success(request, f'Salary plan saved for {employee.username} from {month:%b %Y}. Existing commission history remains unchanged.')
             elif action == 'post':
@@ -131,22 +138,30 @@ def payroll(request):
         except Exception as exc:
             messages.error(request, str(exc))
 
-    # Display per-person evidence: paying old commission is not closing the period.
+    # Per-employee diagnostic: commission PAID is not the same as period CLOSED.
+    # Remaining old commission payable is explicitly allowed after salary starts.
     cutoff_end = today.replace(day=1) - timedelta(days=1)
-    closed_periods = (EggPOSCommissionPeriod.objects.filter(salesperson_id__in=[u.pk for u in staff])
-                      .prefetch_related('payments', 'advance_allocations')
-                      .order_by('salesperson_id', 'period_end', 'pk'))
-    history_by_user = {}
-    for row in closed_periods:
-        history_by_user.setdefault(row.salesperson_id, []).append(row)
+    all_commissions = (EggPOSCommissionPeriod.objects.filter(salesperson_id__in=[u.pk for u in staff])
+                       .prefetch_related('payments', 'advance_allocations')
+                       .order_by('salesperson_id', 'period_end', 'pk'))
+    commission_by_staff = {}
+    for item in all_commissions:
+        commission_by_staff.setdefault(item.salesperson_id, []).append(item)
     commission_status = []
     for employee in staff:
-        history = history_by_user.get(employee.pk, [])
+        history = commission_by_staff.get(employee.pk, [])
         latest = history[-1] if history else None
+        start = today.replace(day=1)
+        overlap = [p for p in history if p.period_end >= start]
         commission_status.append({
-            'employee': employee, 'last_end': latest.period_end if latest else None,
+            'employee': employee,
+            'last_end': latest.period_end if latest else None,
             'due': sum((p.balance_due for p in history), Decimal('0.00')),
-            'ready': latest is None or latest.period_end == cutoff_end,
+            'ready': latest is None or (not overlap and latest.period_end == cutoff_end),
+            'overlap_total': sum((p.commission_amount for p in overlap), Decimal('0.00')),
+            'overlap_paid': all(p.balance_due == 0 for p in overlap),
+            'overlap': bool(overlap),
+            'missing_prior_close': not overlap and latest is not None and latest.period_end < cutoff_end,
             'salary_start': salary_cutoff(employee.pk),
         })
     plans = list(EggPOSSalaryPlan.objects.select_related('employee', 'created_by').order_by('employee__username', '-effective_month')[:150])
@@ -154,7 +169,7 @@ def payroll(request):
     advances = list(EggPOSSalaryAdvance.objects.select_related('employee').prefetch_related('allocations').order_by('-paid_on', '-id')[:100])
     payments = list(EggPOSSalaryPayment.objects.select_related('payroll', 'payroll__employee').order_by('-paid_on', '-id')[:100])
     return render(request, 'api/egg_pos_payroll.html', {
-        'staff': staff, 'plans': plans, 'periods': periods, 'advances': advances, 'payments': payments,
+        'staff': staff, 'salary_staff': [u for u in staff if not u.is_superuser], 'plans': plans, 'periods': periods, 'advances': advances, 'payments': payments,
         'commission_status': commission_status, 'cutoff_end': cutoff_end,
         'payment_sources': PAYMENT_CHOICES,
         'today': today, 'current_month': today.replace(day=1),

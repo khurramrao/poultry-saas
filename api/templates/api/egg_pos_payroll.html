@@ -14,23 +14,40 @@
 <div class="payroll-panel">
   <h2 class="payroll-section-title">Staff Salaries & Payroll</h2>
   <p class="payroll-hint">For Egg POS employees only. Salary is an operating expense, independent of salesperson fuel and commission deductions. Existing commission earnings and payable balances remain in the old ledger. Only administrators may post pay or advances.</p>
-  <p class="payroll-hint"><strong>Switching from commission:</strong> Finalize commission through the last day of the month before salary begins. Create a salary plan effective on the first of the next month. New commission posting for those salary dates is blocked; historical commission can still be paid.</p>
+  <p class="payroll-hint"><strong>Switching from commission to salary:</strong> Close the earlier commission dates first. If a paid commission period overlaps the salary start, an administrator must document the salary-credit portion. Posted commissions and historical payments stay intact; never pay the same amount twice.</p>
+  <p class="payroll-hint"><strong>Flexible admin withdrawals:</strong> For the business owner, use <a href="{% url 'egg_pos_owner_capital' %}?draw=1">Owner Funding → Owner Withdrawal / Drawings</a>. You may take Rs 10,000 or Rs 15,000 when funds allow. It reduces cash and owner equity; it is not a salary expense or an admin loan. A non-owner administrator paid variable wages needs a separate wages treatment.</p>
 </div>
 <div class="payroll-panel">
-  <h3 class="payroll-section-title">Commission close — per employee</h3>
-  <p class="payroll-hint">To start salary in {{ current_month|date:'M Y' }}, finalize the commission period through {{ cutoff_end|date:'d M Y' }}. A paid balance does not prove all dates are finalized. Unpaid older commissions remain payable.</p>
-  <div class="payroll-scroll"><table class="payroll-table"><thead><tr><th>Employee</th><th>Last Commission Closed</th><th>Commission Still Payable</th><th>Salary Switch</th></tr></thead>
-  <tbody>{% for c in commission_status %}<tr><td>{{ c.employee.username }}</td><td>{{ c.last_end|date:'d M Y'|default:'No commission history' }}</td><td>Rs {{ c.due|floatformat:2 }}</td><td>{% if c.salary_start %}Salary started {{ c.salary_start|date:'d M Y' }}{% elif c.ready %}<b style="color:green">Ready</b>{% else %}<b style="color:#b6660a">Close outstanding days</b> · <a href="{% url 'egg_pos_commissions' %}?salesperson={{ c.employee.pk }}">Commission page</a>{% endif %}</td></tr>{% empty %}<tr><td colspan="4">No staff available</td></tr>{% endfor %}</tbody></table></div>
+  <h3 class="payroll-section-title">Commission Close Status — each employee separately</h3>
+  <p class="payroll-hint">Salary starts on the first day of a month. For a {{ current_month|date:'M Y' }} salary plan, either close pre-salary commission through {{ cutoff_end|date:'d M Y' }} or reconcile fully-paid posted commissions that overlap salary dates. <strong>Paid</strong> does not mean <strong>finalized</strong>. You can pay any remaining old commission later.</p>
+  <div class="payroll-scroll"><table class="payroll-table">
+    <thead><tr><th>Employee</th><th>Last Commission Closed</th><th>Outstanding Older Commission</th><th>Salary Switch Status</th></tr></thead>
+    <tbody>{% for c in commission_status %}
+      <tr><td>{{ c.employee.username }}</td><td>{{ c.last_end|date:'d M Y'|default:'No commission history' }}</td>
+      <td>Rs {{ c.due|floatformat:2 }}</td>
+      <td>{% if c.salary_start %}<strong>Salary effective {{ c.salary_start|date:'d M Y' }}</strong>{% elif c.overlap %}<strong style="color:#ad5f0c">{{ c.overlap_total|floatformat:2 }} posted through salary dates; {% if c.overlap_paid %}paid — enter November salary credit{% else %}unpaid — reconcile first{% endif %}</strong>{% elif c.ready %}<strong style="color:#148049">Period closed — salary may start</strong>{% else %}<strong style="color:#ad5f0c">Close remaining commission days first</strong> · <a href="{% url 'egg_pos_commissions' %}?salesperson={{ c.employee.pk }}">Commission page</a>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="4">No POS employees.</td></tr>{% endfor %}</tbody>
+  </table></div>
 </div>
 <div class="payroll-panel">
   <h3 class="payroll-section-title">1. Set Salary / Change Monthly Rate</h3>
   <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="plan">
   <div class="payroll-grid">
-    <label><span class="payroll-label">Employee</span><select name="employee" class="payroll-input" required>{% for u in staff %}<option value="{{ u.pk }}">{{ u.username }}</option>{% endfor %}</select></label>
+    <label><span class="payroll-label">Employee</span><select name="employee" class="payroll-input" required>{% for u in salary_staff %}<option value="{{ u.pk }}">{{ u.username }}</option>{% endfor %}</select></label>
     <label><span class="payroll-label">Monthly Salary (Rs)</span><input class="payroll-input" name="monthly_salary" type="number" step="0.01" min="0.01" required></label>
     <label><span class="payroll-label">Effective Month (1st day)</span><input class="payroll-input" type="date" name="effective_month" value="{{ current_month|date:'Y-m-d' }}" required></label>
     <label><span class="payroll-label">Admin Password</span><input class="payroll-input" type="password" name="admin_password" autocomplete="new-password" required></label>
-  </div><label><span class="payroll-label">Notes (optional)</span><input class="payroll-input" type="text" name="notes" maxlength="250" placeholder="Monthly salary agreed / salary revision"></label>
+  </div>
+  <div class="payroll-grid" style="margin-top:13px;background:#fff8ed;padding:12px;border-radius:10px">
+    <label><span class="payroll-label">Already-paid November Commission to Credit Against Salary (Rs)</span>
+      <input class="payroll-input" type="number" min="0" step="0.01" name="commission_credit_amount" value="0" required>
+      <small>Only for an already-posted, fully-paid commission period overlapping your new salary start. Enter the November portion, not automatically the entire October–November commission.</small>
+    </label>
+    <label><span class="payroll-label">Commission Credit Reconciliation Reason</span>
+      <input class="payroll-input" type="text" name="commission_credit_reason" maxlength="500" placeholder="e.g. Nov 1–14 portion from settled COM-...; reviewed by admin">
+    </label>
+  </div>
+  <label><span class="payroll-label">Notes (optional)</span><input class="payroll-input" type="text" name="notes" maxlength="250" placeholder="Monthly salary agreed / salary revision"></label>
   <button class="payroll-btn" type="submit">Save Salary Plan</button></form>
 </div>
 <div class="payroll-panel">
@@ -38,7 +55,7 @@
   <p class="payroll-hint">This books salary expense and salary payable once per person and month. Existing salary advances automatically offset the oldest posted salary first. Salary payment is a separate action below.</p>
   <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="post">
   <div class="payroll-grid">
-    <label><span class="payroll-label">Employee</span><select name="employee" class="payroll-input" required>{% for u in staff %}<option value="{{ u.pk }}">{{ u.username }}</option>{% endfor %}</select></label>
+    <label><span class="payroll-label">Employee</span><select name="employee" class="payroll-input" required>{% for u in salary_staff %}<option value="{{ u.pk }}">{{ u.username }}</option>{% endfor %}</select></label>
     <label><span class="payroll-label">Month (1st day)</span><input class="payroll-input" type="date" name="month" value="{{ last_month|date:'Y-m-d' }}" required></label>
     <label><span class="payroll-label">Admin Password</span><input class="payroll-input" type="password" name="admin_password" autocomplete="new-password" required></label>
   </div><button class="payroll-btn" type="submit">Finalize Monthly Salary</button></form>
@@ -48,7 +65,7 @@
   <p class="payroll-hint">Paid now from Main Cash or Bank, shown as a recoverable staff advance. It will offset future posted salary automatically. It is <strong>not</strong> an additional salary expense.</p>
   <form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="action" value="advance"><input type="hidden" name="request_token" value="{{ request_token_advance }}">
   <div class="payroll-grid">
-    <label><span class="payroll-label">Employee</span><select name="employee" class="payroll-input" required>{% for u in staff %}<option value="{{ u.pk }}">{{ u.username }}</option>{% endfor %}</select></label>
+    <label><span class="payroll-label">Employee</span><select name="employee" class="payroll-input" required>{% for u in salary_staff %}<option value="{{ u.pk }}">{{ u.username }}</option>{% endfor %}</select></label>
     <label><span class="payroll-label">Advance Amount (Rs)</span><input class="payroll-input" type="number" name="amount" step="0.01" min="0.01" required></label>
     <label><span class="payroll-label">Date</span><input class="payroll-input" name="paid_on" type="date" value="{{ today|date:'Y-m-d' }}" required></label>
     <label><span class="payroll-label">Payment Source</span><select name="payment_source" class="payroll-input">{% for value,label in payment_sources %}<option value="{{ value }}">{{ label }}</option>{% endfor %}</select></label>
@@ -69,8 +86,8 @@
     <label><span class="payroll-label">Admin Password</span><input class="payroll-input" name="admin_password" type="password" autocomplete="new-password" required></label>
   </div><button class="payroll-btn" type="submit">Record Salary Payment</button></form>
 </div>
-<div class="payroll-panel"><h3 class="payroll-section-title">Salary Plans (audited history)</h3><div class="payroll-scroll"><table class="payroll-table"><thead><tr><th>Staff</th><th>Effective From</th><th>Monthly Salary</th><th>Entered By</th><th>Notes</th></tr></thead><tbody>{% for p in plans %}<tr><td>{{ p.employee.username }}</td><td>{{ p.effective_month|date:'d M Y' }}</td><td>Rs {{ p.monthly_salary|floatformat:2|intcomma }}</td><td>{{ p.created_by.username }}</td><td>{{ p.notes }}</td></tr>{% empty %}<tr><td colspan="5">No salary plans configured.</td></tr>{% endfor %}</tbody></table></div></div>
-<div class="payroll-panel"><h3 class="payroll-section-title">Posted Salary Ledger</h3><div class="payroll-scroll"><table class="payroll-table"><thead><tr><th>Month</th><th>Staff</th><th>Salary Expense</th><th>Advance Applied</th><th>Cash/Bank Paid</th><th>Salary Payable</th></tr></thead><tbody>{% for p in periods %}<tr><td>{{ p.month|date:'M Y' }}</td><td>{{ p.employee.username }}</td><td>Rs {{ p.salary_amount|floatformat:2|intcomma }}</td><td>Rs {{ p.advances_applied|floatformat:2|intcomma }}</td><td>Rs {{ p.amount_paid|floatformat:2|intcomma }}</td><td><strong>Rs {{ p.balance_due|floatformat:2|intcomma }}</strong></td></tr>{% empty %}<tr><td colspan="6">No salary payroll posted.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="payroll-panel"><h3 class="payroll-section-title">Salary Plans (audited history)</h3><div class="payroll-scroll"><table class="payroll-table"><thead><tr><th>Staff</th><th>Effective From</th><th>Monthly Salary</th><th>Commission Credit</th><th>Entered By</th><th>Notes</th></tr></thead><tbody>{% for p in plans %}<tr><td>{{ p.employee.username }}</td><td>{{ p.effective_month|date:'d M Y' }}</td><td>Rs {{ p.monthly_salary|floatformat:2|intcomma }}</td><td>Rs {{ p.commission_credit_amount|floatformat:2|intcomma }}{% if p.commission_credit_reason %}<div class="payroll-hint">{{ p.commission_credit_reason }}</div>{% endif %}</td><td>{{ p.created_by.username }}</td><td>{{ p.notes }}</td></tr>{% empty %}<tr><td colspan="6">No salary plans configured.</td></tr>{% endfor %}</tbody></table></div></div>
+<div class="payroll-panel"><h3 class="payroll-section-title">Posted Salary Ledger</h3><div class="payroll-scroll"><table class="payroll-table"><thead><tr><th>Month</th><th>Staff</th><th>Salary Expense</th><th>Paid Commission Credit</th><th>Advance Applied</th><th>Cash/Bank Paid</th><th>Salary Payable</th></tr></thead><tbody>{% for p in periods %}<tr><td>{{ p.month|date:'M Y' }}</td><td>{{ p.employee.username }}</td><td>Rs {{ p.salary_amount|floatformat:2|intcomma }}</td><td>Rs {{ p.commission_credit_amount|floatformat:2|intcomma }}</td><td>Rs {{ p.advances_applied|floatformat:2|intcomma }}</td><td>Rs {{ p.amount_paid|floatformat:2|intcomma }}</td><td><strong>Rs {{ p.balance_due|floatformat:2|intcomma }}</strong></td></tr>{% empty %}<tr><td colspan="7">No salary payroll posted.</td></tr>{% endfor %}</tbody></table></div></div>
 <div class="payroll-panel"><h3 class="payroll-section-title">Salary Advances</h3><div class="payroll-scroll"><table class="payroll-table"><thead><tr><th>Date</th><th>Staff</th><th>Paid</th><th>Available</th><th>Source</th><th>Reference</th></tr></thead><tbody>{% for a in advances %}<tr><td>{{ a.paid_on|date:'d M Y' }}</td><td>{{ a.employee.username }}</td><td>Rs {{ a.amount|floatformat:2|intcomma }}</td><td>Rs {{ a.available|floatformat:2|intcomma }}</td><td>{{ a.get_payment_source_display }}</td><td>{{ a.reference }}</td></tr>{% empty %}<tr><td colspan="6">No salary advances.</td></tr>{% endfor %}</tbody></table></div></div>
 <div class="payroll-panel"><h3 class="payroll-section-title">Salary Payment History</h3><div class="payroll-scroll"><table class="payroll-table"><thead><tr><th>Payment Date</th><th>Staff</th><th>Month</th><th>Amount</th><th>Source</th><th>Reference</th></tr></thead><tbody>{% for p in payments %}<tr><td>{{ p.paid_on|date:'d M Y' }}</td><td>{{ p.payroll.employee.username }}</td><td>{{ p.payroll.month|date:'M Y' }}</td><td>Rs {{ p.amount|floatformat:2|intcomma }}</td><td>{{ p.get_payment_source_display }}</td><td>{{ p.reference }}</td></tr>{% empty %}<tr><td colspan="6">No salary payments recorded.</td></tr>{% endfor %}</tbody></table></div></div>
 {% endblock %}
