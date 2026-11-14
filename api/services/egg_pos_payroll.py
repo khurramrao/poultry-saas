@@ -10,7 +10,7 @@ from django.utils import timezone
 from api.models.egg_pos import EggPOSCommissionPeriod
 from api.models.egg_pos_payroll import (
     EggPOSSalaryPlan, EggPOSPayrollPeriod, EggPOSSalaryAdvance,
-    EggPOSSalaryAdvanceAllocation, EggPOSSalaryPayment,
+    EggPOSSalaryAdvanceAllocation, EggPOSSalaryPayment, EggPOSSalaryAdvanceCorrection, EggPOSAdminVariablePayment,
 )
 from api.services.accounting import line, post_entry
 
@@ -240,7 +240,78 @@ def record_salary_payment(payroll_id, amount, paid_on, payment_source, recorded_
     return payment, False
 
 
+def sync_admin_variable_payment(payment):
+    """Rebuildable financial record with individual recipient attribution."""
+    debit_code = '6390' if payment.kind == 'salary' else '3000'
+    description = ('Variable admin remuneration' if payment.kind == 'salary' else 'Owner withdrawal by named admin')
+    return post_entry(
+        source_key=f'egg_pos:admin_variable_payment:{payment.pk}',
+        entry_date=payment.paid_on,
+        reference=payment.reference or f'ADMPAY-{payment.pk:06d}',
+        memo=f'{description}: {payment.recipient.username}',
+        source_type='egg_pos_admin_variable_payment', source_id=payment.pk,
+        created_by=payment.recorded_by,
+        lines=[
+            _staff_line(debit_code, debit=payment.amount,
+                        user_id=payment.recipient_id, description=description),
+            _staff_line(PAYMENT_ACCOUNT[payment.payment_source], credit=payment.amount,
+                        user_id=payment.recipient_id, description='Payment to named administrator'),
+        ],
+    )
+
+
+@transaction.atomic
+def record_admin_variable_payment(*, recipient_id, amount, paid_on, kind,
+                                  payment_source, recorded_by, request_token,
+                                  reference='', notes=''):
+    from uuid import UUID
+    from api.models.accounting import ChartOfAccount
+    from api.services.accounting import ensure_default_accounts, normal_account_balance
+
+    try:
+        token = UUID(str(request_token))
+    except (ValueError, TypeError, AttributeError):
+        raise ValueError('Form token invalid. Reload the page and try again.')
+    prior = EggPOSAdminVariablePayment.objects.filter(request_token=token).first()
+    if prior:
+        return prior, True
+    if not recorded_by.is_superuser:
+        raise ValueError('Only a superuser may record administrator payouts.')
+    recipient = get_user_model().objects.select_for_update().get(pk=recipient_id)
+    if not recipient.is_active or not recipient.is_superuser:
+        raise ValueError('Select an active administrator for this payout.')
+    if kind not in ('salary', 'drawing'):
+        raise ValueError('Choose remuneration or owner drawing.')
+    if payment_source not in PAYMENT_ACCOUNT:
+        raise ValueError('Choose Main Cash or Bank / Digital.')
+    amount = Decimal(str(amount)).quantize(Decimal('0.01'))
+    if not amount.is_finite() or amount <= ZERO or amount > Decimal('999999999999.99'):
+        raise ValueError('Enter a positive payment amount.')
+    if paid_on > timezone.localdate():
+        raise ValueError('Future-dated payments are not allowed.')
+
+    ensure_default_accounts()
+    # Use the same ledger account lock used by Transfer Funds to avoid
+    # accepting two simultaneous payments against the same funds.
+    source_code = PAYMENT_ACCOUNT[payment_source]
+    list(ChartOfAccount.objects.select_for_update().filter(code=source_code))
+    available = normal_account_balance(source_code)
+    if amount > available:
+        raise ValueError(f'Insufficient funds: only Rs {available:,.2f} available in this account.')
+    if kind == 'drawing' and not (notes or '').strip():
+        raise ValueError('Enter a note identifying the owner for an owner drawing.')
+    payment = EggPOSAdminVariablePayment.objects.create(
+        recipient=recipient, amount=amount, paid_on=paid_on, kind=kind,
+        payment_source=payment_source, reference=(reference or '')[:120],
+        notes=(notes or '')[:500], request_token=token, recorded_by=recorded_by,
+    )
+    sync_admin_variable_payment(payment)
+    return payment, False
+
+
 def rebuild_staff_payroll():
+    for payment in EggPOSAdminVariablePayment.objects.select_related('recipient', 'recorded_by').all():
+        sync_admin_variable_payment(payment)
     for payroll in EggPOSPayrollPeriod.objects.select_related('employee', 'posted_by').all():
         sync_salary_period(payroll)
     for advance in EggPOSSalaryAdvance.objects.select_related('employee', 'recorded_by').all():
@@ -249,3 +320,39 @@ def rebuild_staff_payroll():
         sync_salary_allocation(allocation)
     for payment in EggPOSSalaryPayment.objects.select_related('payroll', 'payroll__employee', 'recorded_by').all():
         sync_salary_payment(payment)
+
+
+@transaction.atomic
+def correct_unapplied_salary_advance(advance_id, new_amount, reason, corrected_by):
+    """Correct a genuine overstatement; never create a second cash outflow.
+
+    Keep the original advance identity/date/source. The accounting journal is
+    regenerated using the corrected amount, and correction history stays
+    immutable. Allocated advances are blocked to avoid changing prior payroll.
+    """
+    if not corrected_by.is_superuser:
+        raise ValueError('Only a superuser can correct salary advances.')
+    employee_id = EggPOSSalaryAdvance.objects.values_list('employee_id', flat=True).get(pk=advance_id)
+    get_user_model().objects.select_for_update().get(pk=employee_id)
+    advance = (EggPOSSalaryAdvance.objects.select_for_update()
+               .select_related('employee').get(pk=advance_id))
+    new_amount = Decimal(new_amount).quantize(Decimal('0.01'))
+    old_amount = advance.amount
+    if not new_amount.is_finite() or new_amount <= ZERO:
+        raise ValueError('Corrected advance must be positive.')
+    if new_amount >= old_amount:
+        raise ValueError('This correction form only reduces an overstated advance. Contact accounting for an understatement.')
+    if advance.allocations.exists():
+        raise ValueError('This advance is already applied to posted salary. Reconcile that allocation before correcting the original payment.')
+    reason = (reason or '').strip()
+    if len(reason) < 12:
+        raise ValueError('Explain the correction in at least 12 characters.')
+    advance.amount = new_amount
+    advance.save(update_fields=['amount'])
+    # This is a replacement of the original journal source key, not an extra
+    # payment. Corrects cash/bank and Salary Advance Receivable equally.
+    sync_salary_advance(advance)
+    return EggPOSSalaryAdvanceCorrection.objects.create(
+        advance=advance, old_amount=old_amount, new_amount=new_amount,
+        reason=reason[:500], corrected_by=corrected_by
+    )

@@ -104,3 +104,57 @@ class EggPOSSalaryPayment(models.Model):
 
     class Meta:
         ordering = ['-paid_on', '-id']
+
+
+class EggPOSAdminVariablePayment(models.Model):
+    """One-off payment to a named administrator; no fixed salary schedule.
+
+    salary: compensation for services (profit and loss).
+    drawing: owner equity withdrawal (balance sheet, not expense).
+    A superuser account alone does not establish ownership; the recorder must
+    choose the correct classification for each payment.
+    """
+    KIND_CHOICES = [
+        ('salary', 'Variable remuneration / wages (expense)'),
+        ('drawing', 'Owner drawing (equity, not salary expense)'),
+    ]
+    recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                  related_name='egg_pos_admin_variable_payments')
+    paid_on = models.DateField(default=timezone.localdate)
+    amount = models.DecimalField(max_digits=14, decimal_places=2)
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES)
+    payment_source = models.CharField(max_length=10, choices=PAYMENT_CHOICES)
+    reference = models.CharField(max_length=120, blank=True)
+    notes = models.CharField(max_length=500, blank=True)
+    request_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
+                                    related_name='egg_pos_admin_variable_payments_recorded')
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-paid_on', '-id']
+
+    def clean(self):
+        if self.recipient_id and not self.recipient.is_superuser:
+            raise ValidationError({'recipient': 'Choose an authorized administrator.'})
+        if self.amount is None or self.amount <= ZERO:
+            raise ValidationError({'amount': 'Payment must be greater than zero.'})
+        if self.kind not in dict(self.KIND_CHOICES):
+            raise ValidationError({'kind': 'Choose a payment classification.'})
+
+
+class EggPOSSalaryAdvanceCorrection(models.Model):
+    """Append-only audit of genuine salary-advance amount corrections."""
+    advance = models.ForeignKey(
+        EggPOSSalaryAdvance, on_delete=models.PROTECT, related_name='corrections'
+    )
+    old_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    new_amount = models.DecimalField(max_digits=14, decimal_places=2)
+    reason = models.CharField(max_length=500)
+    corrected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='egg_pos_salary_advance_corrections'
+    )
+    corrected_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-corrected_at', '-id']
