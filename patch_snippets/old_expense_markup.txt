@@ -1,0 +1,1 @@
+{% for row in statement.expense_rows %}<div class="ep-pl-row"><span class="ep-pl-label">{{ row.account.name }}</span><span class="ep-pl-amount">Rs {{ row.amount|floatformat:2|intcomma }}</span></div>{% empty %}<div class="ep-pl-row"><span style="color:#718399">No approved expenses or posted commissions in this period.</span><span></span></div>{% endfor %}

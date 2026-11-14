@@ -1,0 +1,8 @@
+    staff_detail = _salary_person_rows(start_date, end_date)
+    salary_expense = money(sum((row["amount"] for row in expense_rows if row["account"].code == "6390"), ZERO))
+    commission_expense = money(sum((row["amount"] for row in expense_rows if row["account"].code == "6200"), ZERO))
+    return {
+        **staff_detail,
+        "salary_expense": salary_expense,
+        "commission_expense": commission_expense,
+        "staff_cost_total": money(salary_expense + commission_expense),

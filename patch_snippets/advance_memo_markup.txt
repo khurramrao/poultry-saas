@@ -1,0 +1,4 @@
+  <div class="ep-pl-section" style="margin-top:17px">STAFF SALARY ADVANCES — MEMO ONLY</div>
+  <div class="ep-pl-row" style="color:#53697b;padding-top:1px;font-size:11px">Salary advances paid during this report period. These are balance-sheet transactions, not additional expenses and not included in net profit.</div>
+  {% for item in statement.advances_paid_by_person %}<div class="ep-pl-row"><span class="ep-pl-label">Advance paid — {{ item.name }}</span><span class="ep-pl-amount">Rs {{ item.amount|floatformat:2|intcomma }}</span></div>{% empty %}<div class="ep-pl-row"><span class="ep-pl-label">No advances disbursed in this period</span><span class="ep-pl-amount">Rs 0.00</span></div>{% endfor %}
+  <div class="ep-pl-row total"><span>Total advances paid (not an expense)</span><span class="ep-pl-amount">Rs {{ statement.advances_paid|floatformat:2|intcomma }}</span></div>

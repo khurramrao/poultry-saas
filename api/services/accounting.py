@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django.db import transaction
+from django.contrib.auth import get_user_model
 from django.db.models import Sum
 
 from api.models.accounting import ChartOfAccount, JournalEntry, JournalLine
@@ -245,6 +246,64 @@ def trial_balance(as_of):
     return rows, total_debit, total_credit
 
 
+
+def _salary_person_rows(start_date, end_date):
+    """Staff expense detail is derived from the journal, not cash withdrawals.
+
+    Separate payment/advance records remain a balance-sheet memorandum.
+    Supports historical journal lines with no party attribution.
+    """
+    from collections import defaultdict
+    from api.models.egg_pos_payroll import EggPOSSalaryPlan
+
+    users = get_user_model().objects.filter(is_active=True)
+    visible_ids = set(users.filter(is_superuser=True).values_list('id', flat=True))
+    visible_ids.update(EggPOSSalaryPlan.objects.values_list('employee_id', flat=True))
+
+    totals = {code: defaultdict(lambda: ZERO) for code in ('6390', '6200', '1310')}
+    for jl in JournalLine.objects.filter(
+        account__code__in=('6390', '6200', '1310'),
+        entry__module='egg_pos', entry__entry_date__range=(start_date, end_date),
+    ).select_related('account', 'entry'):
+        code = jl.account.code
+        # Advances here are the actual cash disbursed, not allocations against
+        # salary, asset reclassifications or the closing advance balance.
+        if code == '1310':
+            if jl.entry.source_type != 'egg_pos_salary_advance':
+                continue
+            amount = money(jl.debit)
+        else:
+            amount = money(Decimal(jl.debit or 0) - Decimal(jl.credit or 0))
+        if amount == ZERO:
+            continue
+        key = jl.party_id if jl.party_type == 'user' and jl.party_id else None
+        totals[code][key] += amount
+        if key is not None:
+            visible_ids.add(key)
+
+    names = {}
+    for user in get_user_model().objects.filter(pk__in=visible_ids):
+        name = (user.get_full_name() or '').strip()
+        names[user.pk] = f'{name} ({user.username})' if name and name != user.username else user.username
+
+    def rows_for(code, show_zeros=False):
+        items = []
+        keys = set(totals[code]) | (visible_ids if show_zeros else set())
+        for ident in keys:
+            amount = money(totals[code].get(ident, ZERO))
+            if not show_zeros and amount == ZERO:
+                continue
+            items.append({'name': names.get(ident, 'Unassigned staff' if ident is None else f'Staff ID {ident}'), 'amount': amount})
+        items.sort(key=lambda row: row['name'].casefold())
+        return items
+
+    return {
+        'salary_by_person': rows_for('6390', show_zeros=True),
+        'commission_by_person': rows_for('6200'),
+        'advances_paid_by_person': rows_for('1310'),
+        'advances_paid': money(sum(totals['1310'].values(), ZERO)),
+    }
+
 def income_statement(start_date, end_date):
     ensure_default_accounts()
     accounts = ChartOfAccount.objects.filter(
@@ -278,7 +337,14 @@ def income_statement(start_date, end_date):
     gross_profit = money(revenue - cogs)
     expenses = money(sum((row["amount"] for row in expense_rows), ZERO))
     net_profit = money(gross_profit - expenses)
+    staff_detail = _salary_person_rows(start_date, end_date)
+    salary_expense = money(sum((row["amount"] for row in expense_rows if row["account"].code == "6390"), ZERO))
+    commission_expense = money(sum((row["amount"] for row in expense_rows if row["account"].code == "6200"), ZERO))
     return {
+        **staff_detail,
+        "salary_expense": salary_expense,
+        "commission_expense": commission_expense,
+        "staff_cost_total": money(salary_expense + commission_expense),
         "revenue_rows": revenue_rows,
         "cogs_rows": cogs_rows,
         "expense_rows": expense_rows,
