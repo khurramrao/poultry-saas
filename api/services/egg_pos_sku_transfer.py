@@ -28,11 +28,11 @@ def transfer_purchase_lot(*, purchase, source_lot_id, destination_product_id, qu
         raise ValueError("Quantity must be greater than zero.")
 
     # Sales, writeoffs and transfers all lock the same physical lot row.
-    source_lot = (
-        EggPOSInventoryLot.objects.select_for_update()
-        .select_related("product", "supplier", "purchase")
-        .get(pk=source_lot_id)
-    )
+    # Lock only the inventory lot row. Supplier and purchase are nullable
+    # foreign keys; joining them with select_related() creates LEFT OUTER JOINs.
+    # PostgreSQL rejects a bare FOR UPDATE against the nullable side of those
+    # joins (NotSupportedError). Related objects are fetched normally below.
+    source_lot = EggPOSInventoryLot.objects.select_for_update().get(pk=source_lot_id)
     if source_lot.source_type != "purchase" or source_lot.purchase_id != purchase.pk:
         raise ValueError("Select an original purchased lot belonging to this purchase.")
     # Deliberately restrict this workflow to the original supplier purchase
