@@ -5,7 +5,7 @@
 @media(max-width:650px){.correct-grid,.line-grid,.live-summary{grid-template-columns:1fr}.correct-head{display:block}.correct-actions{position:sticky;bottom:72px;background:#fff;padding:10px 0}.correct-actions .ep-btn{flex:1;justify-content:center}.correct-body{padding:12px}}
 </style>
 <div class="correct-wrap">
-  <div class="correct-head"><div><h2><i class="fa-solid fa-pen-to-square"></i> Correct Purchase #{{ purchase.id }}</h2><p>{{ purchase.supplier.name }} · {{ purchase.purchase_date|date:"d M Y" }} · {{ purchase.reference|default:"No reference" }}</p></div><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-arrow-left"></i> Purchase History</a></div>
+  <div class="correct-head"><div><h2><i class="fa-solid fa-pen-to-square"></i> Correct Purchase #{{ purchase.id }}</h2><p>{{ purchase.supplier.name }} · {{ purchase.purchase_date|date:"d M Y" }} · {{ purchase.reference|default:"No reference" }}</p></div><span style="display:flex;gap:8px;flex-wrap:wrap"><a class="ep-btn" href="{% url 'egg_pos_sku_transfer' purchase.id %}"><i class="fa-solid fa-right-left"></i> Transfer to Another SKU</a><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-arrow-left"></i> Purchase History</a></span></div>
   <div class="correct-alert"><strong>Accounting-safe correction:</strong> product and physical stock quantity are locked. Changing cost updates the FIFO lot, inventory value, supplier payable and accounting journal. If units from this lot were already sold, unpaid historical COGS/commission is recalculated automatically. A paid commission period blocks the correction so history cannot be silently changed.</div>
 
   <form method="post" id="correctPurchaseForm">{% csrf_token %}
@@ -24,7 +24,7 @@
       {% for item in items %}
       <div class="line-card" data-line>
         <input type="hidden" name="item_id" value="{{ item.id }}"><input type="hidden" class="sticker-total" value="{{ item.sticker_cost_total|floatformat:2 }}">
-        <div class="line-top"><div><div class="line-name">{{ item.product.name }}</div><div class="line-meta">{{ item.product.sku }} · {{ item.quantity|intcomma }} {{ item.product.stock_unit_plural }} · {{ item.sold_eggs|intcomma }} sold · {{ item.damaged_units|intcomma }} damaged/wasted · {{ item.remaining_eggs|intcomma }} remaining</div></div><div style="font-size:10px;color:#71869b">Current Rs {{ item.current_line_total|floatformat:2|intcomma }}</div></div>
+        <div class="line-top"><div><div class="line-name">{{ item.product.name }}</div><div class="line-meta">{{ item.product.sku }} · {{ item.quantity|intcomma }} {{ item.product.stock_unit_plural }} · {{ item.sold_eggs|intcomma }} sold · {{ item.damaged_units|intcomma }} damaged/wasted · {{ item.transferred_eggs|intcomma }} transferred to other SKU · {{ item.remaining_eggs|intcomma }} remaining</div></div><div style="font-size:10px;color:#71869b">Current Rs {{ item.current_line_total|floatformat:2|intcomma }}</div></div>
         <div class="line-grid">
           <div class="ep-field"><label>Quantity ({{ item.product.stock_unit_plural }})</label><input class="ep-input locked qty" type="number" value="{{ item.quantity }}" readonly></div>
           <div class="ep-field"><label>Correct Total Vendor Cost (Rs)</label><input class="ep-input line-total" type="number" min="0.01" step="0.01" name="line_total_cost" value="{{ item.current_line_total|floatformat:2 }}" required></div>
@@ -75,4 +75,5 @@
   update();
 })();
 </script>
+<!-- RAYNOOR_PURCHASE_SKU_TRANSFER_V1 -->
 {% endblock %}

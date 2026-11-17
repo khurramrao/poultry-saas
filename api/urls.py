@@ -194,3 +194,10 @@ urlpatterns += [
     path('egg-pos/online-orders/<int:order_id>/', online_shop.admin_order_detail, name='raynoor_admin_order_detail'),
     path('egg-pos/online-orders/<int:order_id>/action/', online_shop.admin_order_action, name='raynoor_admin_order_action'),
 ]
+
+# RAYNOOR_PURCHASE_SKU_TRANSFER_V1
+from api.views import egg_pos_sku_transfer
+urlpatterns += [
+    path("egg-pos/purchases/<int:purchase_id>/sku-transfer/", egg_pos_sku_transfer.purchase_sku_transfer, name="egg_pos_sku_transfer"),
+    path("egg-pos/purchases/<int:purchase_id>/sku-transfer/<int:transfer_id>/reverse/", egg_pos_sku_transfer.reverse_purchase_sku_transfer, name="egg_pos_reverse_sku_transfer"),
+]

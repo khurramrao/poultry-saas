@@ -1,0 +1,125 @@
+{% extends "api/egg_pos_base.html" %}{% load humanize %}
+{% block egg_pos_content %}
+<style>
+  .sku-wrap{max-width:1000px;margin:0 auto;color:#0b3558}
+  .sku-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 14px}
+  .sku-head h2{font-size:22px;margin:0}.sku-muted{color:#667d94;font-size:12px}
+  .sku-card{border:1px solid #dce6ee;border-radius:16px;background:white;margin-bottom:14px;overflow:hidden}
+  .sku-title{font-weight:850;border-bottom:1px solid #e7edf3;padding:14px 18px}
+  .sku-body{padding:18px}.sku-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .sku-field label{font-size:11px;text-transform:uppercase;letter-spacing:.025em;font-weight:800;color:#355574;display:block;margin-bottom:6px}
+  .sku-field input,.sku-field select,.sku-field textarea{width:100%;box-sizing:border-box;border:1px solid #cddbea;border-radius:10px;padding:11px;background:white;color:#153e5d}
+  .sku-field textarea{min-height:75px}.sku-help{color:#62778d;font-size:11px;line-height:1.6;margin-top:6px}
+  .sku-callout{border-radius:12px;background:#f2f8fc;border:1px solid #dbe8f3;padding:12px 14px;font-size:12px;line-height:1.6;margin-bottom:12px}
+  .sku-table{width:100%;border-collapse:collapse;font-size:12px}.sku-table th,.sku-table td{padding:10px;text-align:left;border-bottom:1px solid #e8edf2}
+  .sku-table th{background:#f6f9fc;font-size:10px;text-transform:uppercase;color:#607a91}
+  .sku-btn{border:1px solid #cbdceb;border-radius:10px;padding:10px 15px;color:#0b3558;text-decoration:none;background:#fff;font-weight:750;cursor:pointer;display:inline-block}
+  .sku-btn.primary{background:#0c4a78;color:#fff;border-color:#0c4a78}
+  .sku-btn.danger{color:#a93434;border-color:#edcccc;padding:7px 12px;font-size:11px}
+  .sku-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:15px}
+  .sku-number{font-variant-numeric:tabular-nums;font-weight:800}
+  @media(max-width:650px){.sku-grid{grid-template-columns:1fr}.sku-table{display:block;overflow-x:auto}.sku-head{flex-direction:column;align-items:flex-start}.sku-body{padding:12px}}
+</style>
+<div class="sku-wrap">
+  <div class="sku-head">
+    <div><h2>Transfer Eggs to Another SKU</h2><div class="sku-muted">Purchase #{{ purchase.id }} &middot; {{ purchase.supplier.name }} &middot; {{ purchase.purchase_date|date:'d M Y' }}</div></div>
+    <a class="sku-btn" href="{% url 'egg_pos_edit_purchase' purchase.id %}">Back to Purchase</a>
+  </div>
+  <div class="sku-callout"><b>Stock reclassification only.</b> The original purchased quantity, vendor payable and financial journal remain unchanged. Transferred eggs retain the exact original FIFO landed cost, received date and expiry. Sales, wastage and active online reservations reduce available stock. Administrator password and a reason are required.</div>
+  <section class="sku-card">
+    <div class="sku-title">New Stock Transfer</div>
+    <div class="sku-body">
+      <form method="post" id="skuTransferForm">{% csrf_token %}
+        <div class="sku-grid">
+          <div class="sku-field"><label for="source_lot_id">Source purchased SKU / Lot</label>
+            <select name="source_lot_id" id="source_lot_id" required>
+              <option value="">Choose original purchased lot</option>
+              {% for item in items %}
+                {% if item.lot and item.product.category == 'egg' %}
+                  <option value="{{ item.lot.id }}" data-qty="{{ item.available_now }}" data-cost="{{ item.lot.unit_cost }}" data-product="{{ item.product.id }}">{{ item.product.name }} ({{ item.product.sku }}) &middot; {{ item.lot.lot_code }} &middot; {{ item.available_now }} left</option>
+                {% endif %}
+              {% endfor %}
+            </select>
+            <div class="sku-help" id="sourceInfo">Choose the stock lot to reclassify.</div>
+          </div>
+          <div class="sku-field"><label for="destination_product_id">Destination Egg SKU</label>
+            <select name="destination_product_id" id="destination_product_id" required>
+              <option value="">Choose destination</option>
+              {% for product in destinations %}<option value="{{ product.id }}">{{ product.name }} ({{ product.sku }})</option>{% endfor %}
+            </select>
+          </div>
+          <div class="sku-field"><label for="quantity">Quantity to Transfer (eggs)</label>
+            <input id="quantity" type="number" min="1" step="1" name="quantity" required placeholder="Example: 120">
+          </div>
+          <div class="sku-field"><label>FIFO value of transferred stock</label>
+            <input id="costPreview" readonly value="Select a lot and quantity" style="background:#f5f8fb">
+            <div class="sku-help">No second purchase, no cash transaction, no inventory gain.</div>
+          </div>
+          <div class="sku-field"><label for="reason">Transfer reason *</label>
+            <textarea id="reason" name="reason" minlength="5" maxlength="2000" placeholder="E.g. 120 eggs are graded as Premium White Egg" required></textarea>
+          </div>
+          <div class="sku-field"><label for="admin_password">Verify administrator password *</label>
+            <input id="admin_password" type="password" name="admin_password" autocomplete="current-password" required>
+            <div class="sku-help">This password is verified server-side and is not stored in the transfer record.</div>
+          </div>
+        </div>
+        <div class="sku-actions"><a href="{% url 'egg_pos_edit_purchase' purchase.id %}" class="sku-btn">Cancel</a><button class="sku-btn primary" type="submit" id="postTransfer">Post SKU Transfer</button></div>
+      </form>
+    </div>
+  </section>
+  <section class="sku-card">
+    <div class="sku-title">Original Purchase Stock</div>
+    <div class="sku-body" style="overflow-x:auto">
+      <table class="sku-table"><thead><tr><th>SKU / Lot</th><th>Originally Purchased</th><th>Transferred Out</th><th>Now Remaining</th></tr></thead><tbody>
+        {% for item in items %}<tr><td>{{ item.product.name }}<div class="sku-muted">{{ item.lot.lot_code }}</div></td><td class="sku-number">{{ item.quantity|intcomma }}</td><td class="sku-number">{{ item.moved_qty|intcomma }}</td><td class="sku-number">{{ item.available_now|intcomma }}</td></tr>{% endfor %}
+      </tbody></table>
+      <div class="sku-help">Now remaining excludes sales, wastage and SKU transfers. These activities are separate and are not all shown as transfers.</div>
+    </div>
+  </section>
+  <section class="sku-card">
+    <div class="sku-title">Transfer History &amp; Audit Trail</div>
+    <div class="sku-body" style="overflow-x:auto">
+      <table class="sku-table"><thead><tr><th>Reference</th><th>When / Admin</th><th>Movement</th><th>Units</th><th>FIFO cost</th><th>Status / Action</th></tr></thead><tbody>
+        {% for movement in transfers %}
+          <tr><td><b>{{ movement.reference }}</b><div class="sku-muted">{{ movement.reason|truncatechars:90 }}</div></td>
+          <td>{{ movement.created_at|date:'d M Y H:i' }}<div class="sku-muted">{{ movement.created_by.username }}</div></td>
+          <td>{{ movement.source_product.sku }} &rarr; {{ movement.destination_product.sku }}<div class="sku-muted">{{ movement.source_lot.lot_code }} &rarr; {{ movement.destination_lot.lot_code }}</div></td>
+          <td class="sku-number">{{ movement.quantity|intcomma }}</td><td>Rs {{ movement.destination_lot.unit_cost|floatformat:6 }}</td>
+          <td>{% if movement.is_reversed %}<strong>Reversed</strong><div class="sku-muted">{{ movement.reversal_reason|truncatechars:90 }}</div>{% else %}
+            <details><summary class="sku-btn danger" style="cursor:pointer">Reverse</summary>
+              <form method="post" action="{% url 'egg_pos_reverse_sku_transfer' purchase.id movement.id %}" style="min-width:180px;max-width:230px;padding:12px 0">{% csrf_token %}
+                <div class="sku-field"><label>Reason</label><textarea name="reversal_reason" required minlength="5"></textarea></div>
+                <div class="sku-field"><label>Admin password</label><input type="password" autocomplete="current-password" name="admin_password" required></div>
+                <button class="sku-btn danger" type="submit" style="margin-top:8px">Confirm Reversal</button>
+              </form>
+            </details>{% endif %}</td></tr>
+        {% empty %}<tr><td colspan="6" class="sku-muted">No SKU transfers recorded for this purchase yet.</td></tr>{% endfor %}
+      </tbody></table>
+      <div class="sku-help">A transfer can be reversed only while its destination lot is untouched by sales, waste, onward transfers or reservations. Reversal keeps the audit record.</div>
+    </div>
+  </section>
+</div>
+<script>
+(function(){
+ const source=document.getElementById('source_lot_id'),qty=document.getElementById('quantity');
+ const target=document.getElementById('destination_product_id');
+ const preview=document.getElementById('costPreview');
+ const info=document.getElementById('sourceInfo');
+ const form=document.getElementById('skuTransferForm');
+ function update(){
+   const o=source.selectedOptions[0],max=Number(o&&o.dataset.qty||0),rate=Number(o&&o.dataset.cost||0);
+   const n=Number(qty.value||0);qty.max=max||'';
+   info.textContent=o&&o.value?`Original lot: ${max} eggs on hand; FIFO cost Rs ${rate.toFixed(6)} per egg. Online reservations may further reduce transfer availability.`:'Choose the stock lot to reclassify.';
+   preview.value=o&&o.value&&n>0?'Rs '+(n*rate).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'Select a lot and quantity';
+   for(const choice of target.options)choice.disabled=Boolean(o&&o.dataset.product&&choice.value===o.dataset.product);
+ }
+ source.addEventListener('change',update);qty.addEventListener('input',update);update();
+ form.addEventListener('submit',e=>{
+   const o=source.selectedOptions[0],max=Number(o&&o.dataset.qty||0),n=Number(qty.value||0);
+   if(!Number.isInteger(n)||n<1||n>max||target.value===(o&&o.dataset.product)){
+     e.preventDefault();alert('Choose a different SKU and a whole number of eggs within the lot remaining quantity.');
+   }
+ });
+})();
+</script>
+{% endblock %}

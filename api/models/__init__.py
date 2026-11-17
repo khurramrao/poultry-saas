@@ -61,3 +61,6 @@ from .egg_pos_marketing import EggPOSMarketingCustomer, EggPOSMarketingSale
 
 from .egg_pos_supplier_payment_audit import EggPOSSupplierPaymentMethodAudit
 from .egg_pos_admin_loan import EggPOSAdminLoanTransaction
+
+# Registered internal SKU reclassification model.
+from .egg_pos_sku_transfer import EggPOSSkuTransfer

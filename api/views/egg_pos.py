@@ -692,6 +692,7 @@ def edit_purchase(request, purchase_id):
     for item in items:
         item.current_line_total = money(item.line_total)
         item.remaining_eggs = int(item.lot.quantity_remaining or 0) if item.lot_id else 0
+        item.transferred_eggs = (sum(t.quantity for t in item.lot.sku_transfers_out.filter(is_reversed=False)) if item.lot_id else 0)
         # Stock reductions may be from sales OR audited damage. Never label
         # damaged eggs/jars as sold on supplier purchase corrections.
         item.sold_eggs = int(item.lot.sale_allocations.filter(
@@ -758,6 +759,12 @@ def edit_purchase(request, purchase_id):
                 for allocation in item.lot.sale_allocations.all():
                     sale = allocation.sale_item.sale
                     affected_sales[sale.id] = sale
+                # All derived FIFO lots from audited SKU reclassifications must
+                # be included when checking paid commission locks.
+                for move in item.lot.sku_transfers_out.filter(is_reversed=False).select_related("destination_lot"):
+                    for allocation in move.destination_lot.sale_allocations.all():
+                        sale = allocation.sale_item.sale
+                        affected_sales[sale.id] = sale
 
             locked_periods = []
             for sale in affected_sales.values():
@@ -831,6 +838,27 @@ def edit_purchase(request, purchase_id):
                     from api.services.egg_pos_wastage import revalue_writeoffs_for_lot
                     revalue_writeoffs_for_lot(lot=lot, new_unit_cost=landed_unit_cost, actor=request.user)
 
+                    # SKU transfers are internal movements, not new purchases.
+                    # Revalue their derivative lots and any subsequent sales or
+                    # wastage at the same corrected FIFO landed cost.
+                    for move in lot.sku_transfers_out.filter(is_reversed=False).select_related("destination_lot"):
+                        dest_lot = move.destination_lot
+                        dest_lot.unit_cost = landed_unit_cost
+                        dest_lot.supplier = supplier
+                        dest_lot.notes = (
+                            f"Reclassified from purchase #{purchase.id} / lot {lot.lot_code} | "
+                            f"corrected FIFO Rs {landed_unit_cost:.6f} at {stamp}"
+                        )
+                        dest_lot.save(update_fields=["unit_cost", "supplier", "notes"])
+                        revalue_writeoffs_for_lot(
+                            lot=dest_lot, new_unit_cost=landed_unit_cost, actor=request.user
+                        )
+                        for allocation in dest_lot.sale_allocations.all():
+                            allocation.unit_cost = landed_unit_cost
+                            allocation.cogs_amount = money(Decimal(allocation.quantity) * landed_unit_cost)
+                            allocation.save(update_fields=["unit_cost", "cogs_amount"])
+                            affected_sale_item_ids.add(allocation.sale_item_id)
+
                     for allocation in lot.sale_allocations.all():
                         allocation.unit_cost = landed_unit_cost
                         allocation.cogs_amount = money(Decimal(allocation.quantity) * landed_unit_cost)
@@ -874,6 +902,8 @@ def edit_purchase(request, purchase_id):
         "transport_methods": EggPOSPurchase.TRANSPORT_PAYMENT_CHOICES,
     })
 
+
+# RAYNOOR_PURCHASE_SKU_TRANSFER_V1: transferred FIFO lots are revalued with their source purchase.
 
 @login_required
 @require_http_methods(["GET", "POST"])
