@@ -24,6 +24,7 @@ ACCOUNT_SPECS = {
     "6340": ("Office Consumables Expense", "expense", "debit"),
     "6350": ("Repairs & Maintenance Expense", "expense", "debit"),
     "6360": ("Marketing / Advertising Expense", "expense", "debit"),
+    "6365": ("Social Media Marketing Expense", "expense", "debit"),
     "6370": ("Professional / Admin Fees", "expense", "debit"),
     "6380": ("Other Administrative Expense", "expense", "debit"),
     "1000": ("Main Cash", "asset", "debit"),
@@ -47,6 +48,7 @@ ACCOUNT_SPECS = {
     "6110": ("Delivery / Rider Expense", "expense", "debit"),
     "6120": ("Toll / Parking Expense", "expense", "debit"),
     "6130": ("Packaging Expense", "expense", "debit"),
+    "6160": ("Stock Transport Expense", "expense", "debit"),
     "6140": ("Other Selling Expense", "expense", "debit"),
     "6200": ("Sales Commission Expense", "expense", "debit"),
 }

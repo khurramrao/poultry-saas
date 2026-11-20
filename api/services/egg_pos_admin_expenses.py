@@ -9,9 +9,12 @@ CATEGORY_ACCOUNT = {
     "internet": "6320",
     "stationery": "6330",
     "supplies": "6340",
+    "packing_material": "6130",  # Packaging material used for retail sales.
     "repair": "6350",
     "marketing": "6360",
+    "social_media_marketing": "6365",  # Distinct social campaign expense.
     "delivery": "6110",  # Outbound delivery paid by RayNoor; selling expense (never stock cost).
+    "stock_transport": "6160",  # General stock movement; not inbound freight already capitalized in purchases.
     "professional": "6370",
     "other": "6380",
     "equipment": "1500",  # Capital asset, not current-period expense.
