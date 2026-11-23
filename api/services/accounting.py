@@ -12,6 +12,10 @@ CENT = Decimal("0.01")
 
 
 ACCOUNT_SPECS = {
+    # RayNoor supplier returns: approved refunds and unrecovered landed costs.
+    "1160": ("Supplier Returns Refund Receivable", "asset", "debit"),
+    "4100": ("Supplier Return Recovery Difference", "revenue", "credit"),
+    "6160": ("Unrecovered Supplier Return Cost", "expense", "debit"),
     "1310": ("Staff Salary Advances", "asset", "debit"),
     "1320": ("Loans Receivable from Administrators", "asset", "debit"),
     "2050": ("Staff Salaries Payable", "liability", "credit"),

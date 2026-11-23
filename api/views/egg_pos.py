@@ -702,6 +702,11 @@ def edit_purchase(request, purchase_id):
             is_voided=False,
         ).aggregate(q=Sum("quantity"))["q"] or 0) if item.lot_id else 0
 
+    # Prevent cost/supplier edits after a recorded return without revaluation.
+    if request.method == "POST" and purchase.supplier_returns.filter(is_voided=False).exists():
+        messages.error(request, "This purchase has active supplier returns. Reconcile/reverse returns before editing purchase costs or supplier.")
+        return redirect("egg_pos_purchase_returns")
+
     if request.method == "POST":
         try:
             reason = (request.POST.get("correction_reason") or "").strip()

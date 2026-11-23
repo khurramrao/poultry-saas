@@ -12,7 +12,7 @@
 
 <div class="inv-hero">
   <div><h2><i class="fa-solid fa-boxes-stacked"></i> RayNoor Retail Inventory</h2><p>Eggs are counted individually; desi ghee and honey are counted as sealed jars. Every SKU has its own FIFO purchase lots.</p></div>
-  {% if can_manage_pos %}<div class="inv-actions"><a class="ep-btn primary" href="{% url 'egg_pos_add_purchase' %}"><i class="fa-solid fa-plus"></i> Stock In</a><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-receipt"></i> Purchase History</a><a class="ep-btn" href="{% url 'egg_pos_wastage' %}"><i class="fa-solid fa-box-open"></i> Damage / Wastage</a></div>{% endif %}
+  {% if can_manage_pos %}<div class="inv-actions"><a class="ep-btn primary" href="{% url 'egg_pos_add_purchase' %}"><i class="fa-solid fa-plus"></i> Stock In</a><a class="ep-btn" href="{% url 'egg_pos_purchase_list' %}"><i class="fa-solid fa-receipt"></i> Purchase History</a> <a class="ep-btn" href="{% url 'egg_pos_purchase_returns' %}"><i class="fa-solid fa-rotate-left"></i> Supplier Returns</a><a class="ep-btn" href="{% url 'egg_pos_wastage' %}"><i class="fa-solid fa-box-open"></i> Damage / Wastage</a></div>{% endif %}
 </div>
 
 <div class="inv-kpis">
@@ -67,7 +67,7 @@
         <div>Rs <span class="lot-money">{{ lot.unit_cost|floatformat:4 }}</span> / {{ row.product.stock_unit }}</div>
         <div>Value<br><span class="lot-money">Rs {{ lot.stock_value|floatformat:0|intcomma }}</span></div>
         <div>{% if lot.supplier %}{{ lot.supplier.name }}{% elif lot.farm_batch %}RayNoor Farm{% else %}—{% endif %}</div>
-        <div class="lot-edit">{% if lot.purchase_id %}<a class="ep-btn" href="{% url 'egg_pos_edit_purchase' lot.purchase_id %}"><i class="fa-solid fa-pen"></i> Correct Purchase</a>{% elif lot.farm_transfer_id %}<a class="ep-btn" href="{% url 'egg_pos_farm_transfer_detail' lot.farm_transfer_id %}">View Transfer</a>{% endif %}{% if user.is_superuser or user.is_staff %} <a class="ep-btn" href="{% url 'egg_pos_lot_expiry' lot.id %}" title="Correct recorded expiry date, with admin password and audit">Correct Expiry</a>{% endif %}</div>
+        <div class="lot-edit">{% if lot.purchase_id %}<a class="ep-btn" href="{% url 'egg_pos_edit_purchase' lot.purchase_id %}"><i class="fa-solid fa-pen"></i> Correct Purchase</a> <a class="ep-btn" href="{% url 'egg_pos_purchase_returns' %}?lot={{ lot.id }}" title="Return this exact lot to its original supplier">Return to Supplier</a>{% elif lot.farm_transfer_id %}<a class="ep-btn" href="{% url 'egg_pos_farm_transfer_detail' lot.farm_transfer_id %}">View Transfer</a>{% endif %}{% if user.is_superuser or user.is_staff %} <a class="ep-btn" href="{% url 'egg_pos_lot_expiry' lot.id %}" title="Correct recorded expiry date, with admin password and audit">Correct Expiry</a>{% endif %}</div>
       </div>
     {% empty %}<div style="font-size:10px;color:#8193a4">No active lots.</div>{% endfor %}
   </div>

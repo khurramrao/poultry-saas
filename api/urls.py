@@ -10,7 +10,10 @@ from api.views import egg_pos_payroll
 from api.views import egg_pos_prebookings
 from api.views import egg_pos_sku_report
 from api.views import egg_pos_wastage
+from api.views import egg_pos_supplier_returns
+
 urlpatterns = [
+    path("egg-pos/purchases/returns/", egg_pos_supplier_returns.purchase_returns, name="egg_pos_purchase_returns"),
     path("egg-pos/manual-prebookings/", egg_pos_prebookings.manual_prebookings, name="egg_pos_manual_prebookings"),
 
     path("egg-pos/payroll/", egg_pos_payroll.payroll, name="egg_pos_payroll"),

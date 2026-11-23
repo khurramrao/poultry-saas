@@ -64,3 +64,6 @@ from .egg_pos_admin_loan import EggPOSAdminLoanTransaction
 
 # Registered internal SKU reclassification model.
 from .egg_pos_sku_transfer import EggPOSSkuTransfer
+
+# RAYNOOR_SUPPLIER_RETURNS_V1
+from .egg_pos_supplier_returns import EggPOSSupplierReturn, EggPOSSupplierReturnRefund

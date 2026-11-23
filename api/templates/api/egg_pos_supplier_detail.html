@@ -1,6 +1,6 @@
 {% extends "api/egg_pos_base.html" %}{% load humanize %}
 {% block egg_pos_content %}
-<div class="ep-section-title"><div><h3>{{ supplier.name }}</h3><p>Supplier payable, purchases, payments and ledger.</p></div><a href="{% url 'egg_pos_suppliers' %}">All Suppliers</a></div>
+<div class="ep-section-title"><div><h3>{{ supplier.name }}</h3><p>Supplier payable, purchases, payments and ledger.</p></div><a href="{% url 'egg_pos_suppliers' %}">All Suppliers</a> <a class="ep-btn" href="{% url 'egg_pos_purchase_returns' %}">Supplier Returns</a></div>
 <section class="ep-kpis">
   <div class="ep-kpi orange"><div class="ep-kpi-label">Outstanding Payable</div><strong>Rs {{ balance|floatformat:0|intcomma }}</strong><div class="ep-kpi-note">From the general ledger</div></div>
   <div class="ep-kpi"><div class="ep-kpi-label">Purchases</div><strong>{{ purchases|length }}</strong><div class="ep-kpi-note">Recorded supplier invoices</div></div>
