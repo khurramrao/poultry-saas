@@ -1257,10 +1257,12 @@ def goat_accounts(request):
             .order_by("-is_superuser", "-is_staff", "username")
         )
     else:
+        # Joining owned_goats returns one row per goat. Deduplicate the
+        # owner before building account snapshots and KPI totals.
         owners = User.objects.filter(
             pk=request.user.pk,
             owned_goats__isnull=False,
-        )
+        ).distinct()
 
     accounts = [
         _owner_goat_account_snapshot(owner, goat_status)

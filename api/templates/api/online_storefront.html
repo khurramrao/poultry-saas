@@ -5,7 +5,7 @@
   .product-card-link { display:block; color:inherit; text-decoration:none; }
   .product-card-link:hover h3,.product-card-link:focus-visible h3 { color:#18774c; text-decoration:underline; }
   .product-card-link:focus-visible { outline:3px solid #178855; outline-offset:3px; border-radius:12px; }
-  .shop-section .card > .egg-art {
+  .shop-section .product-card-link > .egg-art {
     min-height: 220px;
     aspect-ratio: 1 / 1;
     height: auto;
@@ -18,18 +18,20 @@
   .shop-section .card form {
     margin-top: auto;
   }
-  .product-photo-frame {
+  /* Product photos uploaded with a white studio background should blend into
+     the whole card frame, instead of looking like a smaller white rectangle. */
+  .shop-section .product-card-link > .product-photo-frame {
     display: flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
     overflow: hidden;
-    background: linear-gradient(140deg, #f3f7ef, #fefcf7);
-    border: 1px solid #e2ebe2;
+    background: #fff;
+    border: 1px solid #e4ebe5;
   }
-  .product-photo-frame.photo-contain { padding: 8px; }
-  .product-photo-frame.photo-cover { padding: 0; }
-  .product-photo-frame img {
+  .shop-section .product-photo-frame.photo-contain { padding: 6px; }
+  .shop-section .product-photo-frame.photo-cover { padding: 0; }
+  .shop-section .product-photo-frame img {
     display: block;
     width: 100%;
     height: 100%;
@@ -38,12 +40,16 @@
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    filter: drop-shadow(0 12px 18px rgba(20, 60, 44, 0.08));
+    object-position: center;
   }
-  .product-photo-frame.photo-cover img { object-fit: cover; }
+  .shop-section .product-photo-frame.photo-cover img { object-fit: cover; }
+  /* Small adjustment makes jar photos easier to read without cropping labels. */
+  .shop-section .product-photo-frame.photo-contain.category-ghee img {
+    transform: scale(1.08);
+  }
   .store-category-pill { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800; color:#2d6b4c; letter-spacing:.03em; text-transform:uppercase; }
   @media (max-width: 600px) {
-    .shop-section .card > .egg-art { min-height: 190px; }
+    .shop-section .product-card-link > .egg-art { min-height: 190px; }
   }
 </style>
 <section class="hero" aria-labelledby="store-title">
@@ -63,7 +69,7 @@
     <article class="card">
       <a class="product-card-link" href="{% url 'raynoor_product_detail' offer_id=row.offer.id %}" aria-label="View {{ row.offer.title|default:row.offer.product.name }} details">
       {% if row.offer.has_photo %}
-        <div class="egg-art product-photo-frame photo-{{ row.offer.photo_fit }}"><img src="{% url 'raynoor_offer_photo' offer_id=row.offer.pk %}?v={{ row.offer.photo_updated_at|date:'U' }}" alt="{{ row.offer.photo_alt|default:row.offer.title|default:row.offer.product.name }}" loading="lazy" decoding="async" width="340" height="340" style="object-position:{{ row.offer.photo_position }}"></div>
+        <div class="egg-art product-photo-frame photo-{{ row.offer.photo_fit }} category-{{ row.offer.product.category }}"><img src="{% url 'raynoor_offer_photo' offer_id=row.offer.pk %}?v={{ row.offer.photo_updated_at|date:'U' }}" alt="{{ row.offer.photo_alt|default:row.offer.title|default:row.offer.product.name }}" loading="lazy" decoding="async" width="340" height="340" style="object-position:{{ row.offer.photo_position }}"></div>
       {% else %}
         <div class="egg-art" role="img" aria-label="{{ row.offer.product.get_category_display }}">{% if row.offer.product.category == "ghee" %}🫙{% elif row.offer.product.category == "honey" %}🍯{% else %}🥚{% endif %}</div>
       {% endif %}
