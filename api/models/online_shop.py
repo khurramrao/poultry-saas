@@ -156,6 +156,13 @@ class OnlineOrderItem(models.Model):
     class Meta:
         ordering = ('id',)
 
+    @property
+    def pack_label(self):
+        category = getattr(self.product, 'category', '')
+        if category == 'egg':
+            return f'{self.pack_size} eggs'
+        return f'{self.pack_size} jar' if self.pack_size == 1 else f'{self.pack_size} jars'
+
 class OnlineOrderItemSource(models.Model):
     """Physical SKU mix selected at packing, before the final POS invoice.
 

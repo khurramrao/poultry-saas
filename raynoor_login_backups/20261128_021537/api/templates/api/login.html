@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - RN Organic Farm</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+        }
+
+        .login-box {
+            width: 360px;
+            margin: 100px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        label {
+            font-weight: bold;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0 18px 0;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #27ae60;
+            border: none;
+            color: white;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #219150;
+        }
+
+        .error {
+            color: red;
+            text-align: center;
+        }
+
+        .home-link {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .home-link a {
+            color: #2c3e50;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="login-box">
+    <h2>RN Organic Farm</h2>
+
+    {% if form.errors %}
+        <p class="error">Invalid username or password</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+
+        <label>Username</label>
+        {{ form.username }}
+
+        <label>Password</label>
+        {{ form.password }}
+
+        <button type="submit">Login</button>
+    </form>
+
+    <div class="home-link">
+        <a href="{% url 'home' %}">Back to Home</a>
+    </div>
+</div>
+
+</body>
+</html>

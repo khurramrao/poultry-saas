@@ -151,3 +151,7 @@ DATABASES = {
     )
 }
 
+# RAYNOOR_CASE_INSENSITIVE_LOGIN
+AUTHENTICATION_BACKENDS = [
+    'api.auth_backends.UniqueCaseInsensitiveUsernameBackend',
+]

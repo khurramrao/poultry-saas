@@ -17,6 +17,7 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import TemplateView
 from django.contrib.auth import views as auth_views
 from api.views.auth import FarmLoginView
 from api.views.home import home
@@ -29,6 +30,7 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', home, name='home'),
+    path('farm/', TemplateView.as_view(template_name='api/farm_original.html'), name='raynoor_farm_original'),
     path('goats-qurbani/', public_pages.goats_qurbani, name='raynoor_goats_public'),
     path('poultry-eggs/', public_pages.poultry_eggs, name='raynoor_poultry_public'),
     path('smart-farming/', public_pages.smart_farming, name='raynoor_technology_public'),

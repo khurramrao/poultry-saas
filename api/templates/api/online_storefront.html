@@ -1,14 +1,15 @@
 {% extends 'api/online_base.html' %}{% load humanize %}
-{% block page_title %}Eggs, Desi Ghee & Honey in Lahore · RayNoor Organic Farms{% endblock %}
+{% block page_title %}RayNoor Farm Products in Lahore · RayNoor Organic Farms{% endblock %}
 {% block body %}
 <style>
   .product-card-link { display:block; color:inherit; text-decoration:none; }
   .product-card-link:hover h3,.product-card-link:focus-visible h3 { color:#18774c; text-decoration:underline; }
   .product-card-link:focus-visible { outline:3px solid #178855; outline-offset:3px; border-radius:12px; }
-  /* All product cards use the same image height, including the emoji placeholder. */
   .shop-section .card > .egg-art {
-    height: 205px;
-    border-radius: 13px;
+    min-height: 220px;
+    aspect-ratio: 1 / 1;
+    height: auto;
+    border-radius: 16px;
   }
   .shop-section .card {
     display: flex;
@@ -17,17 +18,16 @@
   .shop-section .card form {
     margin-top: auto;
   }
-  /* Override the shared .egg-art grid styles to prevent a full-image photo
-     from extending beyond its fixed-size frame and being clipped. */
   .product-photo-frame {
     display: flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
     overflow: hidden;
-    background: linear-gradient(140deg, #edf3e6, #fbfaf4);
+    background: linear-gradient(140deg, #f3f7ef, #fefcf7);
+    border: 1px solid #e2ebe2;
   }
-  .product-photo-frame.photo-contain { padding: 12px; }
+  .product-photo-frame.photo-contain { padding: 8px; }
   .product-photo-frame.photo-cover { padding: 0; }
   .product-photo-frame img {
     display: block;
@@ -38,16 +38,18 @@
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
+    filter: drop-shadow(0 12px 18px rgba(20, 60, 44, 0.08));
   }
   .product-photo-frame.photo-cover img { object-fit: cover; }
+  .store-category-pill { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:800; color:#2d6b4c; letter-spacing:.03em; text-transform:uppercase; }
   @media (max-width: 600px) {
-    .shop-section .card > .egg-art { height: 190px; }
+    .shop-section .card > .egg-art { min-height: 190px; }
   }
 </style>
 <section class="hero" aria-labelledby="store-title">
   <div class="eyebrow">From RayNoor farms · Lahore delivery</div>
-  <h1 id="store-title">Fresh eggs, desi ghee and honey, delivered to your door.</h1>
-  <p class="lead">Order your favorite RayNoor essentials in minutes. Guest checkout is welcome—no account or SMS verification required.</p>
+  <h1 id="store-title">Fresh farm products for your home — eggs, desi ghee, honey and more.</h1>
+  <p class="lead">Order your favorite RayNoor products in minutes. Guest checkout is welcome—no account or SMS verification required.</p>
   <div class="shop-minimum-note"><strong>Minimum order: Rs 1,000 in products.</strong> Mix eggs, ghee and honey to reach the minimum. Delivery fee is calculated separately for your Lahore area.</div>
   <div class="hero-actions"><a class="button" href="#shop-products">Shop products <span aria-hidden="true">→</span></a><a class="button outline" href="{% url 'raynoor_cart' %}">View cart{% if cart_count %} ({{ cart_count }}){% endif %}</a></div>
   <div class="hero-chips"><span class="chip">✓ Lahore only</span><span class="chip">✓ Secure packing</span><span class="chip">✓ Cash on delivery</span></div>
@@ -55,19 +57,20 @@
 </section>
 {% if not zones_active %}<div class="notice" role="status">Lahore delivery zones are being configured. You can browse the store, but checkout will become available after delivery areas and charges are activated.</div>{% endif %}
 <section class="shop-section" id="shop-products" aria-labelledby="shop-heading">
-  <div class="section-heading"><h2 id="shop-heading">Shop RayNoor essentials</h2><span class="muted">Prices and availability update from RayNoor Retail POS.</span></div>
+  <div class="section-heading"><h2 id="shop-heading">Shop RayNoor products</h2><span class="muted">Prices and availability update from RayNoor Retail POS.</span></div>
   <div class="cards">
   {% for row in products %}
     <article class="card">
       <a class="product-card-link" href="{% url 'raynoor_product_detail' offer_id=row.offer.id %}" aria-label="View {{ row.offer.title|default:row.offer.product.name }} details">
       {% if row.offer.has_photo %}
-        <div class="egg-art product-photo-frame photo-{{ row.offer.photo_fit }}"><img src="{% url 'raynoor_offer_photo' offer_id=row.offer.pk %}?v={{ row.offer.photo_updated_at|date:'U' }}" alt="{{ row.offer.photo_alt|default:row.offer.title|default:row.offer.product.name }}" loading="lazy" decoding="async" width="340" height="176" style="object-position:{{ row.offer.photo_position }}"></div>
+        <div class="egg-art product-photo-frame photo-{{ row.offer.photo_fit }}"><img src="{% url 'raynoor_offer_photo' offer_id=row.offer.pk %}?v={{ row.offer.photo_updated_at|date:'U' }}" alt="{{ row.offer.photo_alt|default:row.offer.title|default:row.offer.product.name }}" loading="lazy" decoding="async" width="340" height="340" style="object-position:{{ row.offer.photo_position }}"></div>
       {% else %}
         <div class="egg-art" role="img" aria-label="{{ row.offer.product.get_category_display }}">{% if row.offer.product.category == "ghee" %}🫙{% elif row.offer.product.category == "honey" %}🍯{% else %}🥚{% endif %}</div>
       {% endif %}
+      <div class="store-category-pill" style="margin-top:14px">{{ row.offer.product.get_category_display }}</div>
       <h3>{{ row.offer.title|default:row.offer.product.name }}</h3>
       </a>
-      <p class="muted small">{{ row.offer.pack_label }} · {{ row.offer.product.name }}{% if not row.offer.product.is_egg %} · {{ row.offer.product.size_label }}{% endif %}</p>
+      <p class="muted small">{{ row.offer.pack_label }}{% if not row.offer.product.is_egg and row.offer.product.size_label %} · {{ row.offer.product.size_label }}{% endif %}</p>
       <div class="line" style="margin:18px 0"><span class="price num">Rs {{ row.offer.price_per_pack|floatformat:0|intcomma }}</span>{% if row.stock_packs %}<span class="tag">In stock</span>{% else %}<span class="disabled-note">Out of stock</span>{% endif %}</div>
       <form method="post" action="{% url 'raynoor_cart_update' %}">{% csrf_token %}
         <input type="hidden" name="offer_id" value="{{ row.offer.id }}">
@@ -76,7 +79,7 @@
       </form>
     </article>
   {% empty %}
-    <div class="card empty-state"><div class="egg-art" aria-hidden="true">🥚</div><h3>Our RayNoor products are being prepared</h3><p class="muted">We're confirming today's product prices and Lahore delivery availability. Please return shortly.</p><div style="display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:18px"><a class="button outline" href="/">Back to Home</a><a class="button alt" href="{% url 'raynoor_cart' %}">View Cart</a></div></div>
+    <div class="card empty-state"><div class="egg-art" aria-hidden="true">🛍️</div><h3>Our RayNoor products are being prepared</h3><p class="muted">We're confirming today's product prices and Lahore delivery availability. Please return shortly.</p><div style="display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:18px"><a class="button outline" href="/">Back to Home</a><a class="button alt" href="{% url 'raynoor_cart' %}">View Cart</a></div></div>
   {% endfor %}
   </div>
 </section>

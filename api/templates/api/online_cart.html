@@ -20,7 +20,7 @@
     {% if subtotal < 1000 %}<a class="button" style="width:100%;text-align:center" href="{% url 'raynoor_store' %}#shop-products">Add more products to cart →</a>{% else %}<a class="button" style="width:100%" href="{% url 'raynoor_checkout' %}">Proceed to checkout <span aria-hidden="true">→</span></a>{% endif %}</aside>
 </div>
 {% else %}
-<div class="card empty-state"><div class="egg-art" aria-hidden="true">🛒</div><h3>Your cart is empty</h3><p class="muted">Choose a pack of RayNoor essentials to get started.</p><a class="button" href="{% url 'raynoor_store' %}">Shop fresh eggs <span aria-hidden="true">→</span></a></div>
+<div class="card empty-state"><div class="egg-art" aria-hidden="true">🛒</div><h3>Your cart is empty</h3><p class="muted">Choose your RayNoor products to get started.</p><a class="button" href="{% url 'raynoor_store' %}">Shop products <span aria-hidden="true">→</span></a></div>
 {% endif %}<script>
 (function () {
   const gap=document.getElementById('cart-minimum-gap');

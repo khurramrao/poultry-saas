@@ -35,7 +35,7 @@
   <aside class="card" aria-label="Order charges and documents">
     <h2 style="font-size:21px;margin:0 0 12px">Order summary</h2>
     {% for item in order.items.all %}
-      <div class="summary-row"><span>{{ item.pack_count }} × {{ item.product_name }} · {{ item.pack_size }} eggs</span><b>Rs {{ item.line_total|floatformat:0|intcomma }}</b></div>
+      <div class="summary-row"><span>{{ item.pack_count }} × {{ item.product_name }} · {{ item.pack_label }}</span><b>Rs {{ item.line_total|floatformat:0|intcomma }}</b></div>
     {% endfor %}
     <div class="summary-row"><span>Delivery</span><b>Rs {{ order.delivery_fee|floatformat:0|intcomma }}</b></div>
     <div class="summary-row"><b>Total order amount</b><b>Rs {{ order.total|floatformat:0|intcomma }}</b></div>

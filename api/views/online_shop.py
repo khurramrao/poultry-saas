@@ -64,7 +64,7 @@ def offer_photo(request, offer_id):
         raise Http404('Photo not found')
     response = HttpResponse(bytes(offer.photo_data), content_type='image/jpeg')
     response['X-Content-Type-Options'] = 'nosniff'
-    response['Content-Disposition'] = 'inline; filename="raynoor-egg-pack.jpg"'
+    response['Content-Disposition'] = 'inline; filename="raynoor-product.jpg"'
     response['Cache-Control'] = 'public, max-age=300' if public else 'private, no-store'
     return response
 
@@ -266,8 +266,8 @@ def _order_status_context(order):
     cancelled = order.status in (OnlineOrder.CANCELLED, OnlineOrder.EXPIRED) or expired
     descriptions = {
         OnlineOrder.RESERVED: 'We have received your order and are checking availability. We will confirm it shortly.',
-        OnlineOrder.CONFIRMED: 'Your order is confirmed. We are preparing your eggs for packing.',
-        OnlineOrder.PACKED: 'Your eggs are packed and ready for delivery.',
+        OnlineOrder.CONFIRMED: 'Your order is confirmed. We are preparing your products for packing.',
+        OnlineOrder.PACKED: 'Your products are packed and ready for delivery.',
         OnlineOrder.DISPATCHED: 'Your order is on its way to your Lahore address.',
         OnlineOrder.DELIVERED: 'Your order has been delivered. Thank you for choosing RayNoor.',
     }
