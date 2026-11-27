@@ -31,6 +31,8 @@ DEBUG = "True"
 ALLOWED_HOSTS =  ['*']
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://raynoororganics.com",
+    "https://www.raynoororganics.com",
     "https://web-production-ef92f.up.railway.app",
 ]
 
